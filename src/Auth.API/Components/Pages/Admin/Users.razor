@@ -5,7 +5,8 @@
 
 <PageTitle>Brugere (admin)</PageTitle>
 
-<h1 class="h3 mb-3">Brugere</h1>
+<div class="merc-page">
+<h1>Brugere</h1>
 
 @if (_rows is null)
 {
@@ -35,6 +36,7 @@ else
         </tbody>
     </table>
 }
+</div>
 
 @code {
     private List<Row>? _rows;

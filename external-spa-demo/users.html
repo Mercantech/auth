@@ -4,51 +4,37 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Brugere — Mercantec demo</title>
-  <style>
-    :root { font-family: system-ui, sans-serif; background: #0f1419; color: #e7e9ea; }
-    body { max-width: 56rem; margin: 2rem auto; padding: 0 1rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid #38444d; }
-    th { color: #8b98a5; font-weight: 600; }
-    a { color: #1d9bf0; }
-    nav { margin-bottom: 1.5rem; }
-    nav a { margin-right: 1rem; }
-    .nav-logout {
-      margin-left: 0.5rem;
-      padding: 0.3rem 0.65rem;
-      font-size: 0.85rem;
-      background: transparent;
-      border: 1px solid #38444d;
-      color: #1d9bf0;
-      border-radius: 999px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .nav-logout:hover { background: #1a2332; color: #e7e9ea; }
-  </style>
+  <link rel="stylesheet" href="demo-theme.css" />
 </head>
-<body>
-  <nav>
-    <a href="index.html">Forside</a>
-    <a href="jwt.html">JWT</a>
-    <a href="callback.html">Token JSON</a>
-    <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
-  </nav>
-  <h1>Brugere i auth-databasen</h1>
-  <p id="status">Henter…</p>
-  <table id="users-table" hidden>
-    <thead>
-      <tr>
-        <th>Navn</th>
-        <th>E-mail</th>
-        <th>Linkede providers</th>
-        <th>Tilknyttede mails (kind)</th>
-        <th>Lokalt login</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p><small>Kræver <code>Authorization: Bearer</code> med rolle <strong>Admin</strong>.</small></p>
+<body class="demo">
+  <div class="demo-wrap demo-wrap--wide">
+    <nav>
+      <a href="index.html">Forside</a>
+      <a href="jwt.html">JWT</a>
+      <a href="callback.html">Token JSON</a>
+      <a href="appsettings-to-env.html">appsettings → .env</a>
+      <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+    </nav>
+    <h1>Brugere i auth-databasen</h1>
+    <p id="status">Henter…</p>
+    <table id="users-table" hidden>
+      <thead>
+        <tr>
+          <th>Navn</th>
+          <th>E-mail</th>
+          <th>Linkede providers</th>
+          <th>Tilknyttede mails (kind)</th>
+          <th>Lokalt login</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p><small>Kræver <code>Authorization: Bearer</code> med rolle <strong>Admin</strong>.</small></p>
+    <p class="demo-platform-note" role="note">
+      Demo ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
+  </div>
 
   <script src="shared-config.js"></script>
   <script src="logout.js"></script>

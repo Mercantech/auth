@@ -4,86 +4,54 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mercantec — ekstern login-test</title>
-  <style>
-    :root { font-family: system-ui, sans-serif; background: #0f1419; color: #e7e9ea; }
-    body { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-    a, .btn { color: #1d9bf0; }
-    .btn {
-      display: inline-block; margin-top: 0.75rem; margin-right: 0.5rem; padding: 0.65rem 1.2rem;
-      background: #1d9bf0; color: #fff; text-decoration: none; border-radius: 999px;
-      border: none; cursor: pointer; font-size: 1rem;
-    }
-    .btn:hover { filter: brightness(1.08); }
-    .btn-secondary {
-      background: transparent;
-      color: #8b98a5;
-      border: 1px solid #38444d;
-    }
-    .btn-secondary:hover { background: #1a2332; color: #e7e9ea; filter: none; }
-    code { background: #263340; padding: 0.1em 0.35em; border-radius: 4px; word-break: break-all; }
-    .card { background: #1a2332; border-radius: 12px; padding: 1.25rem; margin-top: 1rem; }
-    .card h2 { font-size: 1rem; margin: 0 0 0.75rem; color: #c8d0d8; font-weight: 600; }
-    small { color: #8b98a5; }
-    nav { margin-bottom: 1.25rem; }
-    nav a { margin-right: 1rem; }
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem;
-    }
-    .status-badge::before {
-      content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
-    }
-    .status-out::before { background: #8b98a5; }
-    .status-out { color: #8b98a5; }
-    .status-in::before { background: #00ba7c; box-shadow: 0 0 8px rgba(0, 186, 124, 0.5); }
-    .status-in { color: #b8f5d4; }
-    .status-warn { font-size: 0.85rem; color: #ffb020; margin: 0.5rem 0 0; }
-    .user-facts { list-style: none; margin: 0; padding: 0; font-size: 0.95rem; line-height: 1.6; }
-    .user-facts li { margin-bottom: 0.35rem; }
-    .user-facts strong { color: #8b98a5; font-weight: 600; margin-right: 0.35rem; }
-    .divider { height: 1px; background: #38444d; margin: 1rem 0; opacity: 0.7; }
-    .muted { color: #8b98a5; font-size: 0.875rem; margin-top: 0.5rem; }
-  </style>
+  <link rel="stylesheet" href="demo-theme.css" />
 </head>
-<body>
-  <nav>
-    <a href="jwt.html">JWT &amp; signatur</a>
-    <a href="users.html">Brugere (admin)</a>
-    <a href="callback.html">Sidste token</a>
-  </nav>
-  <h1>Ekstern app (anden port)</h1>
-  <p>Denne side kører for sig selv og logger ind via jeres <strong>Mercantec Auth</strong> med OAuth2 + PKCE.</p>
+<body class="demo">
+  <div class="demo-wrap">
+    <nav>
+      <a href="jwt.html">JWT &amp; signatur</a>
+      <a href="users.html">Brugere (admin)</a>
+      <a href="callback.html">Sidste token</a>
+      <a href="appsettings-to-env.html">appsettings → .env</a>
+    </nav>
+    <h1>Ekstern app (anden port)</h1>
+    <p class="lead">Denne side kører for sig selv og logger ind via jeres <strong>Mercantec Auth</strong> med OAuth2 + PKCE.</p>
 
-  <div class="card">
-    <h2>Forbindelse</h2>
-    <p><strong>Auth-base:</strong> <code id="show-base"></code></p>
-    <p><strong>Client id:</strong> <code id="show-client"></code></p>
-    <p><strong>Callback:</strong> <code id="show-cb"></code></p>
+    <div class="card">
+      <h2>Forbindelse</h2>
+      <p><strong>Auth-base:</strong> <code id="show-base"></code></p>
+      <p><strong>Client id:</strong> <code id="show-client"></code></p>
+      <p><strong>Callback:</strong> <code id="show-cb"></code></p>
 
-    <div class="divider"></div>
+      <div class="divider"></div>
 
-    <div id="state-guest">
-      <p class="status-badge status-out" id="badge-guest">Ikke logget ind i denne browser-session</p>
-      <p class="muted">Der ligger intet access token i <code>sessionStorage</code>. Log ind for at kalde API’er med Bearer-JWT.</p>
-      <button type="button" class="btn" id="btn-login">Log ind med Mercantec</button>
+      <div id="state-guest">
+        <p class="status-badge status-out" id="badge-guest">Ikke logget ind i denne browser-session</p>
+        <p class="muted">Der ligger intet access token i <code>sessionStorage</code>. Log ind for at kalde API’er med Bearer-JWT.</p>
+        <button type="button" class="btn" id="btn-login">Log ind med Mercantec</button>
+      </div>
+
+      <div id="state-user" hidden>
+        <p class="status-badge status-in" id="badge-user">Logget ind</p>
+        <p class="status-warn" id="token-expired-hint" hidden>Advarsel: JWT ser ud til at være udløbet — API-kald kan fejle. Log ind igen for et nyt token.</p>
+        <ul class="user-facts" id="user-facts">
+          <li><strong>Navn:</strong> <span id="u-name">—</span></li>
+          <li><strong>E-mail:</strong> <span id="u-email">—</span></li>
+          <li><strong>Logget ind med:</strong> <span id="u-method">—</span></li>
+          <li><strong>Roller:</strong> <span id="u-roles">—</span></li>
+          <li><strong>Bruger-ID (sub):</strong> <code id="u-sub">—</code></li>
+        </ul>
+        <button type="button" class="btn btn-secondary" id="btn-logout">Log ud</button>
+      </div>
     </div>
 
-    <div id="state-user" hidden>
-      <p class="status-badge status-in" id="badge-user">Logget ind</p>
-      <p class="status-warn" id="token-expired-hint" hidden>Advarsel: JWT ser ud til at være udløbet — API-kald kan fejle. Log ind igen for et nyt token.</p>
-      <ul class="user-facts" id="user-facts">
-        <li><strong>Navn:</strong> <span id="u-name">—</span></li>
-        <li><strong>E-mail:</strong> <span id="u-email">—</span></li>
-        <li><strong>Logget ind med:</strong> <span id="u-method">—</span></li>
-        <li><strong>Roller:</strong> <span id="u-roles">—</span></li>
-        <li><strong>Bruger-ID (sub):</strong> <code id="u-sub">—</code></li>
-      </ul>
-      <button type="button" class="btn btn-secondary" id="btn-logout">Log ud</button>
-    </div>
+    <p><small>Efter login: se <a href="jwt.html">JWT</a> (indhold + JWKS-verifikation). <a href="users.html">Brugerliste</a> kræver Admin-rolle.</small></p>
+    <p><small>Azure: redirect <code>/signin-microsoft</code> på auth-host — se README.</small></p>
+    <p class="demo-platform-note" role="note">
+      Demo-SPA ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      Kontakt: <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
   </div>
-
-  <p><small>Efter login: se <a href="jwt.html">JWT</a> (indhold + JWKS-verifikation). <a href="users.html">Brugerliste</a> kræver Admin-rolle.</small></p>
-  <p><small>Azure: redirect <code>/signin-microsoft</code> på auth-host — se README.</small></p>
 
   <script src="shared-config.js"></script>
   <script src="session-jwt.js"></script>
@@ -99,7 +67,6 @@
 
       const elGuest = document.getElementById("state-guest");
       const elUser = document.getElementById("state-user");
-      const token = sessionStorage.getItem("mercantec_access_token");
 
       function renderAuthState() {
         const t = sessionStorage.getItem("mercantec_access_token");

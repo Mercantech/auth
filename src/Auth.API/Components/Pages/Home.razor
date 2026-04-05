@@ -5,44 +5,98 @@
 
 <PageTitle>Mercantec Auth</PageTitle>
 
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <AuthorizeView>
-            <Authorized Context="authState">
-                @{
-                    var u = authState.User;
-                    var method = u.FindFirstValue(MercantecAuthClaims.LoginMethod);
-                    var roles = u.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-                }
-                <div class="card border-success mb-4 shadow-sm">
-                    <div class="card-body">
-                        <h2 class="h5 card-title text-success mb-3">Du er logget ind</h2>
-                        <p class="mb-1"><strong>Navn:</strong> @(u.Identity?.Name ?? "—")</p>
-                        <p class="mb-1"><strong>Logget ind med:</strong> @LoginMethodDa(method)</p>
-                        <p class="mb-3"><strong>Roller:</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
-                        <p class="small text-muted mb-2">Bruger-ID: <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
-                        <a class="btn btn-outline-danger btn-sm" href="/signout">Log ud</a>
-                    </div>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="alert alert-secondary border mb-4 d-flex flex-wrap align-items-center gap-2">
-                    <span><strong>Ikke logget ind</strong> i denne browser — OAuth redirecter til login når en app starter flowet.</span>
-                    <a class="btn btn-primary btn-sm" href="/Account/Login">Log ind</a>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
+<div class="home">
+    <section class="home-hero">
+        <div class="home-hero__inner">
+            <p class="home-eyebrow">Identity provider · skole &amp; apps</p>
+            <h1>Ét sted at logge ind</h1>
+            <p class="home-lead">
+                Central udsteder til jeres SPAs og API’er: <strong>OAuth&nbsp;2.0</strong> med authorization code og
+                <strong>PKCE</strong>, korte <strong>JWT</strong> (RS256) og refresh tokens.
+            </p>
+            <p class="home-attribution" role="note">
+                Platform ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle auth-tjeneste.
+                Spørgsmål: <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+            </p>
+        </div>
+    </section>
 
-        <h1 class="h2 mb-3">Central login</h1>
-        <p class="lead">OAuth 2.0 authorization code med PKCE, JWT (RS256) og refresh tokens.</p>
-        <ul>
-            <li><code>GET /.well-known/jwks.json</code> — offentlig nøgle til validering</li>
-            <li><code>GET /.well-known/mercantec-auth.json</code> — integrations-manifest (til nye apps / AI)</li>
-            <li><code>GET /oauth/authorize</code> — start login (redirect til login hvis ingen session)</li>
-            <li><code>POST /oauth/token</code> — byt <code>code</code> til access/refresh</li>
-            <li><code>GET /health</code></li>
-        </ul>
-        <p>I udvikling oprettes en demo-client <code>demo</code> med callback på localhost (port 5155 og 8080). Brug rigtig PKCE (S256) — se <code>docs/CLIENT-INTEGRATION.md</code>.</p>
+    <div class="home-grid">
+        <aside class="home-aside">
+            <AuthorizeView>
+                <Authorized Context="authState">
+                    @{
+                        var u = authState.User;
+                        var method = u.FindFirstValue(MercantecAuthClaims.LoginMethod);
+                        var roles = u.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                    }
+                    <div class="home-card home-card--session home-card--ok">
+                        <p class="home-card__title-sm">Session</p>
+                        <div class="home-pill home-pill--in">Logget ind</div>
+                        <p class="home-fact"><strong>Navn</strong> @(u.Identity?.Name ?? "—")</p>
+                        <p class="home-fact"><strong>Metode</strong> @LoginMethodDa(method)</p>
+                        <p class="home-fact"><strong>Roller</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
+                        <p class="home-fact"><strong>Bruger-ID</strong> <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
+                        <a class="merc-btn merc-btn--ghost" href="/signout">Log ud</a>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="home-card home-card--session">
+                        <p class="home-card__title-sm">Session</p>
+                        <div class="home-pill">Ikke logget ind</div>
+                        <p class="home-note" style="margin-top:0">
+                            Apps der starter OAuth sendes hertil eller til <code>/Account/Login</code> når der mangler session.
+                        </p>
+                        <a class="merc-btn merc-btn--primary" href="/Account/Login">Log ind</a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </aside>
+
+        <div class="home-main">
+            <h2 class="home-section-title">Endepunkter</h2>
+            <ul class="home-endpoints" role="list">
+                <li class="home-endpoint">
+                    <span class="home-endpoint__method home-endpoint__method--get">GET</span>
+                    <div>
+                        <p class="home-endpoint__path"><code>/.well-known/jwks.json</code></p>
+                        <p class="home-endpoint__desc">Offentlige nøgler til RS256-verifikation af access tokens.</p>
+                    </div>
+                </li>
+                <li class="home-endpoint">
+                    <span class="home-endpoint__method home-endpoint__method--get">GET</span>
+                    <div>
+                        <p class="home-endpoint__path"><code>/.well-known/mercantec-auth.json</code></p>
+                        <p class="home-endpoint__desc">Integrations-manifest til nye klienter og værktøjer.</p>
+                    </div>
+                </li>
+                <li class="home-endpoint">
+                    <span class="home-endpoint__method home-endpoint__method--get">GET</span>
+                    <div>
+                        <p class="home-endpoint__path"><code>/oauth/authorize</code></p>
+                        <p class="home-endpoint__desc">Start login-flow (redirect til login uden gyldig cookie-session).</p>
+                    </div>
+                </li>
+                <li class="home-endpoint">
+                    <span class="home-endpoint__method home-endpoint__method--post">POST</span>
+                    <div>
+                        <p class="home-endpoint__path"><code>/oauth/token</code></p>
+                        <p class="home-endpoint__desc">Byt authorization <code>code</code> til access/refresh token (PKCE ved offentlige klienter).</p>
+                    </div>
+                </li>
+                <li class="home-endpoint">
+                    <span class="home-endpoint__method home-endpoint__method--get">GET</span>
+                    <div>
+                        <p class="home-endpoint__path"><code>/health</code></p>
+                        <p class="home-endpoint__desc">Simpelt liveness-check for drift og compose.</p>
+                    </div>
+                </li>
+            </ul>
+            <p class="home-note">
+                I udvikling oprettes en demo-klient <code>demo</code> med callback på localhost (bl.a. port <code>5173</code>).
+                Brug rigtig PKCE (S256) — se <code>docs/CLIENT-INTEGRATION.md</code>.
+            </p>
+        </div>
     </div>
 </div>
 

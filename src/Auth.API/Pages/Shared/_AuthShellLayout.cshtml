@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Mercantec Auth</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/auth-pages.css" asp-append-version="true" />
+</head>
+<body class="auth-body">
+    <div class="auth-page">
+        <header class="auth-topbar">
+            <a class="auth-topbar__brand" href="/">
+                <span class="auth-topbar__mark" aria-hidden="true"></span>
+                Mercantec Auth
+            </a>
+            <a class="auth-topbar__link" href="/">Forside</a>
+        </header>
+        <div class="auth-layout-root">
+            @RenderBody()
+        </div>
+        <footer class="auth-footer">
+            <p class="auth-footer__attrib" role="note">
+                Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle login.
+                <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

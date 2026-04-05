@@ -42,6 +42,13 @@ public class IntegrationManifestController(
         schema_version = "1.0",
         name = "Mercantec Auth",
         purpose = "OAuth 2.0 authorization server med PKCE, JWT (RS256) og refresh tokens til Mercantec-platforme.",
+        platform_attribution = new
+        {
+            maintainer = "MAGS",
+            role = "underviser",
+            contact_email = "mags@mercantec.dk",
+            notice_da = "Denne installation er et undervisningsprojekt ved MAGS og er ikke Mercantecs officielle produktions-login. Kontakt mags@mercantec.dk ved spørgsmål.",
+        },
         email_password_login_enabled = enableEmailPasswordLogin,
         auth_configuration_note = "Auth:EnableEmailPasswordLogin (eller miljøvariabel Auth__EnableEmailPasswordLogin) styrer e-mail/adgangskode på /Account/Login, /Account/Register og POST /signin, /signup.",
         audience_for_this_document = new[]

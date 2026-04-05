@@ -44,6 +44,9 @@ npx --yes serve . -l 5173
 | `callback.html` | Modtager `code`, kalder `/oauth/token`, gemmer tokens i `sessionStorage` |
 | `jwt.html` | Viser JWT header/payload + **RS256-verifikation** mod `/.well-known/jwks.json` (via [jose](https://github.com/panva/jose) fra CDN) |
 | `users.html` | Kalder `GET /api/admin/users-directory` med Bearer — kræver **Admin**-rolle på Mercantec-brugeren |
+| `appsettings-to-env.html` | **appsettings.json → .env**: fladgør nested JSON til `Section__Key` som ASP.NET Core / Docker forventer; kopiér eller download |
+| `appsettings-env.js` | Ren logik til flatten + escaping (bruges af siden ovenfor) |
+| `demo-theme.css` | Fælles visuelt tema for demo-SPA’en (varm “protokol”-stil, Epilogue + Newsreader) |
 | `logout.js` | `mercantecLogout()` — rydder `sessionStorage` og sender browser til `GET /signout` på auth-host med sikker `returnUrl` tilbage til SPA’en |
 | `session-jwt.js` | Hjælpere til at læse JWT-payload i browseren (kun visning): navn, e-mail, `login_method`, roller, `sub`, udløb |
 

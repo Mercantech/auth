@@ -67,14 +67,14 @@ if (!token) {
       });
       const lm = payload.login_method != null ? " <code>login_method</code> = <code>" + payload.login_method + "</code>." : "";
       elVerify.innerHTML =
-        '<span style="color:#00ba7c">Signatur OK</span> — JWT er udstedt af denne backend og issuer/audience stemmer. ' +
+        '<span class="demo-text-ok">Signatur OK</span> — JWT er udstedt af denne backend og issuer/audience stemmer. ' +
         "<code>sub</code> = <code>" +
         (payload.sub ?? "—") +
         "</code>." +
         lm;
     } catch (e) {
       elVerify.innerHTML =
-        '<span style="color:#f4212e">Verifikation fejlede:</span> ' +
+        '<span class="demo-text-err">Verifikation fejlede:</span> ' +
         (e && e.message ? e.message : String(e)) +
         "<br/><small>Tjek at expectedIssuer / expectedAudience i shared-config.js matcher API.</small>";
     }

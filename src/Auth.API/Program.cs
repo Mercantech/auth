@@ -54,6 +54,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddControllers();
+builder.Services.AddRazorPages();
 
 var spaOrigins = builder.Configuration.GetSection("Cors:SpaOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
@@ -93,6 +94,7 @@ app.UseAntiforgery();
 // API og minimal endpoints før Blazor, ellers kan catch-all (MapRazorComponents) fange f.eks. /.well-known/jwks.json.
 app.MapControllers();
 app.MapAccountEndpoints();
+app.MapRazorPages();
 app.MapRazorComponents<Auth.API.Components.App>()
     .AddInteractiveServerRenderMode();
 

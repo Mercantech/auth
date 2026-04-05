@@ -1,42 +1,42 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" href="/">Mercantec Auth</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Menu">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div id="nav" class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item"><a class="nav-link text-dark" href="/">Forside</a></li>
-                        <AuthorizeView Roles="Admin">
-                            <Authorized>
-                                <li class="nav-item"><a class="nav-link text-dark" href="/Admin/Users">Admin: brugere</a></li>
-                            </Authorized>
-                        </AuthorizeView>
-                    </ul>
-                    <ul class="navbar-nav">
-                        <AuthorizeView>
-                            <Authorized>
-                                <li class="nav-item"><a class="nav-link text-dark" href="/signout">Log ud</a></li>
-                            </Authorized>
-                            <NotAuthorized>
-                                <li class="nav-item"><a class="nav-link text-dark" href="/Account/Login">Log ind</a></li>
-                            </NotAuthorized>
-                        </AuthorizeView>
-                    </ul>
-                </div>
+<div class="merc-shell">
+    <header class="merc-shell__header">
+        <nav class="merc-shell__nav" aria-label="Hovednavigation">
+            <a class="merc-shell__brand" href="/">
+                <span class="merc-shell__mark" aria-hidden="true"></span>
+                Mercantec Auth
+            </a>
+            <div class="merc-shell__links">
+                <a href="/">Forside</a>
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <a href="/Admin/Users">Admin · brugere</a>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+            <div class="merc-shell__links merc-shell__links--end">
+                <AuthorizeView>
+                    <Authorized>
+                        <a href="/signout">Log ud</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/Account/Login">Log ind</a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
         </nav>
     </header>
-    <main class="container pb-3">
+    <main class="merc-shell__main">
         @Body
     </main>
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; @DateTime.UtcNow.Year - Mercantec Auth
+    <footer class="merc-shell__footer">
+        <div class="merc-shell__footer-inner">
+            <p class="merc-shell__footer-line">OAuth2 · PKCE · JWT (RS256) · Mercantec Auth</p>
+            <p class="merc-shell__footer-attrib" role="note">
+                Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle produktion.
+                Kontakt: <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+            </p>
         </div>
     </footer>
 </div>

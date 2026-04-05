@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>appsettings → .env — Mercantec demo</title>
+  <link rel="stylesheet" href="demo-theme.css" />
+</head>
+<body class="demo">
+  <div class="demo-wrap demo-wrap--tools">
+    <nav>
+      <a href="index.html">Forside</a>
+      <a href="jwt.html">JWT</a>
+      <a href="users.html">Brugere</a>
+      <a href="callback.html">Token</a>
+      <a href="appsettings-to-env.html"><strong>appsettings → .env</strong></a>
+      <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+    </nav>
+
+    <h1>appsettings.json → .env</h1>
+    <p class="lead">
+      Lim <strong>appsettings</strong> (eller et udsnit) ind og få miljøvariabler i det format <strong>ASP.NET Core</strong> forventer:
+      <code>Section__NestedKey</code> med <strong>dobbelt underscore</strong>. Nyttigt til Docker Compose, Kubernetes secrets eller lokal <code>.env</code>.
+    </p>
+
+    <div id="err-box" class="demo-err-panel" hidden></div>
+    <p id="meta" class="demo-meta" aria-live="polite"></p>
+
+    <div class="demo-toolbar">
+      <button type="button" class="btn" id="btn-convert">Konvertér</button>
+      <button type="button" class="btn btn-secondary" id="btn-sample">Indsæt eksempel (udsnit)</button>
+      <button type="button" class="btn btn-secondary" id="btn-copy" disabled>Kopiér .env</button>
+      <button type="button" class="btn btn-secondary" id="btn-download" disabled>Download .env</button>
+    </div>
+
+    <div class="demo-grid">
+      <div class="demo-field">
+        <label for="input-json">Input (JSON)</label>
+        <textarea id="input-json" spellcheck="false" placeholder='{ "Jwt": { "Issuer": "https://..." } }'></textarea>
+      </div>
+      <div class="demo-field">
+        <label for="output-env">Output (.env)</label>
+        <textarea id="output-env" spellcheck="false" readonly placeholder="Klik «Konvertér» …"></textarea>
+      </div>
+    </div>
+
+    <div class="demo-teach-block">
+      <h2>Sådan bruges det</h2>
+      <ul>
+        <li><code>Jwt:Issuer</code> bliver til <code>Jwt__Issuer</code>.</li>
+        <li>Lister som <code>Cors:SpaOrigins</code> bliver <code>Cors__SpaOrigins__0</code>, <code>Cors__SpaOrigins__1</code>, …</li>
+        <li>I Docker Compose kan variabler fra en <code>.env</code>-fil automatisk injiceres i containeren.</li>
+        <li><strong>Commit ikke</strong> rigtige secrets — brug denne side lokalt og hold produktion i en hemmeligheds-store.</li>
+      </ul>
+    </div>
+    <p class="demo-platform-note" role="note">
+      Demo ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
+  </div>
+
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script src="appsettings-env.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+
+    const input = document.getElementById("input-json");
+    const output = document.getElementById("output-env");
+    const errBox = document.getElementById("err-box");
+    const meta = document.getElementById("meta");
+    const btnCopy = document.getElementById("btn-copy");
+    const btnDownload = document.getElementById("btn-download");
+
+    const sample = {
+      Jwt: {
+        Issuer: "https://auth.example.com",
+        Audience: "mercantec-apps",
+        AccessTokenExpiryMinutes: 15,
+      },
+      Auth: { EnableEmailPasswordLogin: false },
+      Cors: { SpaOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"] },
+      ConnectionStrings: {
+        DefaultConnection: "Host=db;Database=auth;Username=auth;Password=***",
+      },
+    };
+
+    function setError(msg) {
+      if (msg) {
+        errBox.hidden = false;
+        errBox.textContent = msg;
+      } else {
+        errBox.hidden = true;
+        errBox.textContent = "";
+      }
+    }
+
+    function runConvert() {
+      setError("");
+      const result = convertAppsettingsJsonToEnv(input.value);
+      if (!result.ok) {
+        output.value = "";
+        btnCopy.disabled = true;
+        btnDownload.disabled = true;
+        meta.textContent = "";
+        setError("JSON-fejl: " + result.error);
+        return;
+      }
+      output.value = result.env;
+      btnCopy.disabled = result.pairs.length === 0;
+      btnDownload.disabled = result.pairs.length === 0;
+      meta.textContent =
+        result.pairs.length === 0
+          ? (result.warning || "Ingen nøgler.")
+          : result.pairs.length + " variabel(er) — sorteret alfabetisk.";
+    }
+
+    document.getElementById("btn-convert").addEventListener("click", runConvert);
+    document.getElementById("btn-sample").addEventListener("click", () => {
+      input.value = JSON.stringify(sample, null, 2);
+      runConvert();
+    });
+    btnCopy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(output.value);
+        meta.textContent = "Kopieret til udklipsholder.";
+      } catch {
+        meta.textContent = "Kunne ikke kopiere — markér teksten manuelt.";
+      }
+    });
+    btnDownload.addEventListener("click", () => {
+      const blob = new Blob([output.value], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "env-from-appsettings.env";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      meta.textContent = "Download startet (.env-fil).";
+    });
+  </script>
+</body>
+</html>

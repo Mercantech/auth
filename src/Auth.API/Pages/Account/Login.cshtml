@@ -1,0 +1,70 @@
+@page "/Account/Login"
+@model LoginModel
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Log ind";
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+}
+
+<div class="auth-card">
+    <div class="auth-brand">
+        <div class="auth-brand__mark" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4L6 9v14l10 5 10-5V9L16 4z" stroke="white" stroke-width="1.8" stroke-linejoin="round" fill="rgba(255,255,255,0.15)" />
+                <path d="M16 11v10M11 13.5l10 5M21 13.5l-10 5" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+        </div>
+        <div>
+            <h1 class="auth-brand__title">Mercantec Auth</h1>
+            <p class="auth-brand__subtitle">Sikker adgang til dine Mercantec-apps</p>
+        </div>
+    </div>
+
+    <h2 class="auth-headline">Log ind</h2>
+    <p class="auth-lead">@(Model.LocalLoginEnabled
+        ? "Vælg en udbyder eller brug din Mercantec e-mail — ét sted for hele skolen."
+        : "Vælg en udbyder nedenfor — e-mail og adgangskode er slået fra i denne installation.")</p>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
+    }
+
+    @if (!Model.AnyOAuthProvider && !Model.LocalLoginEnabled)
+    {
+        <div class="auth-alert" role="alert">Ingen login-metode er aktiveret (hverken OAuth eller e-mail). Tjek serverkonfiguration.</div>
+    }
+
+    @if (Model.AnyOAuthProvider)
+    {
+        @await Html.PartialAsync("_OAuthProviderLinks", Model)
+    }
+
+    @if (Model.AnyOAuthProvider && Model.LocalLoginEnabled)
+    {
+        <div class="auth-divider"><span>eller</span></div>
+    }
+
+    @if (Model.LocalLoginEnabled)
+    {
+        <form method="post" action="/signin">
+            <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <div class="auth-field">
+                <label class="auth-label" for="email">E-mail</label>
+                <input id="email" name="email" class="auth-input" type="email" autocomplete="username" placeholder="dig@eksempel.dk" required />
+            </div>
+            <div class="auth-field">
+                <label class="auth-label" for="password">Adgangskode</label>
+                <input id="password" name="password" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="auth-submit">Log ind med e-mail</button>
+        </form>
+    }
+
+    @if (Model.LocalLoginEnabled)
+    {
+        <p class="auth-footer-link">Har du ikke en konto? <a href="@Model.RegisterLink">Opret konto</a></p>
+    }
+</div>

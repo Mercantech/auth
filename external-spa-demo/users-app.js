@@ -20,7 +20,7 @@ if (!token) {
       }
       if (res.status === 403) {
         status.innerHTML =
-          '<span style="color:#ffad1f">403 — dit JWT har ikke rolle Admin.</span> Sæt <code>Bootstrap:AdminEmail</code> til din e-mail og opret bruger igen, eller tildel Admin i databasen.';
+          '<span class="demo-warn">403 — dit JWT har ikke rolle Admin.</span> Sæt <code>Bootstrap:AdminEmail</code> til din e-mail og opret bruger igen, eller tildel Admin i databasen.';
         return;
       }
       if (!res.ok) {

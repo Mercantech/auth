@@ -1,0 +1,529 @@
+/* Mercantec Auth-host shell — samme “varm papir”-stemning som ekstern demo, anden accent + layout */
+:root {
+  --merc-bg0: #cfc8bb;
+  --merc-bg1: #e3ddd2;
+  --merc-ink: #161412;
+  --merc-muted: #524a42;
+  --merc-card: #f7f4ed;
+  --merc-card-edge: #141210;
+  --merc-accent: #2a4d5c;
+  --merc-accent-hover: #1f3a46;
+  --merc-accent-soft: rgba(42, 77, 92, 0.12);
+  --merc-warm-pop: #c45c3e;
+  --merc-ok: #2a5c45;
+  --merc-ok-bg: rgba(42, 92, 69, 0.1);
+  --merc-radius: 4px;
+  --merc-font-display: "Syne", system-ui, sans-serif;
+  --merc-font-ui: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--merc-font-ui);
+  color: var(--merc-ink);
+  line-height: 1.6;
+  background: var(--merc-bg0);
+  background-image:
+    linear-gradient(145deg, var(--merc-bg1) 0%, transparent 45%),
+    linear-gradient(320deg, rgba(42, 77, 92, 0.07) 0%, transparent 40%),
+    linear-gradient(200deg, rgba(196, 92, 62, 0.05) 0%, transparent 35%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+}
+
+.merc-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.merc-shell__header {
+  border-bottom: 3px solid var(--merc-card-edge);
+  background: rgba(247, 244, 237, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.merc-shell__nav {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.merc-shell__brand {
+  font-family: var(--merc-font-display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.03em;
+  color: var(--merc-ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.merc-shell__brand:hover {
+  color: var(--merc-accent);
+}
+
+.merc-shell__mark {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  background: linear-gradient(135deg, var(--merc-accent) 0%, #1a3340 100%);
+  box-shadow: 3px 3px 0 var(--merc-card-edge);
+}
+
+.merc-shell__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1.25rem;
+  flex: 1;
+}
+
+.merc-shell__links a {
+  font-family: var(--merc-font-ui);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--merc-ink);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 0.15rem;
+}
+
+.merc-shell__links a:hover {
+  color: var(--merc-accent);
+  border-bottom-color: var(--merc-warm-pop);
+}
+
+.merc-shell__links--end {
+  margin-left: auto;
+}
+
+.merc-shell__main {
+  flex: 1;
+}
+
+.merc-shell__footer {
+  border-top: 2px solid var(--merc-card-edge);
+  background: rgba(247, 244, 237, 0.65);
+  padding: 1rem 1.25rem;
+  font-size: 0.8rem;
+  color: var(--merc-muted);
+}
+
+.merc-shell__footer-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.merc-shell__footer-line {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: var(--merc-ink);
+}
+
+.merc-shell__footer-attrib {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  max-width: 40rem;
+}
+
+.merc-shell__footer-attrib a {
+  color: var(--merc-accent);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.merc-shell__footer-attrib a:hover {
+  border-bottom-color: var(--merc-warm-pop);
+}
+
+/* ——— Forside ——— */
+.home {
+  padding-bottom: 3rem;
+}
+
+.home-hero {
+  position: relative;
+  padding: 2.5rem 1.25rem 2.25rem;
+  overflow: hidden;
+}
+
+.home-hero::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  right: -8%;
+  width: min(42vw, 22rem);
+  height: min(42vw, 22rem);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: 50%;
+  opacity: 0.18;
+  pointer-events: none;
+  background: radial-gradient(circle at 30% 30%, var(--merc-accent-soft), transparent 70%);
+}
+
+.home-hero__inner {
+  position: relative;
+  z-index: 1;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.home-eyebrow {
+  font-family: var(--merc-font-ui);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--merc-accent);
+  margin: 0 0 0.65rem;
+}
+
+.home-hero h1 {
+  font-family: var(--merc-font-display);
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 2.85rem);
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 0 0 0.75rem;
+  max-width: 18ch;
+}
+
+.home-lead {
+  font-size: 1.08rem;
+  color: var(--merc-muted);
+  max-width: 36rem;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.home-attribution {
+  margin: 1.15rem 0 0;
+  max-width: 36rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--merc-muted);
+  background: rgba(247, 244, 237, 0.75);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  box-shadow: 3px 3px 0 rgba(20, 18, 16, 0.08);
+}
+
+.home-attribution a {
+  color: var(--merc-accent);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.home-attribution a:hover {
+  border-bottom-color: var(--merc-warm-pop);
+}
+
+.home-grid {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 960px) {
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    align-items: start;
+  }
+}
+
+.home-card {
+  background: var(--merc-card);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  padding: 1.35rem 1.45rem;
+  box-shadow: 5px 5px 0 rgba(20, 18, 16, 0.14);
+}
+
+.home-card h2 {
+  font-family: var(--merc-font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.home-card__title-sm {
+  font-family: var(--merc-font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--merc-muted);
+  margin: 0 0 0.85rem;
+}
+
+.home-card--session {
+  border-left: 4px solid var(--merc-accent);
+}
+
+.home-card--session.home-card--ok {
+  border-left-color: var(--merc-ok);
+}
+
+.home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--merc-font-ui);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.75rem;
+}
+
+.home-pill::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1px;
+  border: 2px solid var(--merc-card-edge);
+  background: var(--merc-bg0);
+}
+
+.home-pill--in::before {
+  background: var(--merc-ok);
+  box-shadow: inset 0 0 0 2px var(--merc-card);
+}
+
+.home-fact {
+  margin: 0.4rem 0;
+  font-size: 0.95rem;
+}
+
+.home-fact strong {
+  font-family: var(--merc-font-ui);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--merc-muted);
+  margin-right: 0.35rem;
+}
+
+.home-card code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.82em;
+  background: #e8e3d8;
+  border: 1px solid #c9c2b5;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+.home-section-title {
+  font-family: var(--merc-font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.home-endpoints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.home-endpoint {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem 1rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  background: var(--merc-card);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  box-shadow: 3px 3px 0 rgba(20, 18, 16, 0.1);
+}
+
+.home-endpoint__method {
+  font-family: var(--merc-font-ui);
+  font-weight: 800;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  padding: 0.28rem 0.45rem;
+  border: 2px solid var(--merc-card-edge);
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.home-endpoint__method--get {
+  background: var(--merc-accent-soft);
+  color: var(--merc-accent);
+}
+
+.home-endpoint__method--post {
+  background: rgba(196, 92, 62, 0.14);
+  color: #8b3d2a;
+}
+
+.home-endpoint__path {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+}
+
+.home-endpoint__path code {
+  font-size: 0.88rem;
+}
+
+.home-endpoint__desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--merc-muted);
+  line-height: 1.45;
+}
+
+.home-note {
+  margin-top: 1.35rem;
+  font-size: 0.88rem;
+  color: var(--merc-muted);
+  max-width: 40rem;
+  line-height: 1.5;
+}
+
+.merc-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  font-family: var(--merc-font-ui);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  border-radius: var(--merc-radius);
+  border: 2px solid var(--merc-card-edge);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--merc-card-edge);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.merc-btn:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--merc-card-edge);
+}
+
+.merc-btn--primary {
+  background: var(--merc-accent);
+  color: #fff;
+}
+
+.merc-btn--primary:hover {
+  background: var(--merc-accent-hover);
+  color: #fff;
+}
+
+.merc-btn--ghost {
+  background: var(--merc-card);
+  color: var(--merc-ink);
+}
+
+.merc-btn--ghost:hover {
+  background: #ebe6dc;
+  color: var(--merc-ink);
+}
+
+.merc-btn--danger {
+  background: #f4ebe8;
+  color: #8b2c26;
+}
+
+.merc-btn--danger:hover {
+  background: #eddcd8;
+  color: #6f231f;
+}
+
+/* Admin / simple sider */
+.merc-page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+}
+
+.merc-page h1 {
+  font-family: var(--merc-font-display);
+  font-weight: 800;
+  font-size: 1.65rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 1rem;
+}
+
+.merc-text-danger {
+  color: #8b2c26;
+}
+
+.merc-page__attrib {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  color: var(--merc-muted);
+  max-width: 28rem;
+  line-height: 1.45;
+}
+
+.merc-page__attrib a {
+  color: var(--merc-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.merc-page__attrib a:hover {
+  text-decoration: underline;
+}
+
+.merc-page .table {
+  background: var(--merc-card);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  box-shadow: 4px 4px 0 rgba(20, 18, 16, 0.1);
+  overflow: hidden;
+}
+
+.merc-page .table thead {
+  background: #e8e3d8;
+}
+
+/* Fjern Bootstrap focus-ring der klæber til gammelt tema */
+.merc-shell .btn:focus,
+.merc-shell .btn:active:focus {
+  box-shadow: 0 0 0 2px var(--merc-card), 0 0 0 4px var(--merc-accent-soft);
+}
