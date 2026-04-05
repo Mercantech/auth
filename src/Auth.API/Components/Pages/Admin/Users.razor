@@ -1,0 +1,59 @@
+@page "/Admin/Users"
+@attribute [Authorize(Roles = "Admin")]
+@inject AuthDbContext Db
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Brugere (admin)</PageTitle>
+
+<h1 class="h3 mb-3">Brugere</h1>
+
+@if (_rows is null)
+{
+    <p>Henter…</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Navn</th>
+                <th>E-mail</th>
+                <th>Roller</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in _rows)
+        {
+            <tr>
+                <td>@r.DisplayName</td>
+                <td>@(r.Email ?? "—")</td>
+                <td>@r.Roles</td>
+                <td>@(r.IsDisabled ? "Deaktiveret" : "Aktiv")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Row>? _rows;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var users = await Db.Users
+            .AsNoTracking()
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        _rows = users.Select(u => new Row(
+            u.DisplayName,
+            u.Email,
+            u.IsDisabled,
+            string.Join(", ", u.UserRoles.Select(ur => ur.Role.Name)))).ToList();
+    }
+
+    private sealed record Row(string DisplayName, string? Email, bool IsDisabled, string Roles);
+}

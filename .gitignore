@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+keys/*.pem
+!keys/.gitkeep
+appsettings.*.local.json
+docker/.env
+appsettings.json

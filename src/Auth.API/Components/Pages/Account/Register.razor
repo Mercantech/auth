@@ -1,0 +1,84 @@
+@page "/Account/Register"
+@layout AuthLayout
+@using Microsoft.AspNetCore.Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IAntiforgery Antiforgery
+@inject IOptions<AuthOptions> AuthOptions
+
+<PageTitle>Opret konto</PageTitle>
+
+<div class="auth-card">
+    <div class="auth-brand">
+        <div class="auth-brand__mark" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4L6 9v14l10 5 10-5V9L16 4z" stroke="white" stroke-width="1.8" stroke-linejoin="round" fill="rgba(255,255,255,0.15)" />
+                <path d="M16 11v10M11 13.5l10 5M21 13.5l-10 5" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+        </div>
+        <div>
+            <h1 class="auth-brand__title">Mercantec Auth</h1>
+            <p class="auth-brand__subtitle">Opret din konto</p>
+        </div>
+    </div>
+
+    <h2 class="auth-headline">Kom i gang</h2>
+    <p class="auth-lead">@(LocalLoginEnabled
+        ? "Udfyld felterne nedenfor. Du kan også oprette adgang via Google, Microsoft m.fl. fra loginsiden."
+        : "Selvoprettelse med e-mail og adgangskode er slået fra. Brug Google, Microsoft eller en anden udbyder fra loginsiden.")</p>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="auth-alert" role="alert">@ErrorMessage</div>
+    }
+
+    @if (LocalLoginEnabled && HttpContextAccessor.HttpContext is { } ctx)
+    {
+        var tokens = Antiforgery.GetAndStoreTokens(ctx);
+        <form method="post" action="/signup">
+            <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <div class="auth-field">
+                <label class="auth-label" for="displayName">Vist navn</label>
+                <input id="displayName" name="displayName" class="auth-input" maxlength="120" placeholder="Fx Dit navn" required />
+            </div>
+            <div class="auth-field">
+                <label class="auth-label" for="email">E-mail</label>
+                <input id="email" name="email" class="auth-input" type="email" autocomplete="username" placeholder="dig@eksempel.dk" required />
+            </div>
+            <div class="auth-field">
+                <label class="auth-label" for="password">Adgangskode</label>
+                <input id="password" name="password" class="auth-input" type="password" autocomplete="new-password" minlength="8" maxlength="100" placeholder="Mindst 8 tegn" required />
+            </div>
+            <button type="submit" class="auth-submit">Opret konto</button>
+        </form>
+    }
+
+    <p class="auth-footer-link">Har du allerede en konto? <a href="@LoginLink">Log ind</a></p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    private bool LocalLoginEnabled => AuthOptions.Value.EnableEmailPasswordLogin;
+
+    private string? ErrorMessage => Error switch
+    {
+        "email" => "E-mail er allerede registreret.",
+        "invalid" => "Ugyldig retur-URL eller data.",
+        "local_disabled" => "E-mail-oprettelse er slået fra i denne installation.",
+        _ => null,
+    };
+
+    private string LoginLink
+    {
+        get
+        {
+            var q = string.IsNullOrWhiteSpace(ReturnUrl) ? "" : $"?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+            return "/Account/Login" + q;
+        }
+    }
+}

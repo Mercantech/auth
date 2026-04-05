@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Callback — Mercantec test</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; background: #0f1419; color: #e7e9ea; }
+    body { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+    pre { background: #1a2332; padding: 1rem; border-radius: 8px; overflow: auto; font-size: 0.8rem; }
+    .err { color: #f4212e; }
+    a { color: #1d9bf0; }
+    nav { margin-bottom: 1rem; }
+    nav a { margin-right: 1rem; }
+    .nav-logout {
+      margin-left: 0.5rem;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.85rem;
+      background: transparent;
+      border: 1px solid #38444d;
+      color: #1d9bf0;
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .nav-logout:hover { background: #1a2332; color: #e7e9ea; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Forside</a>
+    <a href="jwt.html">JWT &amp; signatur</a>
+    <a href="users.html">Brugere</a>
+    <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+  </nav>
+  <h1>OAuth callback</h1>
+  <p id="status">Behandler…</p>
+  <pre id="out" hidden></pre>
+  <p id="next-links" hidden><a href="jwt.html">Se JWT og verifikation</a> · <a href="users.html">Brugerliste (admin)</a></p>
+
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+  </script>
+  <script>
+    (async function () {
+      const cfg = window.__MERCANTEC_AUTH__;
+      const redirectUri = window.location.origin + "/callback.html";
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get("error");
+      const desc = params.get("error_description");
+      const code = params.get("code");
+      const state = params.get("state");
+      const status = document.getElementById("status");
+      const out = document.getElementById("out");
+      const nextLinks = document.getElementById("next-links");
+
+      if (err) {
+        status.innerHTML = '<span class="err">Fejl: ' + err + (desc ? " — " + desc : "") + "</span>";
+        return;
+      }
+
+      const expected = sessionStorage.getItem("oauth_state");
+      if (!code || !state || state !== expected) {
+        status.innerHTML = '<span class="err">Manglende eller ugyldig state/code. Prøv igen fra forsiden.</span>';
+        return;
+      }
+
+      const verifier = sessionStorage.getItem("pkce_verifier");
+      if (!verifier) {
+        status.innerHTML = '<span class="err">Mangler PKCE verifier (session). Prøv igen fra forsiden.</span>';
+        return;
+      }
+
+      const body = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: cfg.clientId,
+        code_verifier: verifier,
+      });
+
+      try {
+        const res = await fetch(cfg.authBaseUrl + "/oauth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+        });
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = { raw: text };
+        }
+        if (!res.ok) {
+          status.innerHTML = '<span class="err">Token-kald fejlede (' + res.status + ")</span>";
+          out.hidden = false;
+          out.textContent = JSON.stringify(json, null, 2);
+          return;
+        }
+        sessionStorage.removeItem("pkce_verifier");
+        sessionStorage.removeItem("oauth_state");
+        if (json.access_token) sessionStorage.setItem("mercantec_access_token", json.access_token);
+        if (json.refresh_token) sessionStorage.setItem("mercantec_refresh_token", json.refresh_token);
+        status.textContent = "OK — her er svaret fra /oauth/token (gemt i session til JWT-siden):";
+        out.hidden = false;
+        out.textContent = JSON.stringify(json, null, 2);
+        nextLinks.hidden = false;
+      } catch (e) {
+        status.innerHTML = '<span class="err">Netværksfejl (CORS eller auth nede?): ' + e.message + "</span>";
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Auth.API/Auth.API.csproj" />
+    <Project Path="src/Auth.Tests/Auth.Tests.csproj" />
+  </Folder>
+</Solution>

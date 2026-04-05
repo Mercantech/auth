@@ -1,0 +1,62 @@
+@page "/"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Auth.API.Security
+
+<PageTitle>Mercantec Auth</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <AuthorizeView>
+            <Authorized Context="authState">
+                @{
+                    var u = authState.User;
+                    var method = u.FindFirstValue(MercantecAuthClaims.LoginMethod);
+                    var roles = u.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                }
+                <div class="card border-success mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="h5 card-title text-success mb-3">Du er logget ind</h2>
+                        <p class="mb-1"><strong>Navn:</strong> @(u.Identity?.Name ?? "—")</p>
+                        <p class="mb-1"><strong>Logget ind med:</strong> @LoginMethodDa(method)</p>
+                        <p class="mb-3"><strong>Roller:</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
+                        <p class="small text-muted mb-2">Bruger-ID: <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
+                        <a class="btn btn-outline-danger btn-sm" href="/signout">Log ud</a>
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="alert alert-secondary border mb-4 d-flex flex-wrap align-items-center gap-2">
+                    <span><strong>Ikke logget ind</strong> i denne browser — OAuth redirecter til login når en app starter flowet.</span>
+                    <a class="btn btn-primary btn-sm" href="/Account/Login">Log ind</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <h1 class="h2 mb-3">Central login</h1>
+        <p class="lead">OAuth 2.0 authorization code med PKCE, JWT (RS256) og refresh tokens.</p>
+        <ul>
+            <li><code>GET /.well-known/jwks.json</code> — offentlig nøgle til validering</li>
+            <li><code>GET /.well-known/mercantec-auth.json</code> — integrations-manifest (til nye apps / AI)</li>
+            <li><code>GET /oauth/authorize</code> — start login (redirect til login hvis ingen session)</li>
+            <li><code>POST /oauth/token</code> — byt <code>code</code> til access/refresh</li>
+            <li><code>GET /health</code></li>
+        </ul>
+        <p>I udvikling oprettes en demo-client <code>demo</code> med callback på localhost (port 5155 og 8080). Brug rigtig PKCE (S256) — se <code>docs/CLIENT-INTEGRATION.md</code>.</p>
+    </div>
+</div>
+
+@code {
+    private static string LoginMethodDa(string? m) => m switch
+    {
+        MercantecAuthClaims.LoginMethodValues.Password => "E-mail og adgangskode",
+        MercantecAuthClaims.LoginMethodValues.Google => "Google",
+        MercantecAuthClaims.LoginMethodValues.GitHub => "GitHub",
+        MercantecAuthClaims.LoginMethodValues.Discord => "Discord",
+        MercantecAuthClaims.LoginMethodValues.Microsoft => "Microsoft",
+        MercantecAuthClaims.LoginMethodValues.MicrosoftWork => "Microsoft 365 (arbejde/skole)",
+        MercantecAuthClaims.LoginMethodValues.MicrosoftSchool => "Microsoft (skole)",
+        MercantecAuthClaims.LoginMethodValues.Unknown => "Ukendt",
+        _ => string.IsNullOrWhiteSpace(m) ? "—" : m,
+    };
+}

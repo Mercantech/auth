@@ -1,0 +1,42 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container">
+                <a class="navbar-brand" href="/">Mercantec Auth</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div id="nav" class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item"><a class="nav-link text-dark" href="/">Forside</a></li>
+                        <AuthorizeView Roles="Admin">
+                            <Authorized>
+                                <li class="nav-item"><a class="nav-link text-dark" href="/Admin/Users">Admin: brugere</a></li>
+                            </Authorized>
+                        </AuthorizeView>
+                    </ul>
+                    <ul class="navbar-nav">
+                        <AuthorizeView>
+                            <Authorized>
+                                <li class="nav-item"><a class="nav-link text-dark" href="/signout">Log ud</a></li>
+                            </Authorized>
+                            <NotAuthorized>
+                                <li class="nav-item"><a class="nav-link text-dark" href="/Account/Login">Log ind</a></li>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="container pb-3">
+        @Body
+    </main>
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; @DateTime.UtcNow.Year - Mercantec Auth
+        </div>
+    </footer>
+</div>

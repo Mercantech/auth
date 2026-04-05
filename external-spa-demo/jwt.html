@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JWT — Mercantec demo (undervisning)</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      background: #0f1419;
+      color: #e7e9ea;
+      --accent: #1d9bf0;
+      --muted: #8b98a5;
+      --card: #1a2332;
+      --ok: #00ba7c;
+      --warn: #ffb020;
+    }
+    body { max-width: 56rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; }
+    pre { background: var(--card); padding: 1rem; border-radius: 8px; overflow: auto; font-size: 0.78rem; border: 1px solid #2f3d52; }
+    a { color: var(--accent); }
+    nav { margin-bottom: 1.5rem; }
+    nav a { margin-right: 1rem; }
+    .nav-logout {
+      margin-left: 0.5rem;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.85rem;
+      background: transparent;
+      border: 1px solid #2f3d52;
+      color: var(--accent);
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .nav-logout:hover { background: var(--card); color: #f0f3f5; }
+    h1 { font-size: 1.45rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; margin-bottom: 0.65rem; color: #f0f3f5; }
+    h3 { font-size: 0.95rem; margin-top: 1.25rem; color: #c8d0d8; }
+    .lead { color: var(--muted); font-size: 0.95rem; max-width: 48rem; }
+    .teach {
+      background: linear-gradient(145deg, #16202e 0%, var(--card) 100%);
+      border: 1px solid #2f3d52;
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+      margin: 1rem 0;
+    }
+    .teach strong { color: #fff; }
+    .diagram-wrap {
+      background: #0c1118;
+      border: 1px solid #2f3d52;
+      border-radius: 10px;
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .diagram-wrap .mermaid { display: flex; justify-content: center; min-height: 120px; }
+    .jwt-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 0;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 0.75rem 0;
+      border: 1px solid #2f3d52;
+    }
+    .jwt-part { padding: 0.65rem 0.85rem; flex: 1 1 auto; text-align: center; }
+    .jwt-header { background: #1a3a52; color: #9fd6ff; }
+    .jwt-payload { background: #1a4538; color: #9fe8c9; }
+    .jwt-sig { background: #452a1a; color: #ffc9a0; flex: 1.2 1 12rem; }
+    .jwt-sep { display: flex; align-items: center; padding: 0 0.15rem; background: #0c1118; color: var(--muted); }
+    .jwt-strip-note { font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; }
+    .pill { display: inline-block; background: #243044; color: #c8d8ec; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; }
+    .live { border-left: 3px solid var(--accent); padding-left: 1rem; margin-top: 2.5rem; }
+    code { background: #243044; padding: 0.12rem 0.35rem; border-radius: 4px; font-size: 0.88em; }
+    ul.tight { margin: 0.4rem 0; padding-left: 1.2rem; }
+    ul.tight li { margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Forside</a>
+    <a href="callback.html">Sidste token-svar</a>
+    <a href="users.html">Brugere (admin)</a>
+    <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+  </nav>
+
+  <h1>JWT: privat og offentlig nøgle (RS256)</h1>
+  <p class="lead">
+    Denne side er til undervisning: du ser både <strong>hvordan en JWT er bygget</strong>, og <strong>hvordan man beviser</strong> at den er udstedt af den rigtige auth-server —
+    uden at dele den hemmelige private nøgle med apps eller browsere.
+  </p>
+
+  <h2>1. Tre dele: læsbart indhold + kryptografisk bevis</h2>
+  <p>
+    En JWT er tre Base64URL-dele adskilt af punktum. De to første kan <em>alle</em> dekode (det er ikke kryptering — kun kodning).
+    Den tredje del er <strong>signaturen</strong>: et matematisk bevis lavet med serverens <span class="pill">private nøgle</span>.
+  </p>
+  <div class="jwt-strip" aria-label="JWT struktur">
+    <span class="jwt-part jwt-header">header<br><small>algoritme, kid</small></span>
+    <span class="jwt-sep">·</span>
+    <span class="jwt-part jwt-payload">payload<br><small>claims: sub, iss, aud, exp …</small></span>
+    <span class="jwt-sep">·</span>
+    <span class="jwt-part jwt-sig">signatur<br><small>bevis for header+payload</small></span>
+  </div>
+  <p class="jwt-strip-note">
+    <strong>Vigtigt:</strong> At kunne læse <code>payload</code> betyder ikke at du stoler på den. Først efter signatur-check + issuer/audience/livstid er claims “officielle”.
+  </p>
+
+  <div class="teach">
+    <strong>Asymmetrisk (RSA):</strong> Kun auth-serveren har <strong>privat nøgle</strong> til at signere.
+    Alle andre bruger den <strong>offentlige nøgle</strong> (offentliggjort via JWKS) til at tjekke signaturen.
+    Den offentlige nøgle kan ikke bruges til at forfalske nye gyldige signaturer.
+  </div>
+
+  <h2>2. Overblik: udstedelse vs. verifikation</h2>
+  <p>Serveren signerer med privat nøgle. Enhver klient henter den matchende offentlige nøgle og verificerer.</p>
+  <div class="diagram-wrap">
+<div class="mermaid">
+flowchart LR
+  subgraph S["Auth-server"]
+    direction TB
+    SK["Privat RSA-nøgle (hemmelig)"]
+    SK --> SIGN["RS256-signering af header.payload"]
+  end
+  subgraph J["JWT til klient"]
+    HP["header.payload (alle kan læse)"]
+    SIG["signatur"]
+  end
+  SIGN --> SIG
+  HP --- SIG
+  subgraph K["Klient: browser eller API"]
+    direction TB
+    JW["GET /.well-known/jwks.json"]
+    JW --> PUB["Offentlig nøgle: n, e, kid"]
+    PUB --> V["Verificér RS256"]
+    HP --> V
+    SIG --> V
+  end
+</div>
+  </div>
+
+  <h2>3. Flow: sådan verificerer du en JWT (undervisningstrin)</h2>
+  <p>Følg rækkefølgen når du bygger login i en app eller validerer <code>Authorization: Bearer</code> på et API.</p>
+  <div class="diagram-wrap">
+<div class="mermaid">
+flowchart TD
+  A["1. Modtag JWT"] --> B["2. Dekodér header og payload (Base64URL → JSON, stadig uden tillid)"]
+  B --> C["3. Læs kid i header"]
+  C --> D["4. Hent JWKS fra issuer"]
+  D --> E["5. Vælg JWK med samme kid"]
+  E --> F["6. Verificér RS256-signatur"]
+  F --> G{"7. Tjek iss, aud, exp, nbf"}
+  G -->|"Alle OK"| H["Godkend"]
+  G -->|"Ellers"| X["Afvis"]
+  H --> Y["8. Først nu: stol på sub, roller, email …"]
+</div>
+  </div>
+
+  <h3>Hvorfor <code>kid</code>?</h3>
+  <p>
+    Nøgler roteres nogle gange. JWKS kan indeholde flere nøgler. <code>kid</code> i JWT-headeren fortæller hvilken offentlig nøgle der passede til denne signatur.
+  </p>
+
+  <h3>Hvorfor <code>iss</code> og <code>aud</code>?</h3>
+  <ul class="tight">
+    <li><code>iss</code> (issuer): Hvem udstedte token? Du sammenligner med en forventet streng (fx konfiguration).</li>
+    <li><code>aud</code> (audience): Hvem er token beregnet til? Din app/API skal matche — ellers kunne token være til en anden klient.</li>
+    <li><code>exp</code> / <code>nbf</code>: Token må ikke være udløbet eller “ikke gyldig endnu”.</li>
+    <li><code>login_method</code>: Hvordan brugeren loggede ind ved dette flow (fx <code>microsoft-work</code>, <code>password</code>, <code>discord</code>) — nyttigt når en platform kun accepterer bestemte login-typer.</li>
+  </ul>
+
+  <h2>4. JWKS-URL i denne demo</h2>
+  <p>
+    Nedenfor er den konkrete adresse der bruges sammen med <code>shared-config.js</code> (<code>authBaseUrl</code>).
+    Samme endpoint bruger Mercantec Auth til at udstille den offentlige nøgle der matcher den private signeringsnøgle.
+  </p>
+  <p><code id="jwks-url-display">(indlæses …)</code></p>
+
+  <div class="live">
+    <h2>5. Dit access token (live)</h2>
+    <p id="decode"></p>
+    <p id="verify"></p>
+    <h2>Header</h2>
+    <pre id="header-pre">—</pre>
+    <h2>Payload (claims)</h2>
+    <pre id="payload-pre">—</pre>
+    <p><small>Nedenfor: signatur tjekkes med biblioteket <strong>jose</strong> mod <code>GET /.well-known/jwks.json</code> — samme princip som i produktion.</small></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "dark",
+      securityLevel: "loose",
+      themeVariables: {
+        primaryColor: "#1e2d3f",
+        primaryTextColor: "#e7e9ea",
+        primaryBorderColor: "#1d9bf0",
+        lineColor: "#5c6e82",
+        secondaryColor: "#16202e",
+        tertiaryColor: "#0f1419",
+        background: "#0c1118",
+        mainBkg: "#1a2332",
+        nodeBorder: "#3d5a80",
+        clusterBkg: "#121a24",
+        titleColor: "#e7e9ea",
+        edgeLabelBackground: "#1a2332",
+      },
+      flowchart: { curve: "basis", padding: 14, nodeSpacing: 28, rankSpacing: 42 },
+    });
+  </script>
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+  </script>
+  <script type="module" src="jwt-app.js"></script>
+</body>
+</html>
