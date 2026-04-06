@@ -75,14 +75,18 @@ var app = builder.Build();
 // OAuth middleware bygger redirect_uri ud fra Request.Scheme/Host, så vi skal respektere X-Forwarded-Proto/Host.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    var forwarded = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
-        // Hosting/proxy varierer; uden eksplicit kendte proxies bliver forwarded headers ellers ignoreret.
-        // Hvis du vil stramme sikkerheden: sæt KnownProxies/KnownNetworks til din load balancer.
-        KnownIPNetworks = { },
-        KnownProxies = { },
-    });
+        // Accepter flere proxy-hop (CDN -> LB -> reverse proxy).
+        ForwardLimit = null,
+    };
+
+    // Default er loopback-only; ryd så vi respekterer headers fra ekstern proxy.
+    forwarded.KnownProxies.Clear();
+    forwarded.KnownIPNetworks.Clear();
+
+    app.UseForwardedHeaders(forwarded);
 }
 
 await using (var scope = app.Services.CreateAsyncScope())
