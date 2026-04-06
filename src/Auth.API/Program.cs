@@ -4,6 +4,7 @@ using Auth.API.Options;
 using Auth.API.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -69,6 +70,20 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Når app'en kører bag reverse proxy (TLS terminering), kommer request ofte ind som http internt.
+// OAuth middleware bygger redirect_uri ud fra Request.Scheme/Host, så vi skal respektere X-Forwarded-Proto/Host.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+        // Hosting/proxy varierer; uden eksplicit kendte proxies bliver forwarded headers ellers ignoreret.
+        // Hvis du vil stramme sikkerheden: sæt KnownProxies/KnownNetworks til din load balancer.
+        KnownIPNetworks = { },
+        KnownProxies = { },
+    });
+}
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
