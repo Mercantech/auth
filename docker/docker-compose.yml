@@ -24,12 +24,7 @@ services:
     # Valgfrit: læg OAuth/Microsoft secrets i docker/.env (gitignoreret) — se .env.example
     # env_file: .env
     environment:
-      ASPNETCORE_URLS: http://+:8080
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=mercantec_auth;Username=auth;Password=auth
-      # CORS til external-spa-demo på port 5173 (kan udelades hvis appsettings.Development.json bruges fra image)
-      Cors__SpaOrigins__0: http://localhost:5173
-      Cors__SpaOrigins__1: http://127.0.0.1:5173
+      - .env
     volumes:
       - jwt_keys:/app/keys
     depends_on:

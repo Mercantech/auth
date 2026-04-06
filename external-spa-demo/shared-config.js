@@ -3,7 +3,7 @@
  * issuer/audience skal matche Jwt i appsettings (validering af signatur).
  */
 window.__MERCANTEC_AUTH__ = {
-  authBaseUrl: "http://localhost:8080",
+  authBaseUrl: "https://auth.mercantec.tech",
   clientId: "demo",
   expectedIssuer: "https://auth.mercantec.tech",
   expectedAudience: "mercantec-apps",

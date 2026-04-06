@@ -4,8 +4,8 @@ Simpel statisk side på **egen port** der logger ind via Mercantec Auth med **PK
 
 ## Forudsætninger
 
-1. **Auth API kører** (fx Docker på `http://localhost:8080`) med `ASPNETCORE_ENVIRONMENT=Development`, så `demo`-klienten og redirect til `callback.html` findes.
-2. **CORS**: I Development tillader API `http://localhost:5173` og `127.0.0.1:5173` (se `appsettings.Development.json` → `Cors:SpaOrigins`).
+1. **Auth API kører** (fx `https://auth.mercantec.tech` i produktion eller Docker på `http://localhost:8080` i dev).
+2. **CORS**: Tilføj SPA-origin under `Cors:SpaOrigins` (produktion: `https://auth-spa.mercantec.tech`, dev: `http://localhost:5173`).
 3. **Microsoft 365 / Azure AD** (valgfrit til “Log ind med Microsoft” på auth-siden):
    - I **Azure Portal** → **App registrations** → jeres app → **Authentication** → **Platform: Web**  
      Tilføj **Redirect URI**:  
@@ -24,7 +24,7 @@ Fra repo-rod:
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-Åbn **http://localhost:5173** (service `spa`) — auth API på **http://localhost:8080**.
+Åbn **http://localhost:5173** (service `spa`) i dev — eller brug jeres hostede SPA. Auth API er i produktion på **https://auth.mercantec.tech**.
 
 **Microsoft i Docker:** secrets i `appsettings.json` på din maskine kommer **ikke** med i image. Sæt dem i `docker/.env` (kopier fra `docker/.env.example`) og fjern kommentaren på `env_file: .env` under `api` i compose, **eller** sæt `OAuth__Microsoft__*` som miljøvariabler i compose.
 
@@ -52,7 +52,7 @@ npx --yes serve . -l 5173
 
 ### Log ud (SPA ↔ cookie på auth-host)
 
-OAuth-flowet sætter en **session-cookie** på auth-serveren (`localhost:8080`), så næste `/oauth/authorize` kan logge dig ind uden at spørge igen. For at vælge en anden konto skal cookien slettes via **`GET /signout`**.
+OAuth-flowet sætter en **session-cookie** på auth-serveren, så næste `/oauth/authorize` kan logge dig ind uden at spørge igen. For at vælge en anden konto skal cookien slettes via **`GET /signout`**.
 
 - **`logout.js`** kalder først `sessionStorage` clear (Mercantec JWT i browseren), derefter  
   `{authBaseUrl}/signout?returnUrl={encodeURIComponent(nuværende side)}`.
