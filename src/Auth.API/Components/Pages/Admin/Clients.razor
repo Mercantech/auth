@@ -1,0 +1,222 @@
+@page "/Admin/Clients"
+@inject AuthDbContext Db
+@inject IWebHostEnvironment Env
+@using Auth.API.Models.Entities
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Klienter (admin)</PageTitle>
+
+<div class="merc-page">
+<h1>Klienter</h1>
+
+@if (_clients is null)
+{
+    <p>Henter…</p>
+}
+else
+{
+    <div class="card">
+        <h2>Vælg klient</h2>
+        <div class="field">
+            <label for="clientSelect"><strong>Klient</strong></label>
+            <select id="clientSelect" class="input" value="@_selectedClientId" @onchange="OnClientChanged">
+                <option value="">— vælg —</option>
+                @foreach (var c in _clients.OrderBy(x => x.Name))
+                {
+                    <option value="@c.Id">@c.Name (@c.ClientId)</option>
+                }
+            </select>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_status))
+        {
+            <p class="@(_statusIsError ? "status-warn" : "status-badge status-in")">@_status</p>
+        }
+    </div>
+
+    @if (_selected is not null)
+    {
+        <div class="card">
+            <h2>Redirect URI whitelist</h2>
+            <p class="muted">
+                OAuth2 kræver præcist match på <code>redirect_uri</code> (https/http, host og path).
+            </p>
+
+            <table class="table table-sm">
+                <thead>
+                <tr>
+                    <th>URI</th>
+                    <th style="width: 1%"></th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (_selected.RedirectUris.Count == 0)
+                {
+                    <tr><td colspan="2">Ingen redirect-URI’er endnu.</td></tr>
+                }
+                else
+                {
+                    @foreach (var r in _selected.RedirectUris.OrderBy(x => x.Uri, StringComparer.Ordinal))
+                    {
+                        <tr>
+                            <td><code>@r.Uri</code></td>
+                            <td>
+                                <button type="button" class="btn btn-secondary" @onclick="() => RemoveRedirectUriAsync(r.Id)">
+                                    Fjern
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+
+            <div class="divider"></div>
+
+            <h3>Tilføj redirect URI</h3>
+            <div class="field">
+                <label for="newUri"><strong>Ny URI</strong></label>
+                <input id="newUri" class="input" placeholder="https://auth-spa.mercantec.tech/callback.html" @bind="_newRedirectUri" />
+                <div class="muted">
+                    Produktion: brug <strong>https</strong>. Dev kan være <code>http://localhost:...</code>.
+                </div>
+            </div>
+            <button type="button" class="btn" @onclick="AddRedirectUriAsync">Tilføj</button>
+        </div>
+    }
+}
+</div>
+
+@code {
+    private List<ClientApp>? _clients;
+    private ClientApp? _selected;
+    private string? _selectedClientId;
+    private string _newRedirectUri = "";
+    private string? _status;
+    private bool _statusIsError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _clients = await Db.ClientApps
+            .AsNoTracking()
+            .Include(c => c.RedirectUris)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+
+        _selected = null;
+        if (!string.IsNullOrWhiteSpace(_selectedClientId) && Guid.TryParse(_selectedClientId, out var id))
+            _selected = _clients.FirstOrDefault(c => c.Id == id);
+    }
+
+    private Task OnClientChanged(ChangeEventArgs e)
+    {
+        _selectedClientId = e.Value?.ToString();
+        _status = null;
+        _statusIsError = false;
+        _newRedirectUri = "";
+        return ReloadAsync();
+    }
+
+    private bool TryValidateRedirectUri(string raw, out Uri uri, out string error)
+    {
+        error = "";
+        uri = null!;
+        raw = (raw ?? "").Trim();
+        if (raw.Length == 0)
+        {
+            error = "Udfyld en redirect URI.";
+            return false;
+        }
+
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var parsed) || parsed is null)
+        {
+            error = "Ugyldig URI (skal være absolut, fx https://...).";
+            return false;
+        }
+        uri = parsed;
+
+        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
+        {
+            error = "Kun http/https er tilladt.";
+            return false;
+        }
+
+        var isLocalHttp = uri.Scheme == Uri.UriSchemeHttp &&
+                          (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+                           || uri.Host == "127.0.0.1");
+        if (!Env.IsDevelopment() && !Env.IsEnvironment("Testing") && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            if (!isLocalHttp)
+            {
+                error = "I produktion skal redirect URI bruge https.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async Task AddRedirectUriAsync()
+    {
+        _status = null;
+        _statusIsError = false;
+
+        if (_selected is null || _clients is null)
+            return;
+
+        if (!TryValidateRedirectUri(_newRedirectUri, out var uri, out var err))
+        {
+            _status = err;
+            _statusIsError = true;
+            return;
+        }
+
+        var normalized = uri.ToString();
+
+        var exists = await Db.ClientAppRedirectUris
+            .AsNoTracking()
+            .AnyAsync(r => r.ClientAppId == _selected.Id && r.Uri == normalized);
+        if (exists)
+        {
+            _status = "URI findes allerede på klienten.";
+            _statusIsError = true;
+            return;
+        }
+
+        Db.ClientAppRedirectUris.Add(new ClientAppRedirectUri
+        {
+            Id = Guid.NewGuid(),
+            ClientAppId = _selected.Id,
+            Uri = normalized,
+        });
+        await Db.SaveChangesAsync();
+
+        _newRedirectUri = "";
+        _status = "Tilføjet.";
+        await ReloadAsync();
+    }
+
+    private async Task RemoveRedirectUriAsync(Guid redirectUriId)
+    {
+        _status = null;
+        _statusIsError = false;
+
+        if (_selected is null)
+            return;
+
+        var row = await Db.ClientAppRedirectUris.FirstOrDefaultAsync(r => r.Id == redirectUriId && r.ClientAppId == _selected.Id);
+        if (row is null)
+            return;
+
+        Db.ClientAppRedirectUris.Remove(row);
+        await Db.SaveChangesAsync();
+
+        _status = "Fjernet.";
+        await ReloadAsync();
+    }
+}
+
