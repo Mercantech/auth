@@ -58,14 +58,60 @@ builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 
 var spaOrigins = builder.Configuration.GetSection("Cors:SpaOrigins").Get<string[]>() ?? [];
+var allowedDomains = builder.Configuration.GetSection("Cors:AllowedDomains").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("MercantecSpa", policy =>
     {
-        if (spaOrigins.Length > 0)
-            policy.WithOrigins(spaOrigins).AllowAnyHeader().AllowAnyMethod();
-        else
-            policy.SetIsOriginAllowed(_ => false).AllowAnyHeader().AllowAnyMethod();
+        static string NormalizeDomain(string d) => d.Trim().Trim('.').ToLowerInvariant();
+
+        static bool HostMatchesDomainOrSubdomain(string host, string domain)
+        {
+            host = host.Trim().Trim('.').ToLowerInvariant();
+            domain = NormalizeDomain(domain);
+            if (domain.Length == 0)
+                return false;
+            if (string.Equals(host, domain, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
+        }
+
+        bool IsAllowedOrigin(string origin)
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var u) || u is null)
+                return false;
+            if (u.Scheme != Uri.UriSchemeHttp && u.Scheme != Uri.UriSchemeHttps)
+                return false;
+
+            // Eksplicit allowlist (origin-level)
+            foreach (var entry in spaOrigins)
+            {
+                if (string.IsNullOrWhiteSpace(entry))
+                    continue;
+                if (Uri.TryCreate(entry.Trim(), UriKind.Absolute, out var allowed) && allowed is not null)
+                {
+                    var allowedOrigin = $"{allowed.Scheme}://{allowed.Authority}";
+                    var reqOrigin = $"{u.Scheme}://{u.Authority}";
+                    if (string.Equals(allowedOrigin, reqOrigin, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            // Domæner + subdomæner (host-level)
+            foreach (var d in allowedDomains)
+            {
+                if (string.IsNullOrWhiteSpace(d))
+                    continue;
+                if (HostMatchesDomainOrSubdomain(u.Host, d))
+                    return true;
+            }
+
+            return false;
+        }
+
+        policy.SetIsOriginAllowed(IsAllowedOrigin)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 

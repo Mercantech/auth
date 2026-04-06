@@ -51,6 +51,7 @@ public class ReturnUrlValidator(IConfiguration configuration) : IReturnUrlValida
     {
         var origin = $"{absoluteUri.Scheme}://{absoluteUri.Authority}";
         var allowed = configuration.GetSection("Cors:SpaOrigins").Get<string[]>() ?? [];
+        var domains = configuration.GetSection("Cors:AllowedDomains").Get<string[]>() ?? [];
         foreach (var entry in allowed)
         {
             if (string.IsNullOrWhiteSpace(entry))
@@ -59,6 +60,27 @@ public class ReturnUrlValidator(IConfiguration configuration) : IReturnUrlValida
                 continue;
             var allowedOrigin = $"{allowedUri.Scheme}://{allowedUri.Authority}";
             if (string.Equals(allowedOrigin, origin, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        static string NormalizeDomain(string d) => d.Trim().Trim('.').ToLowerInvariant();
+
+        static bool HostMatchesDomainOrSubdomain(string host, string domain)
+        {
+            host = host.Trim().Trim('.').ToLowerInvariant();
+            domain = NormalizeDomain(domain);
+            if (domain.Length == 0)
+                return false;
+            if (string.Equals(host, domain, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var d in domains)
+        {
+            if (string.IsNullOrWhiteSpace(d))
+                continue;
+            if (HostMatchesDomainOrSubdomain(absoluteUri.Host, d))
                 return true;
         }
 
