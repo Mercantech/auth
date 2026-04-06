@@ -33,7 +33,7 @@ public static class DbSeeder
             }
         }
 
-        if (env.IsDevelopment() && !await db.ClientApps.AnyAsync(c => c.ClientId == "demo", ct))
+        if ((env.IsDevelopment() || env.IsEnvironment("Testing")) && !await db.ClientApps.AnyAsync(c => c.ClientId == "demo", ct))
         {
             var app = new ClientApp
             {
@@ -60,7 +60,7 @@ public static class DbSeeder
     /// <summary>Tilføjer ekstra localhost-URI'er til demo-klient (fx statisk HTML-test på port 5173).</summary>
     private static async Task EnsureDemoSpaTestRedirectsAsync(AuthDbContext db, IWebHostEnvironment env, CancellationToken ct)
     {
-        if (!env.IsDevelopment())
+        if (!env.IsDevelopment() && !env.IsEnvironment("Testing"))
             return;
 
         var demo = await db.ClientApps

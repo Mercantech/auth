@@ -99,3 +99,6 @@ app.MapRazorComponents<Auth.API.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+/// <summary>Gør typen synlig for <c>WebApplicationFactory&lt;Program&gt;</c> i integrationstests.</summary>
+public partial class Program;
