@@ -9,6 +9,7 @@ public class ClientApp
     public bool IsPublic { get; set; } = true;
     public bool RequirePkce { get; set; } = true;
     public string? ClientSecretHash { get; set; }
+    public string? AllowedScopes { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<ClientAppRedirectUri> RedirectUris { get; set; } = new List<ClientAppRedirectUri>();

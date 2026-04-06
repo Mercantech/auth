@@ -7,6 +7,8 @@ public class AuthorizationCode
     public Guid UserId { get; set; }
     public string ClientStringId { get; set; } = string.Empty;
     public string RedirectUri { get; set; } = string.Empty;
+    public string? Scope { get; set; }
+    public string? Nonce { get; set; }
     public string? CodeChallenge { get; set; }
     public string? CodeChallengeMethod { get; set; }
     public DateTime CreatedAt { get; set; }

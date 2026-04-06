@@ -19,6 +19,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IJwtSigningService, JwtSigningService>();
+builder.Services.AddSingleton<IOidcTokenService, OidcTokenService>();
 builder.Services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtBearerOptions>();
 builder.Services.AddSingleton<IReturnUrlValidator, ReturnUrlValidator>();
 builder.Services.AddSingleton<ExternalOAuthTokensProtector>();

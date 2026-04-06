@@ -5,6 +5,7 @@ using Auth.API.Models;
 using Auth.API.Models.Entities;
 using Auth.API.Security;
 using Auth.API.Services;
+using Auth.API.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Auth.API.Controllers;
 
@@ -22,14 +24,20 @@ public class OAuthController(
     AuthDbContext db,
     ExternalOAuthTokensProtector externalOAuthTokens,
     ITokenIssuer tokenIssuer,
+    IOidcTokenService oidcTokens,
+    IOptions<JwtOptions> jwtOptions,
     TimeProvider time) : ControllerBase
 {
+    private readonly JwtOptions _jwt = jwtOptions.Value;
+
     [HttpGet("/oauth/authorize")]
     public async Task<IActionResult> Authorize(
         [FromQuery] string? response_type,
         [FromQuery] string? client_id,
         [FromQuery] string? redirect_uri,
+        [FromQuery] string? scope,
         [FromQuery] string? state,
+        [FromQuery] string? nonce,
         [FromQuery] string? code_challenge,
         [FromQuery] string? code_challenge_method,
         CancellationToken cancellationToken = default)
@@ -86,6 +94,8 @@ public class OAuthController(
             UserId = appUser.Id,
             ClientStringId = client.ClientId,
             RedirectUri = redirect_uri,
+            Scope = scope,
+            Nonce = nonce,
             CodeChallenge = code_challenge,
             CodeChallengeMethod = code_challenge_method,
             CreatedAt = now,
@@ -186,6 +196,21 @@ public class OAuthController(
             ["token_type"] = "Bearer",
             ["expires_in"] = (int)(exp - time.GetUtcNow().UtcDateTime).TotalSeconds,
         };
+
+        var scopes = SplitScopes(authCode.Scope);
+        if (scopes.Contains("openid"))
+        {
+            var now = time.GetUtcNow().UtcDateTime;
+            var idExp = now.AddMinutes(Math.Min(_jwt.AccessTokenExpiryMinutes, 30));
+            body["id_token"] = oidcTokens.CreateIdToken(
+                authCode.User,
+                clientId,
+                authCode.Nonce,
+                scopes,
+                authMethod,
+                nowUtc: now,
+                expiresUtc: idExp);
+        }
         var msPayload = externalOAuthTokens.Unprotect(authCode.ExternalOAuthTokensCipher);
         if (msPayload is not null)
         {
@@ -278,5 +303,15 @@ public class OAuthController(
         if (!string.IsNullOrEmpty(state))
             query["state"] = state;
         return new RedirectResult(QueryHelpers.AddQueryString(redirectUri, query));
+    }
+
+    private static HashSet<string> SplitScopes(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new HashSet<string>(StringComparer.Ordinal);
+        return raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
     }
 }

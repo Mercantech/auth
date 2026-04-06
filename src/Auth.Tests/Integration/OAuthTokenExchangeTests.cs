@@ -25,6 +25,7 @@ public class OAuthTokenExchangeTests(AuthIntegrationFixture fixture)
         const string redirectUri = "http://localhost:5155/oauth/callback";
         const string clientId = "demo";
         const string codeVerifier = "0123456789012345678901234567890123456789012";
+        const string nonce = "nonce-123";
 
         await using (var scope = fixture.Factory.Services.CreateAsyncScope())
         {
@@ -51,6 +52,8 @@ public class OAuthTokenExchangeTests(AuthIntegrationFixture fixture)
                 UserId = user.Id,
                 ClientStringId = clientId,
                 RedirectUri = redirectUri,
+                Scope = "openid profile email",
+                Nonce = nonce,
                 CodeChallenge = CreateS256Challenge(codeVerifier),
                 CodeChallengeMethod = "S256",
                 CreatedAt = now,
@@ -79,6 +82,7 @@ public class OAuthTokenExchangeTests(AuthIntegrationFixture fixture)
             Assert.True(root.GetProperty("access_token").GetString()?.Length > 20);
             Assert.True(root.GetProperty("refresh_token").GetString()?.Length > 20);
             Assert.True(root.GetProperty("expires_in").GetInt32() > 0);
+            Assert.True(root.GetProperty("id_token").GetString()?.Length > 20);
         }
     }
 

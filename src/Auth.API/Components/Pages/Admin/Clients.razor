@@ -1,4 +1,5 @@
 @page "/Admin/Clients"
+@attribute [Authorize(Roles = "Admin")]
 @inject AuthDbContext Db
 @inject IWebHostEnvironment Env
 @using Auth.API.Models.Entities
@@ -15,6 +16,36 @@
 }
 else
 {
+    <div class="card">
+        <h2>Opret ny klient</h2>
+        <div class="field">
+            <label><strong>Navn</strong></label>
+            <input class="input" placeholder="Min app" @bind="_newClientName" />
+        </div>
+        <div class="field">
+            <label><strong>Client ID</strong></label>
+            <input class="input" placeholder="fx my-app" @bind="_newClientId" />
+            <div class="muted">Bruges som <code>client_id</code> i OAuth/OIDC.</div>
+        </div>
+        <div class="field">
+            <label><strong>Type</strong></label>
+            <label class="muted"><input type="checkbox" @bind="_newIsPublic" /> Public klient (ingen secret, PKCE anbefales)</label>
+        </div>
+        <div class="field">
+            <label class="muted"><input type="checkbox" @bind="_newRequirePkce" /> Kræv PKCE (S256)</label>
+        </div>
+        <div class="field">
+            <label class="muted"><input type="checkbox" @bind="_newIsActive" /> Aktiv</label>
+        </div>
+        <button type="button" class="btn" @onclick="CreateClientAsync">Opret klient</button>
+
+        @if (!string.IsNullOrWhiteSpace(_newClientSecretPlain))
+        {
+            <div class="divider"></div>
+            <p class="status-warn"><strong>Client secret (vises kun nu):</strong> <code>@_newClientSecretPlain</code></p>
+        }
+    </div>
+
     <div class="card">
         <h2>Vælg klient</h2>
         <div class="field">
@@ -35,6 +66,36 @@ else
 
     @if (_selected is not null)
     {
+        <div class="card">
+            <h2>Indstillinger</h2>
+            <div class="field">
+                <label class="muted"><input type="checkbox" @bind="_editIsActive" /> Aktiv</label>
+            </div>
+            <div class="field">
+                <label class="muted"><input type="checkbox" @bind="_editIsPublic" /> Public klient</label>
+            </div>
+            <div class="field">
+                <label class="muted"><input type="checkbox" @bind="_editRequirePkce" /> Kræv PKCE (S256)</label>
+            </div>
+            <div class="field">
+                <label><strong>Tilladte scopes</strong> (valgfri)</label>
+                <input class="input" placeholder="openid profile email offline_access" @bind="_editAllowedScopes" />
+                <div class="muted">Space-separeret liste. Bruges til at dokumentere/afgrænse scopes pr. klient.</div>
+            </div>
+
+            <button type="button" class="btn" @onclick="SaveClientSettingsAsync">Gem</button>
+
+            @if (!_editIsPublic)
+            {
+                <div class="divider"></div>
+                <button type="button" class="btn btn-secondary" @onclick="RotateClientSecretAsync">Rotér client secret</button>
+                @if (!string.IsNullOrWhiteSpace(_rotatedSecretPlain))
+                {
+                    <p class="status-warn"><strong>Nyt client secret (vises kun nu):</strong> <code>@_rotatedSecretPlain</code></p>
+                }
+            }
+        </div>
+
         <div class="card">
             <h2>Redirect URI whitelist</h2>
             <p class="muted">
@@ -94,6 +155,19 @@ else
     private string? _status;
     private bool _statusIsError;
 
+    private string _newClientName = "";
+    private string _newClientId = "";
+    private bool _newIsPublic = true;
+    private bool _newRequirePkce = true;
+    private bool _newIsActive = true;
+    private string? _newClientSecretPlain;
+
+    private bool _editIsActive;
+    private bool _editIsPublic;
+    private bool _editRequirePkce;
+    private string _editAllowedScopes = "";
+    private string? _rotatedSecretPlain;
+
     protected override async Task OnInitializedAsync()
     {
         await ReloadAsync();
@@ -110,6 +184,15 @@ else
         _selected = null;
         if (!string.IsNullOrWhiteSpace(_selectedClientId) && Guid.TryParse(_selectedClientId, out var id))
             _selected = _clients.FirstOrDefault(c => c.Id == id);
+
+        if (_selected is not null)
+        {
+            _editIsActive = _selected.IsActive;
+            _editIsPublic = _selected.IsPublic;
+            _editRequirePkce = _selected.RequirePkce;
+            _editAllowedScopes = _selected.AllowedScopes ?? "";
+            _rotatedSecretPlain = null;
+        }
     }
 
     private Task OnClientChanged(ChangeEventArgs e)
@@ -118,7 +201,148 @@ else
         _status = null;
         _statusIsError = false;
         _newRedirectUri = "";
+        _rotatedSecretPlain = null;
         return ReloadAsync();
+    }
+
+    private static string GenerateSecret(int bytes = 32)
+    {
+        var b = System.Security.Cryptography.RandomNumberGenerator.GetBytes(bytes);
+        return Convert.ToBase64String(b).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    private static bool IsValidClientId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+        value = value.Trim();
+        if (value.Length < 2 || value.Length > 64)
+            return false;
+        foreach (var ch in value)
+        {
+            if (!(char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.'))
+                return false;
+        }
+        return true;
+    }
+
+    private async Task CreateClientAsync()
+    {
+        _status = null;
+        _statusIsError = false;
+        _newClientSecretPlain = null;
+
+        var name = _newClientName.Trim();
+        var clientId = _newClientId.Trim();
+
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 120)
+        {
+            _status = "Udfyld et navn (max 120 tegn).";
+            _statusIsError = true;
+            return;
+        }
+
+        if (!IsValidClientId(clientId))
+        {
+            _status = "Ugyldigt client_id (brug a-z, 0-9, -, _, . og 2-64 tegn).";
+            _statusIsError = true;
+            return;
+        }
+
+        var exists = await Db.ClientApps.AsNoTracking().AnyAsync(c => c.ClientId == clientId);
+        if (exists)
+        {
+            _status = "client_id findes allerede.";
+            _statusIsError = true;
+            return;
+        }
+
+        string? secretHash = null;
+        if (!_newIsPublic)
+        {
+            var plain = GenerateSecret(48);
+            secretHash = BCrypt.Net.BCrypt.HashPassword(plain);
+            _newClientSecretPlain = plain;
+        }
+
+        Db.ClientApps.Add(new ClientApp
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            ClientId = clientId,
+            IsActive = _newIsActive,
+            IsPublic = _newIsPublic,
+            RequirePkce = _newRequirePkce,
+            ClientSecretHash = secretHash,
+            AllowedScopes = "openid profile email offline_access",
+            CreatedAt = DateTime.UtcNow,
+        });
+        await Db.SaveChangesAsync();
+
+        _newClientName = "";
+        _newClientId = "";
+        _newIsPublic = true;
+        _newRequirePkce = true;
+        _newIsActive = true;
+
+        _status = "Klient oprettet.";
+        await ReloadAsync();
+    }
+
+    private async Task SaveClientSettingsAsync()
+    {
+        _status = null;
+        _statusIsError = false;
+        _rotatedSecretPlain = null;
+
+        if (_selected is null)
+            return;
+
+        var id = _selected.Id;
+        var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == id);
+        if (tracked is null)
+            return;
+
+        tracked.IsActive = _editIsActive;
+        tracked.IsPublic = _editIsPublic;
+        tracked.RequirePkce = _editRequirePkce;
+        tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
+
+        if (tracked.IsPublic)
+            tracked.ClientSecretHash = null;
+
+        await Db.SaveChangesAsync();
+        _status = "Gemt.";
+        await ReloadAsync();
+    }
+
+    private async Task RotateClientSecretAsync()
+    {
+        _status = null;
+        _statusIsError = false;
+        _rotatedSecretPlain = null;
+
+        if (_selected is null)
+            return;
+
+        var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == _selected.Id);
+        if (tracked is null)
+            return;
+
+        if (tracked.IsPublic)
+        {
+            _status = "Public klient har ikke secret.";
+            _statusIsError = true;
+            return;
+        }
+
+        var plain = GenerateSecret(48);
+        tracked.ClientSecretHash = BCrypt.Net.BCrypt.HashPassword(plain);
+        await Db.SaveChangesAsync();
+
+        _rotatedSecretPlain = plain;
+        _status = "Secret roteret.";
+        await ReloadAsync();
     }
 
     private bool TryValidateRedirectUri(string raw, out Uri uri, out string error)

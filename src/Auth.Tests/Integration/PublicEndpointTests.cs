@@ -48,4 +48,18 @@ public class PublicEndpointTests(AuthIntegrationFixture fixture)
         Assert.Equal("https://test.auth.local", root.GetProperty("issuer").GetString());
         Assert.True(root.GetProperty("email_password_login_enabled").GetBoolean());
     }
+
+    [Fact]
+    public async Task Openid_configuration_exists_and_has_core_endpoints()
+    {
+        var res = await _client.GetAsync("/.well-known/openid-configuration");
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("authorization_endpoint").GetString()?.Contains("/oauth/authorize") == true);
+        Assert.True(root.GetProperty("token_endpoint").GetString()?.Contains("/oauth/token") == true);
+        Assert.True(root.GetProperty("jwks_uri").GetString()?.Contains("/.well-known/jwks.json") == true);
+        Assert.True(root.GetProperty("userinfo_endpoint").GetString()?.Contains("/userinfo") == true);
+    }
 }
