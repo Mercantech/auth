@@ -21,9 +21,8 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "8080:8080"
-    # Valgfrit: læg OAuth/Microsoft secrets i docker/.env (gitignoreret) — se .env.example
-    # env_file: .env
-    environment:
+    # Læg runtime config i docker/.env (gitignoreret) — se .env.example
+    env_file:
       - .env
     volumes:
       - jwt_keys:/app/keys
