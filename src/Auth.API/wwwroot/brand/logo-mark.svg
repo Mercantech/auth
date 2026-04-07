@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mercantec Auth mark">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f57d6"/>
+      <stop offset="1" stop-color="#0b2f87"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#g)">
+    <path d="M120 120 L170 80 L170 432 L120 472 Z"/>
+    <path d="M186 96 L226 64 L226 448 L186 480 Z"/>
+    <path d="M248 72 L292 40 L292 472 L248 508 Z"/>
+    <path d="M314 96 L354 64 L354 448 L314 480 Z"/>
+    <path d="M380 120 L430 80 L430 432 L380 472 Z"/>
+  </g>
+
+  <g transform="translate(0, 2)">
+    <rect x="222" y="232" width="68" height="74" rx="10" fill="#ffffff"/>
+    <path d="M244 232v-14c0-18 14-32 32-32s32 14 32 32v14h-14v-14c0-10-8-18-18-18s-18 8-18 18v14z" fill="#ffffff"/>
+    <path d="M256 270c0-12 20-12 20 0 0 6-4 10-8 12v14h-4v-14c-4-2-8-6-8-12z" fill="#0b2f87"/>
+  </g>
+</svg>
