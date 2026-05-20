@@ -34,20 +34,32 @@
     </main>
     <footer class="merc-shell__footer">
         <div class="merc-shell__footer-inner">
-            <p class="merc-shell__footer-line">
-                OAuth2 · PKCE · JWT (RS256) · Mercantec Auth ·
-                <a href="/termsofservice">Vilkår</a> ·
-                <a href="/privacystatement">Privatliv</a>
-            </p>
-            <p class="merc-shell__footer-dev">
-                Udviklet af
-                <a href="https://mags.dk/" target="_blank" rel="noopener noreferrer">MAGS Solutions — mags.dk</a>:
-                platforme, webapps og drift (Mathias Gaardsdal&nbsp;Steenberg).
-            </p>
-            <p class="merc-shell__footer-attrib" role="note">
-                Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle produktion.
-                Kontakt: <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
-            </p>
+            <div class="merc-shell__footer-grid">
+                <section class="merc-shell__footer-col" aria-label="Mercantec Auth og juridisk">
+                    <p class="merc-shell__footer-kicker">Mercantec Auth</p>
+                    <p class="merc-shell__footer-meta">OAuth2 · PKCE · JWT (RS256)</p>
+                    <p class="merc-shell__footer-links-row">
+                        <a href="/termsofservice">Vilkår</a>
+                        <span class="merc-shell__footer-dot" aria-hidden="true">·</span>
+                        <a href="/privacystatement">Privatliv</a>
+                    </p>
+                </section>
+                <section class="merc-shell__footer-col" aria-label="Udvikling">
+                    <p class="merc-shell__footer-kicker">Udvikling</p>
+                    <p class="merc-shell__footer-text">
+                        Udviklet af
+                        <a href="https://mags.dk/" target="_blank" rel="noopener noreferrer">MAGS Solutions — mags.dk</a>
+                        · platforme, webapps og drift (Mathias Gaardsdal&nbsp;Steenberg).
+                    </p>
+                </section>
+                <section class="merc-shell__footer-col" aria-label="Undervisning og kontakt">
+                    <p class="merc-shell__footer-kicker">Undervisning</p>
+                    <p class="merc-shell__footer-text" role="note">
+                        Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle produktion.
+                        Kontakt: <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+                    </p>
+                </section>
+            </div>
         </div>
     </footer>
 </div>

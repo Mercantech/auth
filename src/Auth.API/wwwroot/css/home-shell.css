@@ -129,7 +129,7 @@ body::before {
 .merc-shell__footer {
   border-top: 2px solid var(--merc-card-edge);
   background: rgba(247, 244, 237, 0.65);
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1.25rem 0.95rem;
   font-size: 0.8rem;
   color: var(--merc-muted);
 }
@@ -139,55 +139,70 @@ body::before {
   margin: 0 auto;
 }
 
-.merc-shell__footer-line {
-  margin: 0 0 0.35rem;
-  font-weight: 600;
-  color: var(--merc-ink);
+.merc-shell__footer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 1.75rem;
+  align-items: start;
 }
 
-.merc-shell__footer-line a {
-  color: var(--merc-accent);
-  font-weight: 700;
-  text-decoration: none;
+@media (max-width: 768px) {
+  .merc-shell__footer-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
 }
 
-.merc-shell__footer-line a:hover {
-  text-decoration: underline;
+.merc-shell__footer-col {
+  min-width: 0;
 }
 
-.merc-shell__footer-dev {
-  margin: 0 0 0.65rem;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  max-width: 44rem;
+.merc-shell__footer-kicker {
+  margin: 0 0 0.25rem;
+  font-family: var(--merc-font-ui);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(82, 74, 66, 0.82);
 }
 
-.merc-shell__footer-dev a {
-  color: var(--merc-accent);
-  font-weight: 700;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
+.merc-shell__footer-meta {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(82, 74, 66, 0.9);
 }
 
-.merc-shell__footer-dev a:hover {
-  border-bottom-color: var(--merc-accent);
-}
-
-.merc-shell__footer-attrib {
+.merc-shell__footer-text {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   line-height: 1.45;
-  max-width: 40rem;
+  max-width: none;
 }
 
-.merc-shell__footer-attrib a {
-  color: var(--merc-accent);
-  font-weight: 700;
+.merc-shell__footer-links-row {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.merc-shell__footer-dot {
+  margin: 0 0.2rem;
+  color: rgba(82, 74, 66, 0.45);
+}
+
+/* Footer-links: afdæmpet gråblå som headerlinks, tydeligere ved hover */
+.merc-shell__footer a {
+  color: #3d5560;
+  font-weight: 600;
   text-decoration: none;
   border-bottom: 1px solid transparent;
+  transition: color 0.12s ease, border-color 0.12s ease;
 }
 
-.merc-shell__footer-attrib a:hover {
+.merc-shell__footer a:hover {
+  color: var(--merc-accent);
   border-bottom-color: var(--merc-warm-pop);
 }
 
