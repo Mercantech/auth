@@ -37,20 +37,6 @@ window.MercantecPasskeys = {
     prepareAssertionOptions(options);
     const cred = await navigator.credentials.get({ publicKey: options });
     const assertion = credentialToJson(cred);
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = completeUrl;
-    const token = document.createElement("input");
-    token.type = "hidden";
-    token.name = "__RequestVerificationToken";
-    token.value = antiforgeryToken;
-    form.appendChild(token);
-    const payload = document.createElement("input");
-    payload.type = "hidden";
-    payload.name = "payload";
-    payload.value = JSON.stringify({ assertion, returnUrl });
-    form.appendChild(payload);
-    document.body.appendChild(form);
     const completeRes = await fetch(completeUrl, {
       method: "POST",
       headers: {
@@ -58,9 +44,16 @@ window.MercantecPasskeys = {
         RequestVerificationToken: antiforgeryToken,
       },
       body: JSON.stringify({ assertion, returnUrl }),
+      redirect: "manual",
+      credentials: "same-origin",
     });
-    if (completeRes.redirected) {
-      window.location = completeRes.url;
+    const location = completeRes.headers.get("Location");
+    if (location) {
+      window.location.assign(new URL(location, window.location.href).href);
+      return;
+    }
+    if (completeRes.status >= 300 && completeRes.status < 400) {
+      window.location.reload();
       return;
     }
     if (!completeRes.ok) throw new Error("Passkey-bekræftelse fejlede");

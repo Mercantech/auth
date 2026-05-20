@@ -11,7 +11,7 @@ namespace Auth.API.Pages.Account;
 [Authorize(Policy = MfaPolicies.MfaStep)]
 public class MfaModel(AuthDbContext db) : PageModel
 {
-    [BindProperty(SupportsGet = true)]
+    [BindProperty(SupportsGet = true, Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
 
     [BindProperty(SupportsGet = true)]
@@ -28,8 +28,13 @@ public class MfaModel(AuthDbContext db) : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        ReturnUrl = ResolveReturnUrl();
         if (!SignInHelper.IsMfaPending(User))
-            return Redirect(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl!);
+        {
+            if (string.IsNullOrWhiteSpace(ReturnUrl))
+                return LocalRedirect("/");
+            return LocalRedirect(ReturnUrl);
+        }
 
         ReturnUrl ??= "/";
         if (!Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -38,4 +43,9 @@ public class MfaModel(AuthDbContext db) : PageModel
         HasPasskeys = await db.UserPasskeyCredentials.AnyAsync(c => c.UserId == userId);
         return Page();
     }
+
+    private string? ResolveReturnUrl() =>
+        ReturnUrl
+        ?? Request.Query["returnUrl"].FirstOrDefault()
+        ?? Request.Query["ReturnUrl"].FirstOrDefault();
 }

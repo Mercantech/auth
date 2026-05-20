@@ -98,7 +98,7 @@ public static class MfaEndpointExtensions
         IOptions<MfaOptions> mfaOptions)
     {
         if (!await ValidateAntiforgery(ctx, antiforgery))
-            return Results.Redirect("/Account/Mfa?error=invalid_token");
+            return Results.Redirect(LoginBrandingUrls.Mfa("/", LoginBrandingUrls.ClientIdFromContext(ctx), "invalid_token"));
 
         if (!TryGetUserId(ctx, out var userId) || !SignInHelper.IsMfaPending(ctx.User))
             return Results.Redirect("/Account/Login");
@@ -127,7 +127,7 @@ public static class MfaEndpointExtensions
         }
 
         if (!verified)
-            return Results.Redirect($"/Account/Mfa?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            return Results.Redirect(LoginBrandingUrls.Mfa(returnUrl, LoginBrandingUrls.ClientIdFromContext(ctx), "invalid"));
 
         var user = await db.Users
             .Include(u => u.UserRoles)

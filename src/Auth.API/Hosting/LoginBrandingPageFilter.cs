@@ -47,6 +47,8 @@ public sealed class LoginBrandingPageFilter(IClientLoginBrandingService branding
             branding.ClearClientCookie(context.HttpContext);
 
         context.HttpContext.Items[LoginBrandingConstants.ContextItemKey] = resolved;
+        context.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        context.HttpContext.Response.Headers.Pragma = "no-cache";
 
         await next();
     }

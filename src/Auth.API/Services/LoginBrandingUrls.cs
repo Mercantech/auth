@@ -52,10 +52,12 @@ public static class LoginBrandingUrls
         return q.Count == 0 ? "/Account/Register" : $"/Account/Register?{string.Join('&', q)}";
     }
 
-    public static string Mfa(string returnUrl, string? clientId = null)
+    public static string Mfa(string returnUrl, string? clientId = null, string? error = null)
     {
         var q = new List<string> { $"returnUrl={Uri.EscapeDataString(returnUrl)}" };
         AppendClientId(q, clientId);
+        if (!string.IsNullOrWhiteSpace(error))
+            q.Add($"error={Uri.EscapeDataString(error)}");
         return $"/Account/Mfa?{string.Join('&', q)}";
     }
 

@@ -94,14 +94,25 @@ public static class DbSeeder
         await EnsureMercanlinkThemeAsync(db, ct);
     }
 
-    /// <summary>Sætter login-tema på mercanlink-klient hvis den findes.</summary>
+    /// <summary>Sætter login-tema på Mercanlink OAuth-klienter hvis de findes.</summary>
     private static async Task EnsureMercanlinkThemeAsync(AuthDbContext db, CancellationToken ct)
     {
-        var mercanlink = await db.ClientApps.FirstOrDefaultAsync(c => c.ClientId == "mercanlink", ct);
-        if (mercanlink is null || string.Equals(mercanlink.LoginThemeId, "mercanlink", StringComparison.OrdinalIgnoreCase))
-            return;
+        var mercanlinkClientIds = new[] { "mercanlink", "Mercanlink-app" };
+        var clients = await db.ClientApps
+            .Where(c => mercanlinkClientIds.Contains(c.ClientId))
+            .ToListAsync(ct);
 
-        mercanlink.LoginThemeId = "mercanlink";
-        await db.SaveChangesAsync(ct);
+        var changed = false;
+        foreach (var client in clients)
+        {
+            if (string.Equals(client.LoginThemeId, "mercanlink", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            client.LoginThemeId = "mercanlink";
+            changed = true;
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(ct);
     }
 }
