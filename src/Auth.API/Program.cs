@@ -14,8 +14,10 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<BootstrapOptions>(builder.Configuration.GetSection(BootstrapOptions.SectionName));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+Action<DbContextOptionsBuilder> configureAuthDb = options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+builder.Services.AddDbContext<AuthDbContext>(configureAuthDb);
+builder.Services.AddDbContextFactory<AuthDbContext>(configureAuthDb);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IJwtSigningService, JwtSigningService>();

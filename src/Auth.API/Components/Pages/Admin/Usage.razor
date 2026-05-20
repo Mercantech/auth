@@ -1,8 +1,7 @@
 @page "/Admin/Usage"
 @attribute [Authorize(Roles = "Admin")]
-@inject AuthDbContext Db
+@inject IDbContextFactory<AuthDbContext> DbFactory
 @using Auth.API.Models.Entities
-@using Auth.API.Services
 @using Microsoft.EntityFrameworkCore
 
 <PageTitle>Auth-brug (admin)</PageTitle>
@@ -18,7 +17,15 @@
         <a class="merc-btn merc-btn--ghost" href="/Admin/Users">← Brugere</a>
     </header>
 
-    @if (_summary is null)
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="merc-alert merc-alert--error" role="alert">
+            <p><strong>Kunne ikke hente brugsdata.</strong> @_error</p>
+            <p class="merc-hint">Tjek at migration <code>AuthUsageTracking</code> er kørt mod databasen. Brugerlisten kan stadig vise klienter fra <code>UserClientUsages</code>.</p>
+            <button type="button" class="merc-btn merc-btn--ghost" @onclick="RetryAsync">Prøv igen</button>
+        </div>
+    }
+    else if (_summary is null)
     {
         <p class="merc-usage__loading">Henter…</p>
     }
@@ -79,12 +86,19 @@
 
         <section class="merc-usage__section" aria-labelledby="events-type-heading">
             <h2 id="events-type-heading" class="merc-usage__section-title">Hændelser seneste 30 dage</h2>
-            <ul class="merc-usage__event-types" role="list">
-                @foreach (var e in _summary.ByEventType)
-                {
-                    <li><code>@e.EventType</code> <span class="merc-usage__count">@e.Count</span></li>
-                }
-            </ul>
+            @if (_summary.ByEventType.Count == 0)
+            {
+                <p class="merc-hint">Ingen hændelser i perioden endnu.</p>
+            }
+            else
+            {
+                <ul class="merc-usage__event-types" role="list">
+                    @foreach (var e in _summary.ByEventType)
+                    {
+                        <li><code>@e.EventType</code> <span class="merc-usage__count">@e.Count</span></li>
+                    }
+                </ul>
+            }
         </section>
 
         <section class="merc-usage__section" aria-labelledby="recent-heading">
@@ -122,58 +136,92 @@
 
 @code {
     private UsageSummaryVm? _summary;
+    private string? _error;
+    private bool _loadStarted;
 
     private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
         OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        if (_loadStarted)
+            return;
+        _loadStarted = true;
+        await ReloadAsync();
+    }
+
+    private Task RetryAsync()
+    {
+        _error = null;
+        _summary = null;
+        _loadStarted = false;
+        return ReloadAsync();
+    }
 
     private async Task ReloadAsync()
     {
-        var since30 = DateTime.UtcNow.AddDays(-30);
+        _loadStarted = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var since30 = DateTime.UtcNow.AddDays(-30);
 
-        var byClient = await Db.UserClientUsages
-            .AsNoTracking()
-            .GroupBy(u => u.ClientId)
-            .Select(g => new ClientAgg(
-                g.Key,
-                g.Count(),
-                g.Sum(x => x.AuthorizeCount),
-                g.Sum(x => x.TokenExchangeCount),
-                g.Sum(x => x.RefreshCount),
-                g.Max(x => x.LastSeenAtUtc)))
-            .OrderByDescending(x => x.LastSeenAtUtc)
-            .ToListAsync();
+            var clientRows = await db.UserClientUsages.AsNoTracking().ToListAsync();
+            var byClient = clientRows
+                .GroupBy(u => u.ClientId)
+                .Select(g => new ClientAgg(
+                    g.Key,
+                    g.Count(),
+                    g.Sum(x => x.AuthorizeCount),
+                    g.Sum(x => x.TokenExchangeCount),
+                    g.Sum(x => x.RefreshCount),
+                    g.Max(x => x.LastSeenAtUtc)))
+                .OrderByDescending(x => x.LastSeenAtUtc)
+                .ToList();
 
-        var byEventType = await Db.AuthUsageEvents
-            .AsNoTracking()
-            .Where(e => e.CreatedAtUtc >= since30)
-            .GroupBy(e => e.EventType)
-            .Select(g => new EventTypeAgg(g.Key, g.Count()))
-            .OrderByDescending(x => x.Count)
-            .ToListAsync();
+            var events30 = await db.AuthUsageEvents
+                .AsNoTracking()
+                .Where(e => e.CreatedAtUtc >= since30)
+                .ToListAsync();
 
-        var recent = await Db.AuthUsageEvents
-            .AsNoTracking()
-            .OrderByDescending(e => e.CreatedAtUtc)
-            .Take(80)
-            .Select(e => new EventVm(
-                e.CreatedAtUtc,
-                e.EventType,
-                e.UserId,
-                e.ClientId,
-                e.Provider,
-                e.LoginMethod))
-            .ToListAsync();
+            var byEventType = events30
+                .GroupBy(e => e.EventType)
+                .Select(g => new EventTypeAgg(g.Key, g.Count()))
+                .OrderByDescending(x => x.Count)
+                .ToList();
 
-        var activeUsers = await Db.AuthUsageEvents
-            .AsNoTracking()
-            .Where(e => e.UserId != null && e.CreatedAtUtc >= since30)
-            .Select(e => e.UserId!.Value)
-            .Distinct()
-            .CountAsync();
+            var recent = await db.AuthUsageEvents
+                .AsNoTracking()
+                .OrderByDescending(e => e.CreatedAtUtc)
+                .Take(80)
+                .Select(e => new EventVm(
+                    e.CreatedAtUtc,
+                    e.EventType,
+                    e.UserId,
+                    e.ClientId,
+                    e.Provider,
+                    e.LoginMethod))
+                .ToListAsync();
 
-        _summary = new UsageSummaryVm(byClient, byEventType, recent, activeUsers, byEventType.Sum(x => x.Count));
+            var activeUsers = events30
+                .Where(e => e.UserId is not null)
+                .Select(e => e.UserId!.Value)
+                .Distinct()
+                .Count();
+
+            _summary = new UsageSummaryVm(
+                byClient,
+                byEventType,
+                recent,
+                activeUsers,
+                events30.Count);
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _summary = null;
+            _error = ex.InnerException?.Message ?? ex.Message;
+        }
     }
 
     private static string ShortId(Guid id) => id.ToString()[..8] + "…";
