@@ -62,8 +62,8 @@ public static class MfaEndpointExtensions
         if (!TryGetUserId(ctx, out var userId))
             return Results.Unauthorized();
 
-        var setup = await totp.BeginSetupAsync(userId, ctx.RequestAborted);
-        return Results.Json(new { setup.SharedSecretBase32, setup.AuthenticatorUri });
+        await totp.BeginSetupAsync(userId, ctx.RequestAborted);
+        return Results.Redirect("/Account/Security");
     }
 
     private static async Task<IResult> TotpConfirmAsync(

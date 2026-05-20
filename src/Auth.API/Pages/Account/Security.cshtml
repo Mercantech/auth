@@ -39,8 +39,14 @@
             <p class="linked-section__lede">Scan QR-koden i Google Authenticator, Microsoft Authenticator eller lignende.</p>
             @if (!string.IsNullOrEmpty(Model.SetupUri))
             {
+                @if (!string.IsNullOrEmpty(Model.SetupQrDataUrl))
+                {
+                    <p class="totp-qr-wrap">
+                        <img src="@Model.SetupQrDataUrl" width="200" height="200" alt="QR-kode til authenticator-app" class="totp-qr" />
+                    </p>
+                }
+                <p class="linked-section__muted">Kan ikke scanne? Indtast nøglen manuelt:</p>
                 <p><code class="linked-accounts__mono">@Model.SetupSecret</code></p>
-                <p class="linked-section__muted"><a href="@Model.SetupUri">otpauth://-link</a></p>
             }
             <form method="post" action="@(Request.PathBase)/account/mfa/totp/confirm">
                 <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
@@ -48,7 +54,7 @@
                 <input id="confirm-code" name="code" class="auth-input" inputmode="numeric" required />
                 <button type="submit" class="auth-btn auth-btn--primary">Aktivér TOTP</button>
             </form>
-            <form method="post" asp-page-handler="RegenerateTotp" class="auth-form" style="margin-top:1rem">
+            <form method="post" action="@(Request.PathBase)/account/mfa/totp/setup" class="auth-form" style="margin-top:1rem">
                 <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
                 <button type="submit" class="auth-btn auth-btn--ghost">Generér ny QR</button>
             </form>

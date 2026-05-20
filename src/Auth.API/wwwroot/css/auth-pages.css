@@ -460,6 +460,19 @@
     max-width: 28rem;
 }
 
+.totp-qr-wrap {
+    margin: 0.75rem 0 1rem;
+    padding: 0.75rem;
+    background: #fff;
+    border: 1px solid var(--auth-input-border);
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.totp-qr {
+    display: block;
+}
+
 .linked-accounts__title {
     font-size: 1.35rem;
     margin-bottom: 0.5rem;

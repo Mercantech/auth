@@ -15,16 +15,20 @@ public class SecurityModel(
     public bool TotpEnabled { get; private set; }
     public string? SetupSecret { get; private set; }
     public string? SetupUri { get; private set; }
+    public string? SetupQrDataUrl { get; private set; }
     public IReadOnlyList<PasskeyListItem> Passkeys { get; private set; } = [];
     public string? BannerMessage { get; private set; }
     public string? BannerError { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(
+        string? handler,
         string? totp_enabled,
         string? totp_disabled,
         string? passkey_removed,
         string? error)
     {
+        if (string.Equals(handler, "RegenerateTotp", StringComparison.OrdinalIgnoreCase))
+            return RedirectToPage();
         BannerMessage = totp_enabled == "1" ? "Authenticator er aktiveret."
             : totp_disabled == "1" ? "Authenticator er deaktiveret."
             : passkey_removed == "1" ? "Passkey fjernet."
@@ -46,20 +50,16 @@ public class SecurityModel(
 
         if (!TotpEnabled && string.IsNullOrEmpty(SetupSecret))
         {
-            var setup = await totp.BeginSetupAsync(userId);
-            SetupSecret = setup.SharedSecretBase32;
-            SetupUri = setup.AuthenticatorUri;
+            ApplySetup(await totp.BeginSetupAsync(userId));
         }
 
         return Page();
     }
 
-    public async Task<IActionResult> OnPostRegenerateTotpAsync()
+    private void ApplySetup(TotpSetupResult setup)
     {
-        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
-            return RedirectToPage("/Account/Login");
-
-        await totp.BeginSetupAsync(userId);
-        return RedirectToPage();
+        SetupSecret = setup.SharedSecretBase32;
+        SetupUri = setup.AuthenticatorUri;
+        SetupQrDataUrl = TotpQrCodeHelper.ToPngDataUrl(setup.AuthenticatorUri);
     }
 }
