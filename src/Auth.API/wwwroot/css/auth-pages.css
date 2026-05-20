@@ -6,15 +6,20 @@
 }
 
 .auth-page {
+    --auth-page-bg: #cfc8bb;
+    --auth-page-bg-accent: rgba(42, 77, 92, 0.07);
+    --auth-brand-mark-bg: linear-gradient(135deg, #2a4d5c 0%, #1a3340 100%);
+    --auth-brand-mark-fg: #e8f4f0;
+
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    color: #161412;
-    background: #cfc8bb;
+    color: var(--auth-ink, #161412);
+    background: var(--auth-page-bg);
     background-image:
         linear-gradient(145deg, #e3ddd2 0%, transparent 45%),
-        linear-gradient(320deg, rgba(42, 77, 92, 0.07) 0%, transparent 40%),
+        linear-gradient(320deg, var(--auth-page-bg-accent) 0%, transparent 40%),
         linear-gradient(200deg, rgba(196, 92, 62, 0.05) 0%, transparent 35%);
 }
 
@@ -149,10 +154,31 @@
     height: 3rem;
     border-radius: 4px;
     border: 2px solid var(--auth-edge);
-    background: linear-gradient(135deg, #2a4d5c 0%, #1a3340 100%);
+    background: var(--auth-brand-mark-bg, linear-gradient(135deg, #2a4d5c 0%, #1a3340 100%));
+    color: var(--auth-brand-mark-fg, #e8f4f0);
     display: grid;
     place-items: center;
     box-shadow: 4px 4px 0 var(--auth-edge);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.auth-brand__mark--client {
+    background: var(--auth-brand-mark-bg);
+    padding: 0.2rem;
+}
+
+.auth-brand__logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.auth-topbar__logo {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 4px;
     flex-shrink: 0;
 }
 
@@ -626,9 +652,203 @@
     border-bottom-color: #c45c3e;
 }
 
+/* ——— Konto-hub (LinkedAccounts ↔ Security) ——— */
+.account-hub-page {
+    max-width: 34rem;
+}
+
+.account-hub {
+    margin-bottom: 1.35rem;
+}
+
+.account-hub__home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--auth-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 0.1rem;
+    transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.account-hub__home:hover {
+    color: var(--auth-accent);
+    border-bottom-color: var(--auth-warm);
+}
+
+.account-hub__home .security-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    opacity: 0.75;
+}
+
+.account-hub__tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.account-hub__tabs > li {
+    margin: 0;
+    min-width: 0;
+}
+
+.account-hub__tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-height: 6.5rem;
+    padding: 0.85rem 0.9rem 0.95rem;
+    text-decoration: none;
+    color: inherit;
+    border: 2px solid var(--auth-edge);
+    border-radius: 4px;
+    background: #fffcf7;
+    box-shadow: 3px 3px 0 rgba(20, 18, 16, 0.1);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.account-hub__tab:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 rgba(20, 18, 16, 0.12);
+    border-color: var(--auth-accent);
+    color: inherit;
+}
+
+.account-hub__tab:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 rgba(20, 18, 16, 0.12);
+}
+
+.account-hub__tab.is-active {
+    border-color: var(--auth-accent);
+    background: linear-gradient(160deg, #f0f7fa 0%, #fffcf7 55%);
+    box-shadow: 4px 4px 0 var(--auth-edge);
+}
+
+.account-hub__tab--security {
+    border-color: rgba(196, 92, 62, 0.45);
+    background: linear-gradient(155deg, #fdf6f2 0%, #fffcf7 48%, #f7f4ed 100%);
+}
+
+.account-hub__tab--security:hover {
+    border-color: var(--auth-warm);
+}
+
+.account-hub__tab--security.is-active {
+    border-color: var(--auth-warm);
+    background: linear-gradient(155deg, #f5e8e2 0%, #fffcf7 40%, #f0f7fa 100%);
+    box-shadow: 4px 4px 0 var(--auth-edge);
+}
+
+.account-hub__icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    background: var(--auth-code-bg);
+    border: 1px solid var(--auth-input-border);
+    color: var(--auth-accent);
+}
+
+.account-hub__icon .security-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.account-hub__icon--shield {
+    background: linear-gradient(145deg, #2a4d5c 0%, #1a3340 100%);
+    border-color: var(--auth-edge);
+    color: #e8f4f0;
+    box-shadow: 2px 2px 0 rgba(20, 18, 16, 0.15);
+}
+
+.account-hub__icon--shield .security-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.account-hub__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-hub__name {
+    display: block;
+    font-family: "Syne", system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 0.88rem;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--auth-ink);
+}
+
+.account-hub__hint {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--auth-muted);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.account-hub__badge {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--auth-warm);
+    border: 1px solid var(--auth-edge);
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 rgba(20, 18, 16, 0.12);
+}
+
+.account-hub__tab--linked.is-active .account-hub__icon {
+    background: rgba(42, 77, 92, 0.1);
+    border-color: rgba(42, 77, 92, 0.35);
+}
+
+@media (max-width: 420px) {
+    .account-hub__tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .account-hub__tab {
+        min-height: 0;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0.85rem;
+    }
+
+    .account-hub__badge {
+        position: static;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+}
+
 /* ——— Tilknyttede login (/Account/LinkedAccounts) ——— */
 .linked-accounts {
-    max-width: 28rem;
+    max-width: 34rem;
 }
 
 /* ——— Sikkerhed (/Account/Security) ——— */
@@ -687,27 +907,6 @@
     font-size: 0.9rem;
     color: var(--auth-muted);
     line-height: 1.55;
-}
-
-.security-nav {
-    margin-bottom: 1.25rem;
-}
-
-.security-nav__link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 700;
-    font-size: 0.82rem;
-    color: var(--auth-accent);
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-    padding-bottom: 0.1rem;
-}
-
-.security-nav__link:hover {
-    border-bottom-color: var(--auth-warm);
-    color: var(--auth-accent-hover);
 }
 
 .security-alert {
@@ -1176,21 +1375,6 @@
     border: 1px solid var(--auth-input-border);
 }
 
-.linked-accounts__breadcrumb {
-    margin: 0 0 1rem;
-}
-
-.linked-accounts__back {
-    font-weight: 700;
-    color: var(--auth-accent);
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-}
-
-.linked-accounts__back:hover {
-    border-bottom-color: var(--auth-warm);
-}
-
 .linked-section {
     margin-top: 1.5rem;
 }
@@ -1426,6 +1610,7 @@
     .auth-submit:hover,
     .auth-btn:hover,
     .auth-action:hover,
+    .account-hub__tab:hover,
     .linked-conn-row__unlink:hover {
         transform: none;
     }

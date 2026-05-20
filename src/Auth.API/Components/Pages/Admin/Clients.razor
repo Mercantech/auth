@@ -1,5 +1,6 @@
 @page "/Admin/Clients"
 @attribute [Authorize(Roles = "Admin")]
+@using Auth.API.Services
 @inject AuthDbContext Db
 @inject IWebHostEnvironment Env
 @inject IJSRuntime Js
@@ -209,6 +210,17 @@
                                 <span class="merc-hint">Space-separeret. Dokumenterer hvilke scopes klienten må anmode om.</span>
                             </div>
 
+                            <div class="merc-field">
+                                <label class="merc-label" for="editLoginTheme">Login-tema (OAuth)</label>
+                                <select id="editLoginTheme" class="merc-input" @bind="_editLoginThemeId">
+                                    @foreach (var theme in LoginThemeCatalog.All)
+                                    {
+                                        <option value="@(theme.Id == LoginThemeCatalog.DefaultId ? "" : theme.Id)">@theme.DisplayName</option>
+                                    }
+                                </select>
+                                <span class="merc-hint">Vises på Login, Register og MFA når brugeren starter OAuth med denne <code>client_id</code>. Tom = Mercantec standard.</span>
+                            </div>
+
                             <div class="merc-panel__actions">
                                 <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveClientSettingsAsync" disabled="@_saving">
                                     @(_saving ? "Gemmer…" : "Gem indstillinger")
@@ -320,6 +332,7 @@
     private bool _editIsPublic;
     private bool _editRequirePkce;
     private string _editAllowedScopes = "";
+    private string _editLoginThemeId = "";
     private string? _rotatedSecretPlain;
 
     private bool _newIsPublic => _newClientKind == ClientKind.Spa;
@@ -435,6 +448,7 @@
             _editIsPublic = _selected.IsPublic;
             _editRequirePkce = _selected.RequirePkce;
             _editAllowedScopes = _selected.AllowedScopes ?? "";
+            _editLoginThemeId = _selected.LoginThemeId ?? "";
             _rotatedSecretPlain = null;
         }
     }
@@ -548,6 +562,8 @@
             tracked.IsPublic = _editIsPublic;
             tracked.RequirePkce = _editRequirePkce;
             tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
+            tracked.LoginThemeId = LoginThemeCatalog.NormalizeStored(
+                string.IsNullOrWhiteSpace(_editLoginThemeId) ? null : _editLoginThemeId);
 
             if (tracked.IsPublic)
                 tracked.ClientSecretHash = null;

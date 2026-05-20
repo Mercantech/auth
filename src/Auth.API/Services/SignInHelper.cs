@@ -30,8 +30,9 @@ public static class SignInHelper
         if (await mfaGate.RequiresMfaStepAsync(user.Id, roleNames, http.RequestAborted))
         {
             await SignInPendingAsync(http, user, roleNames, loginMethod, mfaOptions.Value.PendingSessionMinutes);
-            var mfaReturn = Uri.EscapeDataString(returnUrl);
-            return Results.Redirect($"/Account/Mfa?returnUrl={mfaReturn}");
+            var clientId = ClientLoginBrandingService.TryParseClientIdFromReturnUrl(returnUrl)
+                ?? LoginBrandingUrls.ClientIdFromContext(http);
+            return Results.Redirect(LoginBrandingUrls.Mfa(returnUrl, string.IsNullOrEmpty(clientId) ? null : clientId));
         }
 
         await SignInFullAsync(http, user, roleNames, loginMethod, amr);

@@ -67,24 +67,25 @@ public class OAuthController(
         if (HttpContext.User.Identity?.IsAuthenticated != true)
         {
             var returnUrl = Request.Path + Request.QueryString;
-            return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}");
+            return Redirect(LoginBrandingUrls.AuthorizeLoginRedirect(returnUrl.ToString()!, client_id));
         }
 
         if (SignInHelper.IsMfaPending(User))
         {
             var returnUrl = Request.Path + Request.QueryString;
-            return Redirect($"/Account/Mfa?returnUrl={Uri.EscapeDataString(returnUrl)}");
+            return Redirect(LoginBrandingUrls.Mfa(returnUrl.ToString()!, client_id));
         }
 
         var userIdClaim = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var authReturn = Request.Path + Request.QueryString;
         if (!Guid.TryParse(userIdClaim, out var userId))
-            return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(Request.Path + Request.QueryString)}");
+            return Redirect(LoginBrandingUrls.AuthorizeLoginRedirect(authReturn.ToString()!, client_id));
 
         var appUser = await db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDisabled, cancellationToken);
         if (appUser is null)
-            return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(Request.Path + Request.QueryString)}");
+            return Redirect(LoginBrandingUrls.AuthorizeLoginRedirect(authReturn.ToString()!, client_id));
 
         var plainCode = SecureToken.CreateOpaqueToken(32);
         var now = time.GetUtcNow().UtcDateTime;

@@ -1,0 +1,26 @@
+/* Mercantec standard — matcher default auth-pages.css variabler */
+.auth-page[data-login-theme="mercantec"] {
+    --auth-ink: #161412;
+    --auth-muted: #524a42;
+    --auth-card: #f7f4ed;
+    --auth-edge: #141210;
+    --auth-accent: #2a4d5c;
+    --auth-accent-hover: #1f3a46;
+    --auth-warm: #c45c3e;
+    --auth-input-bg: #fffcf7;
+    --auth-input-border: #c9c2b5;
+    --auth-code-bg: #e8e3d8;
+    --auth-page-bg: #cfc8bb;
+    --auth-page-bg-accent: rgba(42, 77, 92, 0.07);
+    --auth-brand-mark-bg: linear-gradient(135deg, #2a4d5c 0%, #1a3340 100%);
+    --auth-brand-mark-fg: #e8f4f0;
+}
+
+.auth-page[data-login-theme="mercantec"]::before {
+    opacity: 0.28;
+}
+
+.auth-page[data-login-theme="mercantec"] .auth-brand__mark--default {
+    background: var(--auth-brand-mark-bg);
+    color: var(--auth-brand-mark-fg);
+}

@@ -1,4 +1,5 @@
 using Auth.API.Options;
+using Auth.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
@@ -25,9 +26,9 @@ public class RegisterModel(IOptions<AuthOptions> authOptions) : PageModel
     };
 
     public string LoginLink =>
-        string.IsNullOrWhiteSpace(ReturnUrl)
-            ? "/Account/Login"
-            : $"/Account/Login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+        LoginBrandingUrls.Login(
+            ReturnUrl,
+            clientId: LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(ReturnUrl, HttpContext));
 
     public void OnGet()
     {

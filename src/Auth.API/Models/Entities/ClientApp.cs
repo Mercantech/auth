@@ -10,6 +10,8 @@ public class ClientApp
     public bool RequirePkce { get; set; } = true;
     public string? ClientSecretHash { get; set; }
     public string? AllowedScopes { get; set; }
+    /// <summary>Preset-id for OAuth login-UI (fx mercanlink). Null = Mercantec standard.</summary>
+    public string? LoginThemeId { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<ClientAppRedirectUri> RedirectUris { get; set; } = new List<ClientAppRedirectUri>();

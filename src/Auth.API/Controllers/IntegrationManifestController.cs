@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Auth.API.Options;
 using Auth.API.Security;
+using Auth.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -55,6 +56,13 @@ public class IntegrationManifestController(
         mfa_note_da = "Opt-in TOTP (authenticator-app) og passkeys (WebAuthn). Efter primær login kan brugeren blive sendt til /Account/Mfa indtil 2. faktor er bekræftet; OAuth /oauth/authorize kræver fuld session (ikke mfa_pending).",
         account_security_ui = $"{baseUrl}/Account/Security",
         mfa_step_ui = $"{baseUrl}/Account/Mfa",
+        login_themes_supported = true,
+        login_themes = LoginThemeCatalog.All.Select(t => new
+        {
+            id = t.Id,
+            display_name = t.DisplayName,
+            note = "Vælg i admin under OAuth-klient. Gælder Login, Register og MFA under OAuth-flow.",
+        }).ToArray(),
         auth_configuration_note = "Auth:EnableEmailPasswordLogin (eller miljøvariabel Auth__EnableEmailPasswordLogin) styrer e-mail/adgangskode på /Account/Login, /Account/Register og POST /signin, /signup.",
         audience_for_this_document = new[]
         {

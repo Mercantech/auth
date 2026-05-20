@@ -54,6 +54,18 @@ Valgfrit pr. bruger under **`/Account/Security`** (kræver fuld session).
 
 Konfiguration: `Mfa:RequireForRoles` (tom som standard), `Passkeys:RpId`, `Passkeys:Origins` i `appsettings` / miljø.
 
+## Login-UI branding per klient
+
+Under OAuth-flow kan login-siderne (**`/Account/Login`**, **`/Account/Register`**, **`/Account/Mfa`**) vises med et **forvalgt tema** knyttet til `client_id`.
+
+| Admin | Felt `LoginThemeId` på `ClientApps` (dropdown i **Admin → Klienter**) |
+|-------|------------------------------------------------------------------------|
+| Presets | `mercantec` (standard), `mercanlink`, … — se `login_themes` i [manifest](https://auth.mercantec.tech/.well-known/mercantec-auth.json) |
+
+Flow: `GET /oauth/authorize?client_id=…` → redirect til login med samme `client_id` og kortlivet cookie `mercantec_login_client`, så temaet bevares gennem sign-in og MFA. Direkte besøg på `/Account/Security` uden OAuth bruger altid Mercantec-standard.
+
+Nye temaer tilføjes i kode (`LoginThemeCatalog` + `wwwroot/themes/{id}.css`) — ikke vilkårlig CSS upload.
+
 ## Endpoints (relativt til auth-base-URL)
 
 | Endpoint | Formål |

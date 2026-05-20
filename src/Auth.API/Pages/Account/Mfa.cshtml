@@ -4,11 +4,13 @@
 @inject IAntiforgery Antiforgery
 @{
     ViewData["Title"] = "Bekræft login";
+    ViewData["BrandSubtitle"] = "Bekræft for at fuldføre login";
     var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
 }
 
 <div class="auth-card">
-    <h1 class="auth-headline">Anden faktor</h1>
+    @await Html.PartialAsync("_LoginBrandHeader")
+    <h2 class="auth-headline">Anden faktor</h2>
     <p class="auth-lead">Bekræft med authenticator-kode, recovery-kode eller passkey.</p>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))

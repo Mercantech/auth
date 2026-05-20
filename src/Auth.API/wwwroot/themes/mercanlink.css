@@ -1,0 +1,68 @@
+/* Mercanlink — moderne læringsplatform (mercanlink.dk) */
+.auth-page[data-login-theme="mercanlink"] {
+    --auth-ink: #0f172a;
+    --auth-muted: #475569;
+    --auth-card: #ffffff;
+    --auth-edge: #1e293b;
+    --auth-accent: #4f46e5;
+    --auth-accent-hover: #4338ca;
+    --auth-warm: #7c3aed;
+    --auth-input-bg: #f8fafc;
+    --auth-input-border: #cbd5e1;
+    --auth-code-bg: #f1f5f9;
+    --auth-page-bg: #e2e8f0;
+    --auth-page-bg-accent: rgba(79, 70, 229, 0.08);
+    --auth-brand-mark-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --auth-brand-mark-fg: #ffffff;
+}
+
+.auth-page[data-login-theme="mercanlink"] {
+    background: var(--auth-page-bg);
+    background-image:
+        linear-gradient(145deg, #f8fafc 0%, transparent 50%),
+        linear-gradient(320deg, var(--auth-page-bg-accent) 0%, transparent 45%),
+        radial-gradient(ellipse 80% 60% at 100% 0%, rgba(124, 58, 237, 0.12), transparent);
+}
+
+.auth-page[data-login-theme="mercanlink"]::before {
+    opacity: 0.12;
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-topbar {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom-color: var(--auth-edge);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-topbar__brand {
+    color: var(--auth-ink);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-topbar__mark {
+    box-shadow: 3px 3px 0 rgba(30, 41, 59, 0.2);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-card {
+    box-shadow: 6px 6px 0 rgba(30, 41, 59, 0.12);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-brand__mark--client {
+    background: var(--auth-brand-mark-bg);
+    border-color: var(--auth-accent);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-submit,
+.auth-page[data-login-theme="mercanlink"] .auth-btn--primary {
+    background: var(--auth-accent);
+    border-color: var(--auth-accent);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-submit:hover,
+.auth-page[data-login-theme="mercanlink"] .auth-btn--primary:hover {
+    background: var(--auth-accent-hover);
+    border-color: var(--auth-accent-hover);
+}
+
+.auth-page[data-login-theme="mercanlink"] .auth-topbar__link:hover {
+    border-bottom-color: var(--auth-warm);
+    color: var(--auth-accent);
+}

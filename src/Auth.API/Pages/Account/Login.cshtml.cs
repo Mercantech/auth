@@ -1,5 +1,6 @@
 using Auth.API.Hosting;
 using Auth.API.Options;
+using Auth.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
@@ -39,9 +40,9 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
     };
 
     public string RegisterLink =>
-        string.IsNullOrWhiteSpace(ReturnUrl)
-            ? "/Account/Register"
-            : $"/Account/Register?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+        LoginBrandingUrls.Register(
+            ReturnUrl,
+            clientId: LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(ReturnUrl, HttpContext));
 
     public string ChallengeUrl(string provider, string returnUrl, string? emailKind = null)
     {

@@ -37,9 +37,10 @@ public static class AccountEndpointExtensions
             .RequireAuthorization(MfaPolicies.FullSession)
             .DisableAntiforgery();
 
-        app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, string? returnUrl) =>
+        app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, IClientLoginBrandingService branding, string? returnUrl) =>
             {
                 await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                branding.ClearClientCookie(ctx);
                 if (string.IsNullOrWhiteSpace(returnUrl))
                     return Results.LocalRedirect("/");
                 if (!urls.IsSafePostLogoutRedirectUrl(returnUrl, ctx.Request))
@@ -180,7 +181,7 @@ public static class AccountEndpointExtensions
         }
         catch
         {
-            return Results.Redirect("/Account/Login?error=invalid");
+            return Results.Redirect(BrandedLogin(ctx, null, "invalid"));
         }
 
         var form = await ctx.Request.ReadFormAsync();
@@ -189,23 +190,23 @@ public static class AccountEndpointExtensions
         var returnUrl = string.IsNullOrWhiteSpace(form["returnUrl"].ToString()) ? "/" : form["returnUrl"].ToString();
 
         if (!returnUrlValidator.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
-            return Results.Redirect("/Account/Login?error=invalid");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "invalid"));
 
         if (!ctx.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.EnableEmailPasswordLogin)
-            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=local_disabled");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "local_disabled"));
 
         var user = await localAccounts.FindUserForPasswordSignInAsync(email, ctx.RequestAborted);
         if (user is null)
-            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "invalid"));
 
         if (user.LocalLogin is null)
-            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=no_password");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "no_password"));
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.LocalLogin.PasswordHash))
-            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "invalid"));
 
         if (user.IsDisabled)
-            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=disabled");
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "disabled"));
 
         var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
         await db.Users
@@ -247,14 +248,14 @@ public static class AccountEndpointExtensions
         }
         catch
         {
-            return Results.Redirect("/Account/Register?error=invalid");
+            return Results.Redirect(BrandedRegister(ctx, null, "invalid"));
         }
 
         var form = await ctx.Request.ReadFormAsync();
         if (!ctx.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.EnableEmailPasswordLogin)
         {
             var ru = string.IsNullOrWhiteSpace(form["returnUrl"].ToString()) ? "/" : form["returnUrl"].ToString();
-            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(ru)}&error=local_disabled");
+            return Results.Redirect(BrandedRegister(ctx, ru, "local_disabled"));
         }
 
         var displayName = form["displayName"].ToString();
@@ -266,11 +267,11 @@ public static class AccountEndpointExtensions
             || string.IsNullOrWhiteSpace(displayName) || displayName.Length > 120
             || string.IsNullOrWhiteSpace(email)
             || string.IsNullOrWhiteSpace(password) || password.Length < 8 || password.Length > 100)
-            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            return Results.Redirect(BrandedRegister(ctx, returnUrl, "invalid"));
 
         var normSignup = EmailNormalizer.Normalize(email);
         if (normSignup is null)
-            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            return Results.Redirect(BrandedRegister(ctx, returnUrl, "invalid"));
 
         var existing = await localAccounts.FindUserForPasswordLinkByEmailAsync(email, ctx.RequestAborted);
         User user;
@@ -279,7 +280,7 @@ public static class AccountEndpointExtensions
         if (existing is not null)
         {
             if (existing.LocalLogin is not null)
-                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
+                return Results.Redirect(BrandedRegister(ctx, returnUrl, "email"));
 
             var linkResult = await localAccounts.SetPasswordAsync(
                 existing.Id,
@@ -287,9 +288,9 @@ public static class AccountEndpointExtensions
                 password,
                 ctx.RequestAborted);
             if (linkResult is SetPasswordResult.EmailNotOwnedByUser or SetPasswordResult.InvalidEmail)
-                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+                return Results.Redirect(BrandedRegister(ctx, returnUrl, "invalid"));
             if (linkResult is SetPasswordResult.UserDisabled)
-                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=disabled");
+                return Results.Redirect(BrandedRegister(ctx, returnUrl, "disabled"));
 
             user = await db.Users
                 .Include(u => u.UserRoles)
@@ -307,7 +308,7 @@ public static class AccountEndpointExtensions
             if (await db.LocalLogins.AnyAsync(
                     l => l.Email.Trim().ToLower() == normSignup,
                     ctx.RequestAborted))
-                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
+                return Results.Redirect(BrandedRegister(ctx, returnUrl, "email"));
 
             user = await localAccounts.CreateUserWithPasswordAsync(
                 displayName,
@@ -403,4 +404,10 @@ public static class AccountEndpointExtensions
 
         return RedirectWithQuery(returnUrl, q);
     }
+
+    private static string BrandedLogin(HttpContext ctx, string? returnUrl, string? error) =>
+        LoginBrandingUrls.Login(returnUrl, error, LoginBrandingUrls.ClientIdFromContext(ctx));
+
+    private static string BrandedRegister(HttpContext ctx, string? returnUrl, string? error) =>
+        LoginBrandingUrls.Register(returnUrl, error, LoginBrandingUrls.ClientIdFromContext(ctx));
 }

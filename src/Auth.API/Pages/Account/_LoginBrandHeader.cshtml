@@ -1,0 +1,29 @@
+@using Auth.API.Hosting
+@using Auth.API.Services
+@{
+    var branding = Context.GetLoginBranding();
+    var theme = branding?.Theme ?? LoginThemeCatalog.Mercantec;
+    var subtitle = theme.LeadText ?? ViewData["BrandSubtitle"] as string;
+}
+<div class="auth-brand">
+    <div class="auth-brand__mark @(theme.LogoUrl is null ? "auth-brand__mark--default" : "auth-brand__mark--client")" aria-hidden="true">
+        @if (!string.IsNullOrEmpty(theme.LogoUrl))
+        {
+            <img src="@(Context.Request.PathBase + theme.LogoUrl)" alt="" width="32" height="32" class="auth-brand__logo-img" />
+        }
+        else
+        {
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4L6 9v14l10 5 10-5V9L16 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="rgba(255,255,255,0.12)" />
+                <path d="M16 11v10M11 13.5l10 5M21 13.5l-10 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+        }
+    </div>
+    <div>
+        <h1 class="auth-brand__title">@theme.PageTitleSuffix</h1>
+        @if (!string.IsNullOrEmpty(subtitle))
+        {
+            <p class="auth-brand__subtitle">@subtitle</p>
+        }
+    </div>
+</div>

@@ -295,15 +295,15 @@ public static class MfaEndpointExtensions
         IAntiforgery antiforgery)
     {
         if (!await ValidateAntiforgery(ctx, antiforgery))
-            return Results.Redirect("/Account/Login?error=invalid");
+            return Results.Redirect(LoginBrandingUrls.Login(null, "invalid", LoginBrandingUrls.ClientIdFromContext(ctx)));
 
         var (assertion, returnUrlBody, _) = await Fido2JsonHelper.ReadAssertionBodyAsync(ctx.Request);
         if (assertion is null)
-            return Results.Redirect("/Account/Login?error=invalid");
+            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "invalid", LoginBrandingUrls.ClientIdFromContext(ctx)));
 
         var auth = await passkeys.CompleteAssertionAsync(assertion, ctx.RequestAborted);
         if (auth != PasskeyAuthResult.Success)
-            return Results.Redirect("/Account/Login?error=passkey");
+            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "passkey", LoginBrandingUrls.ClientIdFromContext(ctx)));
 
         var credId = assertion.RawId;
         var stored = await db.UserPasskeyCredentials
@@ -316,7 +316,7 @@ public static class MfaEndpointExtensions
             .FirstAsync(u => u.Id == stored.UserId, ctx.RequestAborted);
 
         if (user.IsDisabled)
-            return Results.Redirect("/Account/Login?error=disabled");
+            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "disabled", LoginBrandingUrls.ClientIdFromContext(ctx)));
 
         var returnUrl = string.IsNullOrWhiteSpace(returnUrlBody) ? "/" : returnUrlBody!;
         if (!urls.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))

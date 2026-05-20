@@ -7,15 +7,13 @@
     var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
 }
 
-<div class="auth-card linked-accounts">
+<div class="auth-card linked-accounts account-hub-page">
+    @await Html.PartialAsync("_AccountHubNav", "linked")
+
     <h1 class="auth-headline linked-accounts__title">Tilknyttede login</h1>
     <p class="auth-lead linked-accounts__intro">
         Én Mercantec-konto kan bruge flere udbydere — samme <strong>JWT <code class="linked-accounts__mono">sub</code></strong> til alle jeres apps.
         Hvis en ny udbyder matcher din e-mail, kan kontoerne også flettes automatisk ved login (se dokumentation).
-    </p>
-    <p class="linked-accounts__breadcrumb">
-        <a class="linked-accounts__back" href="/">← Til forsiden</a>
-        · <a href="/Account/Security">Sikkerhed (TOTP & passkey)</a>
     </p>
 
     @if (!string.IsNullOrEmpty(Model.BannerError))

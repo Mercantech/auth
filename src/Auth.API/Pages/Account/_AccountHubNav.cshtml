@@ -1,0 +1,44 @@
+@model string
+@{
+    var pathBase = Context.Request.PathBase.Value ?? "";
+    var active = Model ?? "";
+    var linkedActive = string.Equals(active, "linked", StringComparison.OrdinalIgnoreCase);
+    var securityActive = string.Equals(active, "security", StringComparison.OrdinalIgnoreCase);
+}
+
+<nav class="account-hub" aria-label="Kontoindstillinger">
+    <a class="account-hub__home" href="@(pathBase)/">
+        @await Html.PartialAsync("_SecurityIcon", "arrow-left")
+        <span>Forside</span>
+    </a>
+
+    <ul class="account-hub__tabs">
+        <li>
+            <a class="account-hub__tab account-hub__tab--linked@(linkedActive ? " is-active" : "")"
+               href="@(pathBase)/Account/LinkedAccounts"
+               aria-current="@(linkedActive ? "page" : null)">
+                <span class="account-hub__icon" aria-hidden="true">
+                    @await Html.PartialAsync("_SecurityIcon", "links")
+                </span>
+                <span class="account-hub__body">
+                    <span class="account-hub__name">Tilknyttede login</span>
+                    <span class="account-hub__hint">Google, Microsoft, Discord m.fl.</span>
+                </span>
+            </a>
+        </li>
+        <li>
+            <a class="account-hub__tab account-hub__tab--security@(securityActive ? " is-active" : "")"
+               href="@(pathBase)/Account/Security"
+               aria-current="@(securityActive ? "page" : null)">
+                <span class="account-hub__icon account-hub__icon--shield" aria-hidden="true">
+                    @await Html.PartialAsync("_SecurityIcon", "shield")
+                </span>
+                <span class="account-hub__body">
+                    <span class="account-hub__name">Sikkerhed</span>
+                    <span class="account-hub__hint">Authenticator, passkeys &amp; 2FA</span>
+                </span>
+                <span class="account-hub__badge">2FA</span>
+            </a>
+        </li>
+    </ul>
+</nav>

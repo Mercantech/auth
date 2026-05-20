@@ -90,5 +90,18 @@ public static class DbSeeder
 
         if (added)
             await db.SaveChangesAsync(ct);
+
+        await EnsureMercanlinkThemeAsync(db, ct);
+    }
+
+    /// <summary>Sætter login-tema på mercanlink-klient hvis den findes.</summary>
+    private static async Task EnsureMercanlinkThemeAsync(AuthDbContext db, CancellationToken ct)
+    {
+        var mercanlink = await db.ClientApps.FirstOrDefaultAsync(c => c.ClientId == "mercanlink", ct);
+        if (mercanlink is null || string.Equals(mercanlink.LoginThemeId, "mercanlink", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        mercanlink.LoginThemeId = "mercanlink";
+        await db.SaveChangesAsync(ct);
     }
 }

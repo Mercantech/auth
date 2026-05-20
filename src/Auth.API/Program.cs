@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -41,6 +42,8 @@ builder.Services.AddScoped<ILocalAccountService, LocalAccountService>();
 builder.Services.AddScoped<IMfaGateService, MfaGateService>();
 builder.Services.AddScoped<ITotpMfaService, TotpMfaService>();
 builder.Services.AddScoped<IPasskeyService, PasskeyService>();
+builder.Services.AddScoped<IClientLoginBrandingService, ClientLoginBrandingService>();
+builder.Services.AddScoped<LoginBrandingPageFilter>();
 builder.Services.AddSingleton<TotpSecretProtector>();
 builder.Services.AddMemoryCache();
 
@@ -105,7 +108,11 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AddFolderApplicationModelConvention("/Pages/Account", model =>
+        model.Filters.Add(new ServiceFilterAttribute(typeof(LoginBrandingPageFilter))));
+});
 
 var spaOrigins = builder.Configuration.GetSection("Cors:SpaOrigins").Get<string[]>() ?? [];
 var allowedDomains = builder.Configuration.GetSection("Cors:AllowedDomains").Get<string[]>() ?? [];

@@ -8,7 +8,9 @@
     var pathBase = Request.PathBase.Value ?? "";
 }
 
-<div class="auth-card security-page">
+<div class="auth-card security-page account-hub-page">
+    @await Html.PartialAsync("_AccountHubNav", "security")
+
     <header class="security-hero">
         <div class="security-hero__mark" aria-hidden="true">
             @await Html.PartialAsync("_SecurityIcon", "shield")
@@ -20,13 +22,6 @@
             </p>
         </div>
     </header>
-
-    <nav class="security-nav" aria-label="Kontonavigation">
-        <a class="security-nav__link" href="@(pathBase)/Account/LinkedAccounts">
-            @await Html.PartialAsync("_SecurityIcon", "arrow-left")
-            Tilknyttede login
-        </a>
-    </nav>
 
     @if (!string.IsNullOrEmpty(Model.BannerMessage))
     {
