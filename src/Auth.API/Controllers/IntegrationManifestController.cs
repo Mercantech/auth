@@ -71,7 +71,7 @@ public class IntegrationManifestController(
                 new { claim = "sub", meaning = "Brugerens stabile GUID som streng." },
                 new { claim = "name", meaning = "Vist navn." },
                 new { claim = "email", meaning = "E-mail når den findes på brugeren." },
-                new { claim = "login_method", meaning = "Sidste login: password, google, github, discord, microsoft-work, …" },
+                new { claim = "login_method", meaning = "Sidste login: password, google, github, discord, microsoft-work, microsoft-school, …" },
                 new { claim = "role", meaning = "Rolle (gentaget claim pr. rolle). Bruges til autorisation i jeres API." },
                 new { claim = "iss", meaning = "JWT-udsteder — skal matche issuer_must_equal." },
                 new { claim = "aud", meaning = "Audience — skal matche audience_must_equal." },

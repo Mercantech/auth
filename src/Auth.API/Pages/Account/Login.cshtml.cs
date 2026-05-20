@@ -1,3 +1,4 @@
+using Auth.API.Hosting;
 using Auth.API.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17,13 +18,15 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
 
     public bool GoogleEnabled => !string.IsNullOrEmpty(configuration["OAuth:Google:ClientId"]);
 
-    public bool MicrosoftEnabled => !string.IsNullOrEmpty(configuration["OAuth:Microsoft:ClientId"]);
+    public bool MicrosoftEnabled => MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.WorkSection);
+
+    public bool MicrosoftEduEnabled => MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.EduSection);
 
     public bool GitHubEnabled => !string.IsNullOrEmpty(configuration["OAuth:GitHub:ClientId"]);
 
     public bool DiscordEnabled => !string.IsNullOrEmpty(configuration["OAuth:Discord:ClientId"]);
 
-    public bool AnyOAuthProvider => GoogleEnabled || MicrosoftEnabled || GitHubEnabled || DiscordEnabled;
+    public bool AnyOAuthProvider => GoogleEnabled || MicrosoftEnabled || MicrosoftEduEnabled || GitHubEnabled || DiscordEnabled;
 
     public string? ErrorMessage => Error switch
     {

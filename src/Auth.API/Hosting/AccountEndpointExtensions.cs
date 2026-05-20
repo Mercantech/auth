@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -36,17 +35,24 @@ public static class AccountEndpointExtensions
                     : returnUrl;
                 var props = new AuthenticationProperties { RedirectUri = redirectUri };
 
-                var scheme = provider.ToLowerInvariant() switch
+                var providerKey = provider.ToLowerInvariant();
+                var scheme = providerKey switch
                 {
                     "google" when !string.IsNullOrEmpty(config["OAuth:Google:ClientId"]) => GoogleDefaults.AuthenticationScheme,
-                    "microsoft" when !string.IsNullOrEmpty(config["OAuth:Microsoft:ClientId"]) => MicrosoftAccountDefaults.AuthenticationScheme,
+                    "microsoft" when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.WorkSection) => MercantecAuthSchemes.MicrosoftWork,
+                    "microsoft-edu" or "microsoftedu"
+                        when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.EduSection) => MercantecAuthSchemes.MicrosoftEdu,
                     "github" when !string.IsNullOrEmpty(config["OAuth:GitHub:ClientId"]) => "GitHub",
                     "discord" when !string.IsNullOrEmpty(config["OAuth:Discord:ClientId"]) => "Discord",
                     _ => null,
                 };
                 if (scheme is null)
                     return Results.BadRequest("Provider ikke konfigureret.");
-                OAuthEmailKindCookie.Append(ctx, OAuthEmailKindCookie.ParseQuery(emailKind));
+
+                var emailKindValue = providerKey is "microsoft-edu" or "microsoftedu" && string.IsNullOrWhiteSpace(emailKind)
+                    ? "school"
+                    : emailKind;
+                OAuthEmailKindCookie.Append(ctx, OAuthEmailKindCookie.ParseQuery(emailKindValue));
                 return Results.Challenge(props, [scheme]);
             })
             .AllowAnonymous();

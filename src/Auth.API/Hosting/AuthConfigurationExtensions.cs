@@ -28,28 +28,23 @@ public static class AuthConfigurationExtensions
             });
         }
 
-        var msId = configuration["OAuth:Microsoft:ClientId"];
-        if (!string.IsNullOrWhiteSpace(msId))
+        if (MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.WorkSection))
         {
             auth.AddMicrosoftAccount(options =>
             {
-                options.ClientId = msId;
-                options.ClientSecret = configuration["OAuth:Microsoft:ClientSecret"] ?? "";
                 options.SignInScheme = cookie;
-                options.SaveTokens = true;
-                var scopeLine = configuration["OAuth:Microsoft:Scope"]
-                    ?? "offline_access openid profile email https://graph.microsoft.com/User.Read";
-                foreach (var part in scopeLine.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    options.Scope.Add(part);
-                var tenant = configuration["OAuth:Microsoft:TenantId"];
-                if (!string.IsNullOrWhiteSpace(tenant)
-                    && !string.Equals(tenant, "common", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(tenant, "organizations", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(tenant, "consumers", StringComparison.OrdinalIgnoreCase))
-                {
-                    options.AuthorizationEndpoint = $"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize";
-                    options.TokenEndpoint = $"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token";
-                }
+                MicrosoftOAuthConfiguration.Apply(options, configuration, MicrosoftOAuthConfiguration.WorkSection);
+                options.Events.OnTicketReceived = ctx => OAuthPrincipalReplacer.ReplaceWithAppPrincipalAsync(ctx, "microsoft");
+            });
+        }
+
+        if (MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.EduSection))
+        {
+            auth.AddMicrosoftAccount(MercantecAuthSchemes.MicrosoftEdu, "Microsoft (edu)", options =>
+            {
+                options.SignInScheme = cookie;
+                options.CallbackPath = "/signin-microsoft-edu";
+                MicrosoftOAuthConfiguration.Apply(options, configuration, MicrosoftOAuthConfiguration.EduSection);
                 options.Events.OnTicketReceived = ctx => OAuthPrincipalReplacer.ReplaceWithAppPrincipalAsync(ctx, "microsoft");
             });
         }

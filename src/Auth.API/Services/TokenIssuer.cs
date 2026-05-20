@@ -109,7 +109,7 @@ public class TokenIssuer(
             var payload = externalTokens.Unprotect(newCipher);
             if (payload is not null)
             {
-                var refreshed = await microsoftRefresher.RefreshIfNeededAsync(payload, cancellationToken);
+                var refreshed = await microsoftRefresher.RefreshIfNeededAsync(payload, existing.AuthMethod, cancellationToken);
                 if (refreshed is null)
                     return null;
 

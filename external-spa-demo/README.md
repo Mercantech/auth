@@ -7,12 +7,12 @@ Simpel statisk side på **egen port** der logger ind via Mercantec Auth med **PK
 1. **Auth API kører** (fx `https://auth.mercantec.tech` i produktion eller Docker på `http://localhost:8080` i dev).
 2. **CORS**: Tilføj SPA-origin under `Cors:SpaOrigins` (produktion: `https://auth-spa.mercantec.tech`, dev: `http://localhost:5173`).
 3. **Microsoft 365 / Azure AD** (valgfrit til “Log ind med Microsoft” på auth-siden):
-   - I **Azure Portal** → **App registrations** → jeres app → **Authentication** → **Platform: Web**  
-     Tilføj **Redirect URI**:  
-     `http://localhost:8080/signin-microsoft`  
-     (tilpas host/port hvis auth kører andetsteds).
-   - **Certificates & secrets** → client secret.
-   - I auth-projektet: sæt `OAuth:Microsoft:ClientId`, `OAuth:Microsoft:ClientSecret`, og `OAuth:Microsoft:TenantId` (jeres **Directory (tenant) ID** for Mercantec — **ikke** `common` hvis I bruger single-tenant endpoints i koden).
+   - **Arbejde / mercantec.dk** — App registration i Mercantec-tenant:
+     - Redirect URI (Web): `http://localhost:8080/signin-microsoft` (+ produktion `https://<auth-host>/signin-microsoft`)
+     - Config: `OAuth__Microsoft__ClientId`, `OAuth__Microsoft__ClientSecret`, `OAuth__Microsoft__TenantId`
+   - **Skole / edu.mercantec.dk** — separat App registration i edu-tenant:
+     - Redirect URI (Web): `http://localhost:8080/signin-microsoft-edu` (+ produktion `https://<auth-host>/signin-microsoft-edu`)
+     - Config: `OAuth__MicrosoftEDU__ClientId`, `OAuth__MicrosoftEDU__ClientSecret`, `OAuth__MicrosoftEDU__TenantId` (`Scope` valgfri)
 
 ## Kør test-SPA’en
 
@@ -69,4 +69,4 @@ Konfiguration samles i **`shared-config.js`** (`authBaseUrl`, `clientId`, `expec
 - Brug **HTTPS** overalt.
 - Tilføj jeres SPA-origin under `Cors:SpaOrigins` (eller miljøvariabler `Cors__SpaOrigins__0=...`).
 - Opret en **rigtig** `client_id` i DB med præcis callback-URL.
-- Azure: tilføj produktions-redirect `https://auth.ditdomæne.dk/signin-microsoft`.
+- Azure: tilføj produktions-redirect `https://auth.ditdomæne.dk/signin-microsoft` og evt. `…/signin-microsoft-edu` for edu.
