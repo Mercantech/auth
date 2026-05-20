@@ -145,6 +145,16 @@ body::before {
   color: var(--merc-ink);
 }
 
+.merc-shell__footer-line a {
+  color: var(--merc-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.merc-shell__footer-line a:hover {
+  text-decoration: underline;
+}
+
 .merc-shell__footer-attrib {
   margin: 0;
   font-size: 0.78rem;
@@ -520,6 +530,47 @@ body::before {
 
 .merc-page .table thead {
   background: #e8e3d8;
+}
+
+/* Juridiske / informations-sider */
+.merc-legal section {
+  margin-bottom: 1.75rem;
+}
+
+.merc-legal h2 {
+  font-family: var(--merc-font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.65rem;
+}
+
+.merc-legal p,
+.merc-legal li {
+  color: var(--merc-ink);
+  line-height: 1.55;
+  max-width: 42rem;
+}
+
+.merc-legal ul {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.merc-legal__meta {
+  font-size: 0.85rem;
+  color: var(--merc-muted);
+  margin: -0.35rem 0 1.5rem;
+}
+
+.merc-legal__table {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.merc-legal__table td,
+.merc-legal__table th {
+  vertical-align: top;
 }
 
 /* Fjern Bootstrap focus-ring der klæber til gammelt tema */

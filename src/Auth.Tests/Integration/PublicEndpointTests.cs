@@ -49,6 +49,19 @@ public class PublicEndpointTests(AuthIntegrationFixture fixture)
         Assert.True(root.GetProperty("email_password_login_enabled").GetBoolean());
     }
 
+    [Theory]
+    [InlineData("/termsofservice")]
+    [InlineData("/privacystatement")]
+    public async Task Legal_pages_are_public_html(string path)
+    {
+        var res = await _client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("text/html", res.Content.Headers.ContentType?.MediaType ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.True(html.Length > 200);
+    }
+
     [Fact]
     public async Task Openid_configuration_exists_and_has_core_endpoints()
     {

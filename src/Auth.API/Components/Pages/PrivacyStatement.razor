@@ -1,0 +1,146 @@
+@page "/privacystatement"
+
+<PageTitle>Privatlivserklæring — Mercantec Auth</PageTitle>
+
+<div class="merc-page merc-legal">
+    <h1>Privatlivserklæring</h1>
+    <p class="merc-legal__meta">Sidst opdateret: 20. maj 2026</p>
+
+    <section>
+        <h2>1. Dataansvarlig</h2>
+        <p>
+            Mercantec Auth behandler personoplysninger i forbindelse med login til tilsluttede
+            undervisnings- og projektplatforme. I denne installation er den praktiske kontakt:
+        </p>
+        <ul>
+            <li><strong>MAGS</strong> (underviser) — <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a></li>
+        </ul>
+        <p role="note">
+            Tjenesten er et undervisningsprojekt og er ikke Mercantecs officielle produktions-login.
+            Skolens egne platforme kan have supplerende privatlivstekster.
+        </p>
+    </section>
+
+    <section>
+        <h2>2. Hvilke oplysninger vi behandler</h2>
+        <table class="table merc-legal__table">
+            <thead>
+                <tr>
+                    <th scope="col">Kategori</th>
+                    <th scope="col">Eksempler</th>
+                    <th scope="col">Formål</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Konto</td>
+                    <td>Bruger-id (GUID), vist navn, e-mailadresser, adgangskode-hash (ved e-mail-login)</td>
+                    <td>Identificere dig og give adgang til tilsluttede apps</td>
+                </tr>
+                <tr>
+                    <td>Roller</td>
+                    <td>Fx <code>Admin</code>, app-specifikke roller</td>
+                    <td>Autorisation i Mercantec Auth og i jeres API’er via JWT</td>
+                </tr>
+                <tr>
+                    <td>Eksterne login</td>
+                    <td>Udbyder-id fra Google, GitHub, Discord, Microsoft m.fl.</td>
+                    <td>Knytte din konto til social login uden at gemme deres adgangskode</td>
+                </tr>
+                <tr>
+                    <td>OAuth / tokens</td>
+                    <td>Authorization codes, refresh tokens, krypterede eksterne tokens (hvis aktiveret)</td>
+                    <td>Sikker session og token-udstedelse (PKCE, korte access tokens)</td>
+                </tr>
+                <tr>
+                    <td>Tekniske data</td>
+                    <td>Session-cookie (<code>mercantec_auth</code>), IP og tidspunkt i serverlogs</td>
+                    <td>Sikkerhed, fejlsøgning og misbrugsforebyggelse</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>
+            JWT access tokens kan indeholde claims som <code>sub</code>, <code>name</code>, <code>email</code>,
+            <code>role</code> og <code>login_method</code> — se integrations-manifestet
+            <code>/.well-known/mercantec-auth.json</code>.
+        </p>
+    </section>
+
+    <section>
+        <h2>3. Retsgrundlag</h2>
+        <p>Vi behandler data, fordi det er nødvendigt for at:</p>
+        <ul>
+            <li>opfylde login og adgang til platforme, du bruger i undervisningssammenhæng (kontraktopfyldelse / berettiget interesse);</li>
+            <li>beskytte tjenesten mod misbrug og sikre OAuth-flows (berettiget interesse);</li>
+            <li>overholde lovkrav, hvor de gælder.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>4. Modtagere og overførsel</h2>
+        <ul>
+            <li><strong>Tilsluttede apps</strong> modtager de claims, der sendes i tokens efter dit login — kun inden for godkendt client og scopes.</li>
+            <li><strong>Eksterne login-udbydere</strong> (Google, Microsoft, GitHub, Discord) behandler data efter deres egne vilkår, når du vælger deres knap.</li>
+            <li><strong>Hosting og database</strong> (fx PostgreSQL, Docker-miljø) bruges til drift; placering afhænger af jeres deployment.</li>
+        </ul>
+        <p>Vi sælger ikke dine personoplysninger.</p>
+    </section>
+
+    <section>
+        <h2>5. Opbevaring</h2>
+        <p>
+            Kontodata opbevares, så længe du har brug for adgang til tilsluttede platforme, eller indtil
+            sletning efter anmodning. Authorization codes og korte tokens har begrænset levetid jf.
+            konfiguration (access tokens i minutter, refresh tokens i dage). Serverlogs kan roteres
+            efter behov for drift og sikkerhed.
+        </p>
+    </section>
+
+    <section>
+        <h2>6. Sikkerhed</h2>
+        <p>
+            Adgangskoder hashes; JWT signeres med RS256; PKCE kræves for offentlige klienter;
+            session-cookies er HttpOnly. Eksterne OAuth-tokens kan lagres krypteret i databasen.
+            Ingen metode er 100&nbsp;% sikker — rapporter mistanke om brud til
+            <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>.
+        </p>
+    </section>
+
+    <section>
+        <h2>7. Cookies</h2>
+        <p>
+            Vi bruger en nødvendig session-cookie til at holde dig logget ind mellem OAuth-trin og
+            besøg på login-sider. Den er ikke til markedsføring. Du kan slette cookies i browseren;
+            det afslutter din session.
+        </p>
+    </section>
+
+    <section>
+        <h2>8. Dine rettigheder</h2>
+        <p>Under GDPR kan du have ret til at:</p>
+        <ul>
+            <li>få indsigt i, hvilke oplysninger vi har om dig;</li>
+            <li>få rettet urigtige oplysninger;</li>
+            <li>få slettet data, hvor der ikke længere er grundlag;</li>
+            <li>gøre indsigelse eller begrænse behandling i særlige tilfælde;</li>
+            <li>klage til Datatilsynet.</li>
+        </ul>
+        <p>
+            Kontakt <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a> med dit bruger-id eller
+            den e-mail, du registrerede med. Vi svarer inden for rimelig tid.
+        </p>
+    </section>
+
+    <section>
+        <h2>9. Ændringer</h2>
+        <p>
+            Denne erklæring kan opdateres; se dato øverst. Ved væsentlige ændringer informeres brugere
+            via tilsluttede platforme, hvor det er relevant.
+        </p>
+    </section>
+
+    <p class="merc-page__attrib" role="note">
+        Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle produktion.
+        <a href="/">Til forsiden</a> · <a href="/termsofservice">Vilkår for brug</a>
+    </p>
+</div>

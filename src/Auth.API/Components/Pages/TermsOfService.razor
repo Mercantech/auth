@@ -1,0 +1,103 @@
+@page "/termsofservice"
+
+<PageTitle>Vilkår for brug — Mercantec Auth</PageTitle>
+
+<div class="merc-page merc-legal">
+    <h1>Vilkår for brug</h1>
+    <p class="merc-legal__meta">Sidst opdateret: 20. maj 2026</p>
+
+    <section>
+        <h2>1. Om tjenesten</h2>
+        <p>
+            Mercantec Auth er en central login-tjeneste (identity provider) til webapps og API’er,
+            der er knyttet til undervisning og projektarbejde på Mercantec. Tjenesten understøtter
+            OAuth&nbsp;2.0 med authorization code og PKCE, udsteder korte JWT (RS256) og refresh tokens,
+            og kan tilbyde login med e-mail og adgangskode samt eksterne udbydere (fx Google, GitHub,
+            Discord og Microsoft), afhængigt af konfiguration.
+        </p>
+        <p role="note">
+            Installationen er et <strong>undervisningsprojekt ved MAGS</strong> (underviser) og er
+            <strong>ikke</strong> Mercantecs officielle produktions-login. Spørgsmål:
+            <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>.
+        </p>
+    </section>
+
+    <section>
+        <h2>2. Hvem må bruge tjenesten</h2>
+        <p>
+            Du må bruge Mercantec Auth, når du er inviteret eller har legitim adgang til en tilsluttet
+            platform (fx elevportal, læringsværktøj eller intern demo). Du skal give korrekte oplysninger
+            ved registrering og må ikke oprette konti på vegne af andre uden tilladelse.
+        </p>
+    </section>
+
+    <section>
+        <h2>3. Din konto og sikkerhed</h2>
+        <ul>
+            <li>Du er ansvarlig for at holde adgangskode og enheder sikre, hvis du bruger e-mail/adgangskode-login.</li>
+            <li>Del ikke refresh tokens, authorization codes eller session-cookies med andre.</li>
+            <li>Mistænker du misbrug, kontakt <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a> og skift adgangskode hos relevant udbyder.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>4. Acceptabel brug</h2>
+        <p>Du må ikke:</p>
+        <ul>
+            <li>Forsøge uautoriseret adgang, omgå sikkerhed, scanne eller overbelaste systemet.</li>
+            <li>Misbruge OAuth-flows, client_id’er eller redirect-URI’er til andre formål end godkendte apps.</li>
+            <li>Uploade malware, spamme endpoints eller indsamle data om andre brugere uden lovligt grundlag.</li>
+        </ul>
+        <p>
+            Overtrædelser kan medføre lukning af konto, blokering af klient-apps og — ved alvorlige forhold —
+            anmeldelse til skolens regler eller myndigheder.
+        </p>
+    </section>
+
+    <section>
+        <h2>5. Tilsluttede apps og tokens</h2>
+        <p>
+            Når du logger ind via en tilsluttet app, godkender du at Mercantec Auth sender dig videre tilbage
+            med en authorization code, som appen bytter til tokens. Access tokens indeholder claims som
+            bruger-id, navn, e-mail (hvis tilgængelig), roller og login-metode — kun det, appen og
+            jeres API har brug for inden for registrerede scopes.
+        </p>
+        <p>
+            Udviklere af tilsluttede apps skal følge <code>docs/CLIENT-INTEGRATION.md</code> og må kun
+            registrere redirect-URI’er de kontrollerer. Admin-roller på Mercantec Auth er forbeholdt
+            autoriseret drift.
+        </p>
+    </section>
+
+    <section>
+        <h2>6. Tilgængelighed og ansvar</h2>
+        <p>
+            Tjenesten leveres til undervisning og udvikling uden kommerciel SLA. Drift kan afbrydes
+            ved vedligehold, eksperimenter eller tekniske fejl. MAGS og Mercantec Auth er ikke ansvarlige
+            for indirekte tab hos tilsluttede apps; hver app har sit eget ansvar over for sine brugere.
+        </p>
+    </section>
+
+    <section>
+        <h2>7. Ændringer og opsigelse</h2>
+        <p>
+            Disse vilkår kan opdateres; den aktuelle version publiceres på denne side med dato.
+            Ved væsentlige ændringer bør tilsluttede platforme informere deres brugere.
+            Du kan stoppe med at bruge tjenesten ved at logge ud og ikke længere tilgå tilsluttede apps;
+            sletning af persondata håndteres efter <a href="/privacystatement">privatlivserklæringen</a>.
+        </p>
+    </section>
+
+    <section>
+        <h2>8. Kontakt</h2>
+        <p>
+            Ansvarlig for tjenesten i undervisningssammenhæng: <strong>MAGS</strong>,
+            <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>.
+        </p>
+    </section>
+
+    <p class="merc-page__attrib" role="note">
+        Undervisningsprojekt af <strong>MAGS</strong> — ikke Mercantecs officielle produktion.
+        <a href="/">Til forsiden</a> · <a href="/privacystatement">Privatlivserklæring</a>
+    </p>
+</div>
