@@ -20,9 +20,10 @@
             <h1>Brugere</h1>
             <p class="merc-users__lead">
                 Sammenlæg duplikatkonti (én bruger beholder <code>sub</code>) eller slet en konto.
-                <strong>Permanent</strong> — andre systemer der gemmer bruger-GUID skal opdateres manuelt ved slet/merge.
+                Se også <a href="/Admin/Usage">Auth-brug</a> for klient- og login-sporing.
             </p>
         </div>
+        <a class="merc-btn merc-btn--ghost" href="/Admin/Usage">Auth-brug →</a>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -60,6 +61,8 @@
                     <th class="merc-users__th-radio" scope="col">Nedlægges<br/><span class="merc-users__th-sub">(donor)</span></th>
                     <th scope="col">Navn</th>
                     <th scope="col">E-mail</th>
+                    <th scope="col">Providers</th>
+                    <th scope="col">OAuth-klienter</th>
                     <th scope="col">Roller</th>
                     <th scope="col">Status</th>
                     <th scope="col" class="merc-users__th-actions">Handling</th>
@@ -86,6 +89,8 @@
                             <code class="merc-users__id" title="@r.Id.ToString()">@ShortId(r.Id)</code>
                         </td>
                         <td>@(r.Email ?? "—")</td>
+                        <td class="merc-users__meta-cell">@FormatProviders(r)</td>
+                        <td class="merc-users__meta-cell">@FormatClients(r)</td>
                         <td>@r.Roles</td>
                         <td>
                             @if (r.IsDisabled)
@@ -181,6 +186,9 @@
             .AsNoTracking()
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
+            .Include(u => u.ExternalLogins)
+            .Include(u => u.ClientUsages)
+            .Include(u => u.LocalLogin)
             .OrderBy(u => u.DisplayName)
             .ToListAsync();
 
@@ -189,8 +197,27 @@
             u.DisplayName,
             u.Email,
             u.IsDisabled,
-            string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))))
+            string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
+            u.ExternalLogins.OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt).ToList(),
+            u.LocalLogin is not null,
+            u.ClientUsages.OrderByDescending(c => c.LastSeenAtUtc).ToList()))
             .ToList();
+    }
+
+    private static string FormatProviders(Row r)
+    {
+        if (r.LocalLogin && r.ExternalLogins.Count == 0)
+            return "password";
+        if (r.ExternalLogins.Count == 0)
+            return "—";
+        return string.Join(", ", r.ExternalLogins.Select(e => e.Provider));
+    }
+
+    private static string FormatClients(Row r)
+    {
+        if (r.ClientUsages.Count == 0)
+            return "—";
+        return string.Join(", ", r.ClientUsages.Select(c => $"{c.ClientId} ({c.TokenExchangeCount} token)"));
     }
 
     private async Task MergeAsync()
@@ -272,5 +299,13 @@
         }
     }
 
-    private sealed record Row(Guid Id, string DisplayName, string? Email, bool IsDisabled, string Roles);
+    private sealed record Row(
+        Guid Id,
+        string DisplayName,
+        string? Email,
+        bool IsDisabled,
+        string Roles,
+        IReadOnlyList<Auth.API.Models.Entities.ExternalLogin> ExternalLogins,
+        bool LocalLogin,
+        IReadOnlyList<Auth.API.Models.Entities.UserClientUsage> ClientUsages);
 }

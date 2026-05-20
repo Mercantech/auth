@@ -14,11 +14,13 @@ public static class OAuthPrincipalReplacer
     {
         var sync = ctx.HttpContext.RequestServices.GetRequiredService<IExternalAccountService>();
         var db = ctx.HttpContext.RequestServices.GetRequiredService<AuthDbContext>();
+        var usage = ctx.HttpContext.RequestServices.GetRequiredService<IAuthUsageTracker>();
         var principal = ctx.Principal ?? throw new InvalidOperationException("Mangler principal efter OAuth.");
         var emailKind = OAuthEmailKindCookie.ReadAndClear(ctx.HttpContext);
+        var isLinkMode = TryGetAccountLinkTargetUserId(ctx.Properties, out var linkTargetId);
 
         Guid userId;
-        if (TryGetAccountLinkTargetUserId(ctx.Properties, out var linkTargetId))
+        if (isLinkMode)
         {
             var outcome = await sync.LinkExternalToUserAsync(
                 linkTargetId,
@@ -53,6 +55,11 @@ public static class OAuthPrincipalReplacer
             .FirstAsync(u => u.Id == userId, ctx.HttpContext.RequestAborted);
 
         var loginMethod = MercantecAuthClaims.ForOAuth(providerKey, emailKind);
+
+        if (isLinkMode)
+            await usage.RecordAccountLinkAsync(userId, providerKey, loginMethod, ctx.HttpContext.RequestAborted);
+        else
+            await usage.RecordProviderLoginAsync(userId, providerKey, loginMethod, ctx.HttpContext.RequestAborted);
 
         await db.Users
             .Where(u => u.Id == userId)

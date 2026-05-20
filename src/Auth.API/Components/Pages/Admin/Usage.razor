@@ -1,0 +1,213 @@
+@page "/Admin/Usage"
+@attribute [Authorize(Roles = "Admin")]
+@inject AuthDbContext Db
+@using Auth.API.Models.Entities
+@using Auth.API.Services
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Auth-brug (admin)</PageTitle>
+
+<div class="merc-page merc-usage">
+    <header class="merc-usage__header">
+        <div>
+            <h1>Auth-brug</h1>
+            <p class="merc-usage__lead">
+                Sporing af login-udbydere, OAuth-klienter og seneste hændelser. Data opdateres ved hvert login, authorize, token og refresh.
+            </p>
+        </div>
+        <a class="merc-btn merc-btn--ghost" href="/Admin/Users">← Brugere</a>
+    </header>
+
+    @if (_summary is null)
+    {
+        <p class="merc-usage__loading">Henter…</p>
+    }
+    else
+    {
+        <div class="merc-usage__stats">
+            <div class="merc-usage__stat">
+                <span class="merc-usage__stat-value">@_summary.ActiveUsers30</span>
+                <span class="merc-usage__stat-label">aktive brugere (30 dage)</span>
+            </div>
+            <div class="merc-usage__stat">
+                <span class="merc-usage__stat-value">@_summary.ByClient.Count</span>
+                <span class="merc-usage__stat-label">klienter med spor</span>
+            </div>
+            <div class="merc-usage__stat">
+                <span class="merc-usage__stat-value">@_summary.TotalEvents30</span>
+                <span class="merc-usage__stat-label">hændelser (30 dage)</span>
+            </div>
+        </div>
+
+        <section class="merc-usage__section" aria-labelledby="clients-heading">
+            <h2 id="clients-heading" class="merc-usage__section-title">Pr. OAuth-klient</h2>
+            @if (_summary.ByClient.Count == 0)
+            {
+                <p class="merc-hint">Ingen klient-brug registreret endnu — kør authorize/token via en registreret klient.</p>
+            }
+            else
+            {
+                <div class="merc-usage__table-wrap">
+                    <table class="table table-sm merc-usage__table">
+                        <thead>
+                        <tr>
+                            <th>Klient</th>
+                            <th>Brugere</th>
+                            <th>Authorize</th>
+                            <th>Token</th>
+                            <th>Refresh</th>
+                            <th>Sidst set</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var c in _summary.ByClient)
+                        {
+                            <tr>
+                                <td><code>@c.ClientId</code></td>
+                                <td>@c.DistinctUsers</td>
+                                <td>@c.TotalAuthorizes</td>
+                                <td>@c.TotalTokenExchanges</td>
+                                <td>@c.TotalRefreshes</td>
+                                <td>@FormatLocal(c.LastSeenAtUtc)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <section class="merc-usage__section" aria-labelledby="events-type-heading">
+            <h2 id="events-type-heading" class="merc-usage__section-title">Hændelser seneste 30 dage</h2>
+            <ul class="merc-usage__event-types" role="list">
+                @foreach (var e in _summary.ByEventType)
+                {
+                    <li><code>@e.EventType</code> <span class="merc-usage__count">@e.Count</span></li>
+                }
+            </ul>
+        </section>
+
+        <section class="merc-usage__section" aria-labelledby="recent-heading">
+            <h2 id="recent-heading" class="merc-usage__section-title">Seneste hændelser</h2>
+            <div class="merc-usage__table-wrap">
+                <table class="table table-sm merc-usage__table merc-usage__table--events">
+                    <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Type</th>
+                        <th>Bruger</th>
+                        <th>Klient</th>
+                        <th>Provider</th>
+                        <th>Login</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var e in _summary.RecentEvents)
+                    {
+                        <tr>
+                            <td>@FormatLocal(e.CreatedAtUtc)</td>
+                            <td><code class="merc-usage__etype">@e.EventType</code></td>
+                            <td>@(e.UserId is { } uid ? ShortId(uid) : "—")</td>
+                            <td>@(e.ClientId ?? "—")</td>
+                            <td>@(e.Provider ?? "—")</td>
+                            <td>@(e.LoginMethod ?? "—")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private UsageSummaryVm? _summary;
+
+    private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
+        OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var since30 = DateTime.UtcNow.AddDays(-30);
+
+        var byClient = await Db.UserClientUsages
+            .AsNoTracking()
+            .GroupBy(u => u.ClientId)
+            .Select(g => new ClientAgg(
+                g.Key,
+                g.Count(),
+                g.Sum(x => x.AuthorizeCount),
+                g.Sum(x => x.TokenExchangeCount),
+                g.Sum(x => x.RefreshCount),
+                g.Max(x => x.LastSeenAtUtc)))
+            .OrderByDescending(x => x.LastSeenAtUtc)
+            .ToListAsync();
+
+        var byEventType = await Db.AuthUsageEvents
+            .AsNoTracking()
+            .Where(e => e.CreatedAtUtc >= since30)
+            .GroupBy(e => e.EventType)
+            .Select(g => new EventTypeAgg(g.Key, g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+        var recent = await Db.AuthUsageEvents
+            .AsNoTracking()
+            .OrderByDescending(e => e.CreatedAtUtc)
+            .Take(80)
+            .Select(e => new EventVm(
+                e.CreatedAtUtc,
+                e.EventType,
+                e.UserId,
+                e.ClientId,
+                e.Provider,
+                e.LoginMethod))
+            .ToListAsync();
+
+        var activeUsers = await Db.AuthUsageEvents
+            .AsNoTracking()
+            .Where(e => e.UserId != null && e.CreatedAtUtc >= since30)
+            .Select(e => e.UserId!.Value)
+            .Distinct()
+            .CountAsync();
+
+        _summary = new UsageSummaryVm(byClient, byEventType, recent, activeUsers, byEventType.Sum(x => x.Count));
+    }
+
+    private static string ShortId(Guid id) => id.ToString()[..8] + "…";
+
+    private static string FormatLocal(DateTime utc)
+    {
+        var local = TimeZoneInfo.ConvertTimeFromUtc(
+            utc.Kind == DateTimeKind.Utc ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc),
+            DanishTz);
+        return local.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+    }
+
+    private sealed record UsageSummaryVm(
+        IReadOnlyList<ClientAgg> ByClient,
+        IReadOnlyList<EventTypeAgg> ByEventType,
+        IReadOnlyList<EventVm> RecentEvents,
+        int ActiveUsers30,
+        int TotalEvents30);
+
+    private sealed record ClientAgg(
+        string ClientId,
+        int DistinctUsers,
+        int TotalAuthorizes,
+        int TotalTokenExchanges,
+        int TotalRefreshes,
+        DateTime LastSeenAtUtc);
+
+    private sealed record EventTypeAgg(string EventType, int Count);
+
+    private sealed record EventVm(
+        DateTime CreatedAtUtc,
+        string EventType,
+        Guid? UserId,
+        string? ClientId,
+        string? Provider,
+        string? LoginMethod);
+}

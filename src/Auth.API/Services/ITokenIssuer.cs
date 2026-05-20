@@ -13,10 +13,12 @@ public interface ITokenIssuer
         string? deviceInfo,
         string? authMethod,
         string? externalOAuthTokensCipher = null,
+        string? clientId = null,
         CancellationToken cancellationToken = default);
 
     Task<(string accessToken, string refreshTokenPlain, DateTime accessExpiresUtc, IssuedMicrosoftAccess? microsoftAccess)?> RefreshAsync(
         string refreshTokenPlain,
         string? deviceInfo,
+        string? clientId = null,
         CancellationToken cancellationToken = default);
 }

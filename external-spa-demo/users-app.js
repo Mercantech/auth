@@ -134,7 +134,11 @@ function fillTable(data) {
   for (const row of data) {
     const id = row.id;
     const providers =
-      row.linkedProviders && row.linkedProviders.length ? row.linkedProviders.join(", ") : "—";
+      row.linkedProviders && row.linkedProviders.length
+        ? row.linkedProviders
+            .map((p) => (typeof p === "string" ? p : p.provider || p.Provider || "—"))
+            .join(", ")
+        : "—";
     const mails =
       row.linkedEmails && row.linkedEmails.length
         ? row.linkedEmails.map((e) => e.normalizedEmail + " (" + e.kind + ")").join(", ")

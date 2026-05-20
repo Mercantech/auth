@@ -29,6 +29,8 @@ Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-
 | `GET /api/admin/users-directory` | Oversigt over brugere (kun **Bearer JWT med rolle Admin**) |
 | `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT**) |
 | `DELETE /api/admin/users/{userId}` | Slet bruger og tilhørende login-/OAuth-data (**Admin-JWT**) — ikke dig selv, ikke sidste Admin |
+| `GET /api/admin/usage/summary` | Aggregeret klient-brug og seneste hændelser (**Admin-JWT**) |
+| `GET /api/admin/usage/events` | Filtrerbar hændelseslog (**Admin-JWT**) |
 
 ## Brugerkonto: flere login-udbydere (account linking)
 
@@ -79,6 +81,15 @@ Bruges når samme person **allerede har to `User`-rækker** (fx to forskellige `
 `GET /api/admin/users-directory` er på samme **Admin-JWT-beskyttelse** og kan bruges til at finde GUIDs før merge eller sletning.
 
 **Slet bruger:** `DELETE /api/admin/users/{userId}` → `204` ved success. Afviser sletning af egen konto (403) og af **sidste** bruger med rolle Admin (409). Fjerner også refresh tokens, ikke-brugte auth codes samt lokale/OAuth-login for den pågældende bruger.
+
+### Sporing af brug (admin)
+
+Mercantec Auth logger hændelser i **`AuthUsageEvents`** og aggregerer OAuth-klient-brug i **`UserClientUsages`** (pr. bruger + `client_id`: authorize, token, refresh). Ved provider-login opdateres **`ExternalLogins.LastUsedAtUtc`**. Refresh tokens gemmer **`ClientId`** når de udstedes.
+
+- Admin UI: `/Admin/Usage` (oversigt) og udvidede kolonner på `/Admin/Users`
+- API (Admin-JWT): `GET /api/admin/usage/summary`, `GET /api/admin/usage/events?userId=&clientId=&eventType=&limit=`
+
+Hændelsestyper: `provider_login`, `password_login`, `password_signup`, `oauth_authorize`, `oauth_token_exchange`, `oauth_refresh`, `account_link`.
 
 ### OAuth-klienter (SPAs / API’er)
 

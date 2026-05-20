@@ -24,6 +24,7 @@ public class OAuthController(
     AuthDbContext db,
     ExternalOAuthTokensProtector externalOAuthTokens,
     ITokenIssuer tokenIssuer,
+    IAuthUsageTracker usageTracker,
     IOidcTokenService oidcTokens,
     IOptions<JwtOptions> jwtOptions,
     TimeProvider time) : ControllerBase
@@ -106,6 +107,14 @@ public class OAuthController(
         });
         await db.SaveChangesAsync(cancellationToken);
 
+        await usageTracker.RecordOAuthAuthorizeAsync(
+            appUser.Id,
+            client.ClientId,
+            redirect_uri,
+            scope,
+            loginMethod,
+            cancellationToken);
+
         var query = new Dictionary<string, string?> { ["code"] = plainCode };
         if (!string.IsNullOrEmpty(state))
             query["state"] = state;
@@ -187,6 +196,15 @@ public class OAuthController(
             device,
             authMethod,
             authCode.ExternalOAuthTokensCipher,
+            clientId,
+            cancellationToken);
+
+        await usageTracker.RecordOAuthTokenExchangeAsync(
+            authCode.User.Id,
+            clientId,
+            redirectUri,
+            authCode.Scope,
+            authMethod,
             cancellationToken);
 
         var body = new Dictionary<string, object?>
@@ -243,7 +261,7 @@ public class OAuthController(
         }
 
         var device = Request.Headers.UserAgent.ToString();
-        var result = await tokenIssuer.RefreshAsync(refresh, device, cancellationToken);
+        var result = await tokenIssuer.RefreshAsync(refresh, device, clientId, cancellationToken);
         if (result is null)
             return BadRequest(new { error = "invalid_grant" });
 

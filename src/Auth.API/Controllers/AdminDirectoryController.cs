@@ -28,6 +28,7 @@ public class AdminDirectoryController(
             .Include(u => u.ExternalLogins)
             .Include(u => u.LinkedEmails)
             .Include(u => u.LocalLogin)
+            .Include(u => u.ClientUsages)
             .OrderBy(u => u.DisplayName)
             .ToListAsync(cancellationToken);
 
@@ -37,7 +38,19 @@ public class AdminDirectoryController(
             u.Email,
             u.LocalLogin != null,
             u.IsDisabled,
-            u.ExternalLogins.Select(e => e.Provider).Distinct().OrderBy(p => p).ToList(),
+            u.ExternalLogins
+                .OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt)
+                .Select(e => new ProviderUsageRow(e.Provider, e.LastUsedAtUtc, e.LinkedAt))
+                .ToList(),
+            u.ClientUsages
+                .OrderByDescending(c => c.LastSeenAtUtc)
+                .Select(c => new ClientUsageRow(
+                    c.ClientId,
+                    c.AuthorizeCount,
+                    c.TokenExchangeCount,
+                    c.RefreshCount,
+                    c.LastSeenAtUtc))
+                .ToList(),
             u.LinkedEmails
                 .OrderBy(e => e.Kind)
                 .Select(e => new LinkedEmailRow(e.NormalizedEmail, e.Kind.ToString()))
@@ -109,7 +122,17 @@ public sealed record UserDirectoryRow(
     string? Email,
     bool HasLocalLogin,
     bool IsDisabled,
-    IReadOnlyList<string> LinkedProviders,
+    IReadOnlyList<ProviderUsageRow> LinkedProviders,
+    IReadOnlyList<ClientUsageRow> ClientUsages,
     IReadOnlyList<LinkedEmailRow> LinkedEmails);
+
+public sealed record ProviderUsageRow(string Provider, DateTime? LastUsedAtUtc, DateTime LinkedAtUtc);
+
+public sealed record ClientUsageRow(
+    string ClientId,
+    int AuthorizeCount,
+    int TokenExchangeCount,
+    int RefreshCount,
+    DateTime LastSeenAtUtc);
 
 public sealed record LinkedEmailRow(string NormalizedEmail, string Kind);

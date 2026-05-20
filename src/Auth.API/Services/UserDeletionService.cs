@@ -54,6 +54,12 @@ public class UserDeletionService(AuthDbContext db) : IUserDeletionService
             await db.RefreshTokens
                 .Where(t => t.UserId == userIdToDelete)
                 .ExecuteDeleteAsync(cancellationToken);
+            await db.AuthUsageEvents
+                .Where(e => e.UserId == userIdToDelete)
+                .ExecuteDeleteAsync(cancellationToken);
+            await db.UserClientUsages
+                .Where(u => u.UserId == userIdToDelete)
+                .ExecuteDeleteAsync(cancellationToken);
 
             db.ExternalLogins.RemoveRange(user.ExternalLogins);
             if (user.LocalLogin is not null)

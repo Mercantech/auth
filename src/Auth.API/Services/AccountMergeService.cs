@@ -100,6 +100,14 @@ public class AccountMergeService(AuthDbContext db) : IAccountMergeService
             if (survivor.LastLoginAt < donor.LastLoginAt)
                 survivor.LastLoginAt = donor.LastLoginAt;
 
+            await db.AuthUsageEvents
+                .Where(e => e.UserId == donor.Id)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(e => e.UserId, survivor.Id),
+                    cancellationToken);
+
+            await MergeUserClientUsagesAsync(survivor.Id, donor.Id, cancellationToken);
+
             await db.RefreshTokens
                 .Where(t => t.UserId == survivor.Id || t.UserId == donor.Id)
                 .ExecuteDeleteAsync(cancellationToken);
@@ -121,5 +129,64 @@ public class AccountMergeService(AuthDbContext db) : IAccountMergeService
             await tx.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+    private async Task MergeUserClientUsagesAsync(Guid survivorId, Guid donorId, CancellationToken cancellationToken)
+    {
+        var donorRows = await db.UserClientUsages
+            .Where(u => u.UserId == donorId)
+            .ToListAsync(cancellationToken);
+        if (donorRows.Count == 0)
+            return;
+
+        var survivorByClient = await db.UserClientUsages
+            .Where(u => u.UserId == survivorId)
+            .ToDictionaryAsync(u => u.ClientId, cancellationToken);
+
+        foreach (var donorRow in donorRows)
+        {
+            if (survivorByClient.TryGetValue(donorRow.ClientId, out var survivorRow))
+            {
+                survivorRow.FirstSeenAtUtc = donorRow.FirstSeenAtUtc < survivorRow.FirstSeenAtUtc
+                    ? donorRow.FirstSeenAtUtc
+                    : survivorRow.FirstSeenAtUtc;
+                survivorRow.LastSeenAtUtc = donorRow.LastSeenAtUtc > survivorRow.LastSeenAtUtc
+                    ? donorRow.LastSeenAtUtc
+                    : survivorRow.LastSeenAtUtc;
+                survivorRow.AuthorizeCount += donorRow.AuthorizeCount;
+                survivorRow.TokenExchangeCount += donorRow.TokenExchangeCount;
+                survivorRow.RefreshCount += donorRow.RefreshCount;
+                survivorRow.LastAuthorizeAtUtc = MaxNullable(survivorRow.LastAuthorizeAtUtc, donorRow.LastAuthorizeAtUtc);
+                survivorRow.LastTokenExchangeAtUtc = MaxNullable(survivorRow.LastTokenExchangeAtUtc, donorRow.LastTokenExchangeAtUtc);
+                survivorRow.LastRefreshAtUtc = MaxNullable(survivorRow.LastRefreshAtUtc, donorRow.LastRefreshAtUtc);
+                db.UserClientUsages.Remove(donorRow);
+            }
+            else
+            {
+                db.UserClientUsages.Add(new UserClientUsage
+                {
+                    UserId = survivorId,
+                    ClientId = donorRow.ClientId,
+                    FirstSeenAtUtc = donorRow.FirstSeenAtUtc,
+                    LastSeenAtUtc = donorRow.LastSeenAtUtc,
+                    AuthorizeCount = donorRow.AuthorizeCount,
+                    TokenExchangeCount = donorRow.TokenExchangeCount,
+                    RefreshCount = donorRow.RefreshCount,
+                    LastAuthorizeAtUtc = donorRow.LastAuthorizeAtUtc,
+                    LastTokenExchangeAtUtc = donorRow.LastTokenExchangeAtUtc,
+                    LastRefreshAtUtc = donorRow.LastRefreshAtUtc,
+                });
+                db.UserClientUsages.Remove(donorRow);
+            }
+        }
+    }
+
+    private static DateTime? MaxNullable(DateTime? a, DateTime? b)
+    {
+        if (a is null)
+            return b;
+        if (b is null)
+            return a;
+        return a > b ? a : b;
     }
 }

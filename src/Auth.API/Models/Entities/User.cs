@@ -19,4 +19,5 @@ public class User
     public ICollection<UserEmail> LinkedEmails { get; set; } = new List<UserEmail>();
     public LocalLogin? LocalLogin { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<UserClientUsage> ClientUsages { get; set; } = new List<UserClientUsage>();
 }

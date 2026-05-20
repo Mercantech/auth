@@ -4,6 +4,8 @@ public class RefreshToken
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
+    /// <summary>OAuth <c>client_id</c> der udstedte dette refresh token (null ved ældre rækker).</summary>
+    public string? ClientId { get; set; }
     public string TokenHash { get; set; } = string.Empty;
     public string? DeviceInfo { get; set; }
     public DateTime CreatedAt { get; set; }

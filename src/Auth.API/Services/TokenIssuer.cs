@@ -17,7 +17,8 @@ public class TokenIssuer(
     IOptions<JwtOptions> jwtOptions,
     TimeProvider time,
     ExternalOAuthTokensProtector externalTokens,
-    MicrosoftIdentityTokenRefresher microsoftRefresher) : ITokenIssuer
+    MicrosoftIdentityTokenRefresher microsoftRefresher,
+    IAuthUsageTracker usageTracker) : ITokenIssuer
 {
     private readonly JwtOptions _jwt = jwtOptions.Value;
 
@@ -27,6 +28,7 @@ public class TokenIssuer(
         string? deviceInfo,
         string? authMethod,
         string? externalOAuthTokensCipher = null,
+        string? clientId = null,
         CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow().UtcDateTime;
@@ -66,6 +68,7 @@ public class TokenIssuer(
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
+            ClientId = string.IsNullOrWhiteSpace(clientId) ? null : clientId.Trim(),
             TokenHash = refreshHash,
             DeviceInfo = deviceInfo,
             CreatedAt = now,
@@ -82,6 +85,7 @@ public class TokenIssuer(
     public async Task<(string accessToken, string refreshTokenPlain, DateTime accessExpiresUtc, IssuedMicrosoftAccess? microsoftAccess)?> RefreshAsync(
         string refreshTokenPlain,
         string? deviceInfo,
+        string? clientId = null,
         CancellationToken cancellationToken = default)
     {
         var hash = SecureToken.HashOpaqueToken(refreshTokenPlain);
@@ -118,10 +122,19 @@ public class TokenIssuer(
             }
         }
 
+        var effectiveClientId = string.IsNullOrWhiteSpace(clientId) ? existing.ClientId : clientId.Trim();
+        await usageTracker.RecordOAuthRefreshAsync(
+            user.Id,
+            effectiveClientId ?? string.Empty,
+            existing.AuthMethod ?? user.LastLoginMethod,
+            cancellationToken);
+
         existing.IsRevoked = true;
         await db.SaveChangesAsync(cancellationToken);
 
-        var (access, newRefresh, exp) = await IssueTokensAsync(user, roles, deviceInfo, existing.AuthMethod, newCipher, cancellationToken);
+        var refreshClient = effectiveClientId;
+        var (access, newRefresh, exp) = await IssueTokensAsync(
+            user, roles, deviceInfo, existing.AuthMethod, newCipher, refreshClient, cancellationToken);
         return (access, newRefresh, exp, msAccess);
     }
 

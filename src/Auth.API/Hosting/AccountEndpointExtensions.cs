@@ -204,6 +204,8 @@ public static class AccountEndpointExtensions
             .Where(u => u.Id == user.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginMethod, MercantecAuthClaims.LoginMethodValues.Password));
         await SignInHelper.SignInAsync(ctx, user, roles);
+        await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
+            .RecordPasswordLoginAsync(user.Id);
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
@@ -303,6 +305,8 @@ public static class AccountEndpointExtensions
             .Select(ur => ur.Role.Name)
             .ToListAsync();
         await SignInHelper.SignInAsync(ctx, user, roles);
+        await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
+            .RecordPasswordSignupAsync(user.Id);
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
