@@ -125,10 +125,8 @@ public class LocalAccountService(AuthDbContext db, TimeProvider time) : ILocalAc
             return q;
         }
 
-        var user = await ApplyIncludes(
-                db.UserEmails
-                    .Where(e => e.NormalizedEmail == norm)
-                    .Select(e => e.User))
+        var user = await ApplyIncludes(db.Users)
+            .Where(u => u.LinkedEmails.Any(e => e.NormalizedEmail == norm))
             .FirstOrDefaultAsync(cancellationToken);
         if (user is not null)
             return user;
