@@ -5,93 +5,230 @@
 @{
     ViewData["Title"] = "Sikkerhed";
     var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+    var pathBase = Request.PathBase.Value ?? "";
 }
 
-<div class="auth-card linked-accounts">
-    <h1 class="auth-headline">Sikkerhed</h1>
-    <p class="auth-lead">
-        <a href="@(Request.PathBase)/Account/LinkedAccounts">← Tilknyttede login</a>
-    </p>
+<div class="auth-card security-page">
+    <header class="security-hero">
+        <div class="security-hero__mark" aria-hidden="true">
+            @await Html.PartialAsync("_SecurityIcon", "shield")
+        </div>
+        <div class="security-hero__text">
+            <h1 class="security-hero__title">Sikkerhed</h1>
+            <p class="security-hero__lede">
+                Beskyt din Mercantec-konto med authenticator-app og passkeys. Bruges som ekstra trin ved login.
+            </p>
+        </div>
+    </header>
+
+    <nav class="security-nav" aria-label="Kontonavigation">
+        <a class="security-nav__link" href="@(pathBase)/Account/LinkedAccounts">
+            @await Html.PartialAsync("_SecurityIcon", "arrow-left")
+            Tilknyttede login
+        </a>
+    </nav>
 
     @if (!string.IsNullOrEmpty(Model.BannerMessage))
     {
-        <div class="auth-alert" role="status">@Model.BannerMessage</div>
+        <div class="security-alert security-alert--ok" role="status">
+            <span class="security-alert__icon">@await Html.PartialAsync("_SecurityIcon", "check")</span>
+            <span>@Model.BannerMessage</span>
+        </div>
     }
     @if (!string.IsNullOrEmpty(Model.BannerError))
     {
         <div class="auth-alert" role="alert">@Model.BannerError</div>
     }
 
-    <section class="linked-section">
-        <h2 class="linked-section__heading">Authenticator (TOTP)</h2>
-        @if (Model.TotpEnabled)
-        {
-            <p class="linked-section__lede">TOTP er aktiv.</p>
-            <form method="post" action="@(Request.PathBase)/account/mfa/totp/disable">
-                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                <label class="auth-label" for="disable-code">Kode for at slå fra</label>
-                <input id="disable-code" name="code" class="auth-input" inputmode="numeric" required />
-                <button type="submit" class="auth-btn auth-btn--ghost">Deaktivér TOTP</button>
-            </form>
-        }
-        else
-        {
-            <p class="linked-section__lede">Scan QR-koden i Google Authenticator, Microsoft Authenticator eller lignende.</p>
-            @if (!string.IsNullOrEmpty(Model.SetupUri))
+    <article class="security-panel security-panel--totp" aria-labelledby="totp-heading">
+        <div class="security-panel__head">
+            <div class="security-panel__icon security-panel__icon--totp" aria-hidden="true">
+                @await Html.PartialAsync("_SecurityIcon", "totp")
+            </div>
+            <div class="security-panel__titles">
+                <h2 id="totp-heading" class="security-panel__title">Authenticator-app</h2>
+                <p class="security-panel__subtitle">TOTP · Google Authenticator, Microsoft Authenticator m.fl.</p>
+            </div>
+            @if (Model.TotpEnabled)
             {
-                @if (!string.IsNullOrEmpty(Model.SetupQrDataUrl))
-                {
-                    <p class="totp-qr-wrap">
-                        <img src="@Model.SetupQrDataUrl" width="200" height="200" alt="QR-kode til authenticator-app" class="totp-qr" />
-                    </p>
-                }
-                <p class="linked-section__muted">Kan ikke scanne? Indtast nøglen manuelt:</p>
-                <p><code class="linked-accounts__mono">@Model.SetupSecret</code></p>
+                <span class="security-badge security-badge--on">
+                    @await Html.PartialAsync("_SecurityIcon", "check")
+                    Aktiv
+                </span>
             }
-            <form method="post" action="@(Request.PathBase)/account/mfa/totp/confirm">
-                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                <label class="auth-label" for="confirm-code">Bekræft med 6-cifret kode</label>
-                <input id="confirm-code" name="code" class="auth-input" inputmode="numeric" required />
-                <button type="submit" class="auth-btn auth-btn--primary">Aktivér TOTP</button>
-            </form>
-            <form method="post" action="@(Request.PathBase)/account/mfa/totp/setup" class="auth-form" style="margin-top:1rem">
-                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                <button type="submit" class="auth-btn auth-btn--ghost">Generér ny QR</button>
-            </form>
-        }
-    </section>
+            else
+            {
+                <span class="security-badge security-badge--setup">Opsætning</span>
+            }
+        </div>
 
-    <section class="linked-section linked-section--bordered">
-        <h2 class="linked-section__heading">Passkeys</h2>
-        <ul class="linked-connections" role="list">
-            @foreach (var p in Model.Passkeys)
+        <div class="security-panel__body">
+            @if (Model.TotpEnabled)
             {
-                <li class="linked-conn-row linked-conn-row--neutral">
-                    <div class="linked-conn-row__body">
-                        <span class="linked-conn-row__name">@p.FriendlyName</span>
-                        <span class="linked-conn-row__meta">Oprettet @p.CreatedAtUtc.ToString("yyyy-MM-dd")</span>
-                    </div>
-                    <form method="post" action="@(Request.PathBase)/account/passkeys/@p.Id/delete">
-                        <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                        <button type="submit" class="linked-conn-row__unlink">Fjern</button>
-                    </form>
-                </li>
+                <p class="security-panel__text">
+                    Ved næste login skal du indtaste en 6-cifret kode fra din app (eller recovery-kode).
+                </p>
+                <form class="security-form" method="post" action="@(pathBase)/account/mfa/totp/disable">
+                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                    <label class="auth-label" for="disable-code">Bekræft med kode for at slå fra</label>
+                    <input id="disable-code" name="code" class="auth-input security-input--code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="8" required />
+                    <button type="submit" class="auth-btn auth-btn--ghost security-btn--danger">
+                        @await Html.PartialAsync("_SecurityIcon", "trash")
+                        Deaktivér authenticator
+                    </button>
+                </form>
             }
-        </ul>
-        <label class="auth-label" for="passkey-name">Navn på enhed</label>
-        <input id="passkey-name" class="auth-input" value="Min passkey" />
-        <button type="button" class="auth-btn auth-btn--primary" id="add-passkey-btn">Tilføj passkey</button>
-    </section>
+            else
+            {
+                <ol class="security-steps">
+                    <li class="security-steps__item security-steps__item--current">
+                        <span class="security-steps__num">1</span>
+                        <span>Scan QR-koden</span>
+                    </li>
+                    <li class="security-steps__item">
+                        <span class="security-steps__num">2</span>
+                        <span>Bekræft med 6 cifre</span>
+                    </li>
+                </ol>
+
+                @if (!string.IsNullOrEmpty(Model.SetupUri))
+                {
+                    <div class="security-qr-panel">
+                        @if (!string.IsNullOrEmpty(Model.SetupQrDataUrl))
+                        {
+                            <img src="@Model.SetupQrDataUrl" width="200" height="200" alt="QR-kode til authenticator-app" class="security-qr-panel__img" />
+                        }
+                    </div>
+
+                    <div class="security-secret">
+                        <span class="security-secret__label">Manuel nøgle</span>
+                        <div class="security-secret__row">
+                            <code class="security-secret__code" id="totp-secret">@Model.SetupSecret</code>
+                            <button type="button" class="security-secret__copy" id="copy-totp-secret" title="Kopiér nøgle">
+                                @await Html.PartialAsync("_SecurityIcon", "copy")
+                                <span class="security-secret__copy-text">Kopiér</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <form class="security-form" method="post" action="@(pathBase)/account/mfa/totp/confirm">
+                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                    <label class="auth-label" for="confirm-code">6-cifret kode fra appen</label>
+                    <input id="confirm-code" name="code" class="auth-input security-input--code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="8" required />
+                    <button type="submit" class="auth-btn auth-btn--primary">
+                        @await Html.PartialAsync("_SecurityIcon", "check")
+                        Aktivér authenticator
+                    </button>
+                </form>
+                <form method="post" action="@(pathBase)/account/mfa/totp/setup" class="security-form security-form--inline">
+                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                    <button type="submit" class="auth-btn auth-btn--ghost">
+                        @await Html.PartialAsync("_SecurityIcon", "refresh")
+                        Generér ny QR-kode
+                    </button>
+                </form>
+            }
+        </div>
+    </article>
+
+    <article class="security-panel security-panel--passkey" aria-labelledby="passkey-heading">
+        <div class="security-panel__head">
+            <div class="security-panel__icon security-panel__icon--passkey" aria-hidden="true">
+                @await Html.PartialAsync("_SecurityIcon", "passkey")
+            </div>
+            <div class="security-panel__titles">
+                <h2 id="passkey-heading" class="security-panel__title">Passkeys</h2>
+                <p class="security-panel__subtitle">WebAuthn · Face ID, Windows Hello, YubiKey</p>
+            </div>
+            @if (Model.Passkeys.Count > 0)
+            {
+                <span class="security-badge security-badge--count">@Model.Passkeys.Count @(Model.Passkeys.Count == 1 ? "enhed" : "enheder")</span>
+            }
+        </div>
+
+        <div class="security-panel__body">
+            <p class="security-panel__text">
+                Log ind uden adgangskode, eller brug passkey som anden faktor efter OAuth/adgangskode.
+            </p>
+
+            @if (Model.Passkeys.Count == 0)
+            {
+                <p class="security-empty">
+                    @await Html.PartialAsync("_SecurityIcon", "lock")
+                    Ingen passkeys endnu — tilføj en nedenfor.
+                </p>
+            }
+            else
+            {
+                <ul class="security-passkey-list" role="list">
+                    @foreach (var p in Model.Passkeys)
+                    {
+                        <li class="security-passkey-item">
+                            <div class="security-passkey-item__icon" aria-hidden="true">
+                                @await Html.PartialAsync("_SecurityIcon", "passkey")
+                            </div>
+                            <div class="security-passkey-item__body">
+                                <span class="security-passkey-item__name">@p.FriendlyName</span>
+                                <span class="security-passkey-item__meta">
+                                    Oprettet @p.CreatedAtUtc.ToString("d. MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("da-DK"))
+                                    @if (p.LastUsedAtUtc is not null)
+                                    {
+                                        <span> · Sidst brugt @p.LastUsedAtUtc.Value.ToString("d. MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("da-DK"))</span>
+                                    }
+                                </span>
+                            </div>
+                            <form method="post" action="@(pathBase)/account/passkeys/@p.Id/delete" class="security-passkey-item__form">
+                                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                                <button type="submit" class="security-passkey-item__remove" title="Fjern @p.FriendlyName">
+                                    @await Html.PartialAsync("_SecurityIcon", "trash")
+                                    <span>Fjern</span>
+                                </button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <div class="security-add-passkey">
+                <h3 class="security-add-passkey__title">Tilføj ny passkey</h3>
+                <label class="auth-label" for="passkey-name">Navn på enhed</label>
+                <input id="passkey-name" class="auth-input" value="Min passkey" maxlength="80" autocomplete="off" />
+                <button type="button" class="auth-btn auth-btn--primary" id="add-passkey-btn">
+                    @await Html.PartialAsync("_SecurityIcon", "plus")
+                    Registrér passkey
+                </button>
+            </div>
+        </div>
+    </article>
 </div>
 
-<script src="@(Request.PathBase)/js/passkeys.js"></script>
+<script src="@(pathBase)/js/passkeys.js"></script>
 <script>
     document.getElementById("add-passkey-btn")?.addEventListener("click", () => {
-        const name = document.getElementById("passkey-name")?.value || "Passkey";
+        const name = document.getElementById("passkey-name")?.value?.trim() || "Passkey";
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         window.MercantecPasskeys.register(
-            "@(Request.PathBase)/account/passkeys/register/options",
-            "@(Request.PathBase)/account/passkeys/register/complete",
-            document.querySelector('input[name="__RequestVerificationToken"]').value,
-            name).then(() => location.reload());
+            "@(pathBase)/account/passkeys/register/options",
+            "@(pathBase)/account/passkeys/register/complete",
+            token,
+            name).then(() => location.reload()).catch(() => alert("Passkey-registrering fejlede."));
+    });
+
+    document.getElementById("copy-totp-secret")?.addEventListener("click", async () => {
+        const el = document.getElementById("totp-secret");
+        const btn = document.getElementById("copy-totp-secret");
+        if (!el?.textContent || !btn) return;
+        try {
+            await navigator.clipboard.writeText(el.textContent.trim());
+            const label = btn.querySelector(".security-secret__copy-text");
+            if (label) {
+                const prev = label.textContent;
+                label.textContent = "Kopieret!";
+                setTimeout(() => { label.textContent = prev; }, 2000);
+            }
+        } catch {
+            alert("Kunne ikke kopiere — markér nøglen manuelt.");
+        }
     });
 </script>
