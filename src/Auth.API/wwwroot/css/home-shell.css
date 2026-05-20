@@ -155,6 +155,24 @@ body::before {
   text-decoration: underline;
 }
 
+.merc-shell__footer-dev {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-width: 44rem;
+}
+
+.merc-shell__footer-dev a {
+  color: var(--merc-accent);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.merc-shell__footer-dev a:hover {
+  border-bottom-color: var(--merc-accent);
+}
+
 .merc-shell__footer-attrib {
   margin: 0;
   font-size: 0.78rem;
