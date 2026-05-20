@@ -1,47 +1,181 @@
 @page "/Admin/Users"
 @attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Auth.API.Services
 @inject AuthDbContext Db
+@inject IAccountMergeService Merge
+@inject IUserDeletionService UserDeletion
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime Js
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
 
 <PageTitle>Brugere (admin)</PageTitle>
 
-<div class="merc-page">
-<h1>Brugere</h1>
+<div class="merc-page merc-users">
+    <header class="merc-users__header">
+        <div>
+            <h1>Brugere</h1>
+            <p class="merc-users__lead">
+                Sammenlæg duplikatkonti (én bruger beholder <code>sub</code>) eller slet en konto.
+                <strong>Permanent</strong> — andre systemer der gemmer bruger-GUID skal opdateres manuelt ved slet/merge.
+            </p>
+        </div>
+    </header>
 
-@if (_rows is null)
-{
-    <p>Henter…</p>
-}
-else
-{
-    <table class="table table-sm">
-        <thead>
-            <tr>
-                <th>Navn</th>
-                <th>E-mail</th>
-                <th>Roller</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var r in _rows)
-        {
-            <tr>
-                <td>@r.DisplayName</td>
-                <td>@(r.Email ?? "—")</td>
-                <td>@r.Roles</td>
-                <td>@(r.IsDisabled ? "Deaktiveret" : "Aktiv")</td>
-            </tr>
-        }
-        </tbody>
-    </table>
-}
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="merc-alert @(_statusIsError ? "merc-alert--error" : "merc-alert--ok")" role="status">
+            @_status
+        </div>
+    }
+
+    @if (_rows is null)
+    {
+        <p class="merc-users__loading">Henter…</p>
+    }
+    else
+    {
+        <section class="merc-panel merc-users__toolbar" aria-labelledby="merge-heading">
+            <h2 id="merge-heading" class="merc-users__panel-title">Sammenlæg to brugere</h2>
+            <p class="merc-hint merc-hint--block">
+                Marker <strong>hovedkonto</strong> (JWT <code>sub</code> beholdes) og <strong>konto der nedlægges</strong>.
+                Alle login fra den nedlagte flyttes til hovedkontoen. Se dokumentation for overlap (lokalt login, e-mail-typer).
+            </p>
+            <div class="merc-users__merge-actions">
+                <button type="button" class="merc-btn merc-btn--primary" @onclick="MergeAsync" disabled="@(_mergeBusy || !_mergeReady)">
+                    @(_mergeBusy ? "Sammenlægger…" : "Udfør sammenlægning")
+                </button>
+                <button type="button" class="merc-btn merc-btn--ghost" @onclick="ClearMergeSelection" disabled="@_mergeBusy">Nulstil valg</button>
+            </div>
+        </section>
+
+        <div class="merc-users__table-wrap">
+            <table class="table table-sm merc-users__table">
+                <thead>
+                <tr>
+                    <th class="merc-users__th-radio" scope="col">Beholde<br/><span class="merc-users__th-sub">(sub)</span></th>
+                    <th class="merc-users__th-radio" scope="col">Nedlægges<br/><span class="merc-users__th-sub">(donor)</span></th>
+                    <th scope="col">Navn</th>
+                    <th scope="col">E-mail</th>
+                    <th scope="col">Roller</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="merc-users__th-actions">Handling</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in _rows)
+                {
+                    <tr>
+                        <td class="merc-users__td-radio">
+                            <input type="radio" name="merc-merge-survivor"
+                                   checked="@(_survivorId == r.Id)"
+                                   @onchange="@(_ => PickSurvivor(r.Id))"
+                                   aria-label="Bevare @r.DisplayName" />
+                        </td>
+                        <td class="merc-users__td-radio">
+                            <input type="radio" name="merc-merge-donor"
+                                   checked="@(_donorId == r.Id)"
+                                   @onchange="@(_ => PickDonor(r.Id))"
+                                   aria-label="Nedlæg @r.DisplayName" />
+                        </td>
+                        <td>
+                            <span class="merc-users__name">@r.DisplayName</span>
+                            <code class="merc-users__id" title="@r.Id.ToString()">@ShortId(r.Id)</code>
+                        </td>
+                        <td>@(r.Email ?? "—")</td>
+                        <td>@r.Roles</td>
+                        <td>
+                            @if (r.IsDisabled)
+                            {
+                                <span class="merc-badge merc-badge--muted">Deaktiveret</span>
+                            }
+                            else
+                            {
+                                <span class="merc-badge merc-badge--ok">Aktiv</span>
+                            }
+                        </td>
+                        <td class="merc-users__actions">
+                            <button type="button"
+                                    class="merc-btn merc-btn--danger merc-btn--sm"
+                                    disabled="@(_deleteBusy || r.Id == _myUserId)"
+                                    title="@(r.Id == _myUserId ? "Du kan ikke slette dig selv her." : "")"
+                                    @onclick="@(() => DeleteRowAsync(r))">
+                                Slet
+                            </button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
 
 @code {
     private List<Row>? _rows;
+    private Guid _myUserId;
+    private Guid? _survivorId;
+    private Guid? _donorId;
+    private string? _status;
+    private bool _statusIsError;
+    private bool _mergeBusy;
+    private bool _deleteBusy;
+
+    private bool _mergeReady =>
+        _survivorId is { } sv && _donorId is { } dn && sv != dn;
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadActorAsync();
+        await ReloadUsersAsync();
+    }
+
+    private async Task LoadActorAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var sub = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        _ = Guid.TryParse(sub, out _myUserId);
+    }
+
+    private static string ShortId(Guid id)
+    {
+        var s = id.ToString();
+        return s[..8] + "…";
+    }
+
+    private void PickSurvivor(Guid id)
+    {
+        _survivorId = id;
+        if (_donorId == id)
+            _donorId = null;
+        SetStatus("", false);
+    }
+
+    private void PickDonor(Guid id)
+    {
+        _donorId = id;
+        if (_survivorId == id)
+            _survivorId = null;
+        SetStatus("", false);
+    }
+
+    private void ClearMergeSelection()
+    {
+        _survivorId = null;
+        _donorId = null;
+        SetStatus("", false);
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        _status = message;
+        _statusIsError = isError;
+    }
+
+    private async Task ReloadUsersAsync()
     {
         var users = await Db.Users
             .AsNoTracking()
@@ -51,11 +185,92 @@ else
             .ToListAsync();
 
         _rows = users.Select(u => new Row(
+            u.Id,
             u.DisplayName,
             u.Email,
             u.IsDisabled,
-            string.Join(", ", u.UserRoles.Select(ur => ur.Role.Name)))).ToList();
+            string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))))
+            .ToList();
     }
 
-    private sealed record Row(string DisplayName, string? Email, bool IsDisabled, string Roles);
+    private async Task MergeAsync()
+    {
+        if (!_mergeReady || _survivorId is null || _donorId is null)
+            return;
+
+        _mergeBusy = true;
+        SetStatus("", false);
+        try
+        {
+            var r = await Merge.MergeUsersAsync(_survivorId.Value, _donorId.Value);
+            if (r.Success)
+            {
+                var w = r.Warnings.Count > 0
+                    ? " Advarsler: " + string.Join(" ", r.Warnings)
+                    : "";
+                SetStatus($"Sammenlægning gennemført.{w}", r.Warnings.Count > 0);
+                ClearMergeSelection();
+                await ReloadUsersAsync();
+            }
+            else
+            {
+                var msg = r.Failure switch
+                {
+                    AccountMergeFailureReason.SameUser => "Vælg to forskellige brugere.",
+                    AccountMergeFailureReason.SurvivorNotFound => "Hovedkonto blev ikke fundet.",
+                    AccountMergeFailureReason.DonorNotFound => "Donor blev ikke fundet.",
+                    AccountMergeFailureReason.SurvivorDisabled => "Hovedkonto er deaktiveret.",
+                    _ => "Sammenlægning blev afvist.",
+                };
+                SetStatus(msg, true);
+            }
+        }
+        finally
+        {
+            _mergeBusy = false;
+        }
+    }
+
+    private async Task DeleteRowAsync(Row row)
+    {
+        if (row.Id == _myUserId)
+            return;
+
+        var confirm = await Js.InvokeAsync<bool>("confirm",
+            $"Slet brugeren «{row.DisplayName}» permanent? Login, tokens og mails i auth fjernes. Det kan ikke fortrydes.");
+        if (!confirm)
+            return;
+
+        _deleteBusy = true;
+        SetStatus("", false);
+        try
+        {
+            var r = await UserDeletion.DeleteUserAsync(row.Id, _myUserId);
+            if (r.Success)
+            {
+                SetStatus($"Bruger «{row.DisplayName}» er slettet.", false);
+                if (_survivorId == row.Id || _donorId == row.Id)
+                    ClearMergeSelection();
+                await ReloadUsersAsync();
+            }
+            else
+            {
+                var msg = r.Failure switch
+                {
+                    UserDeletionFailureReason.CannotDeleteSelf => "Du kan ikke slette dig selv.",
+                    UserDeletionFailureReason.CannotDeleteLastAdmin =>
+                        "Sidste Administrator må ikke fjernes — tilføj først Admin til en anden konto.",
+                    UserDeletionFailureReason.NotFound => "Brugeren findes ikke (måske allerede slettet?).",
+                    _ => "Sletning blev afvist.",
+                };
+                SetStatus(msg, true);
+            }
+        }
+        finally
+        {
+            _deleteBusy = false;
+        }
+    }
+
+    private sealed record Row(Guid Id, string DisplayName, string? Email, bool IsDisabled, string Roles);
 }

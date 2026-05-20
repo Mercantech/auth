@@ -5,6 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Brugere — Mercantec demo</title>
   <link rel="stylesheet" href="demo-theme.css" />
+  <style>
+    .demo-delete-btn {
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: var(--demo-radius);
+      border: 2px solid var(--demo-card-shadow);
+      background: #f4e9e8;
+      color: var(--demo-err);
+      cursor: pointer;
+    }
+    .demo-merge-bar {
+      margin: 1rem 0 1.25rem;
+      padding: 0.9rem 1rem;
+      background: var(--demo-card);
+      border: 2px solid var(--demo-card-shadow);
+      border-radius: var(--demo-radius);
+      box-shadow: 4px 4px 0 rgba(20, 18, 16, 0.08);
+    }
+    .demo-merge-bar p { margin: 0 0 0.6rem; }
+  </style>
 </head>
 <body class="demo">
   <div class="demo-wrap demo-wrap--wide">
@@ -17,17 +39,28 @@
     </nav>
     <h1>Brugere i auth-databasen</h1>
     <p id="status">Henter…</p>
+
+    <div id="merge-bar" class="demo-merge-bar" hidden>
+      <p>
+        <strong>Sammenlæg to konti:</strong> vælg <em>hovedkonto</em> (JWT <code>sub</code> beholdes) og <em>donor</em> (slettes). Andre systemer der gemmer bruger-GUID skal opdateres manuelt.
+      </p>
+      <button type="button" id="merge-btn">Udfør sammenlægning</button>
+    </div>
+
     <table id="users-table" hidden>
       <thead>
         <tr>
-          <th>Navn</th>
+          <th>Beholde</th>
+          <th>Nedlæg</th>
+          <th>Navn / sub</th>
           <th>E-mail</th>
-          <th>Linkede providers</th>
-          <th>Tilknyttede mails (kind)</th>
+          <th>Providers</th>
+          <th>Tilknyttede mails</th>
           <th>Lokalt login</th>
+          <th>Status</th>
+          <th style="text-align:right">Handling</th>
         </tr>
       </thead>
-      <tbody></tbody>
     </table>
     <p><small>Kræver <code>Authorization: Bearer</code> med rolle <strong>Admin</strong>.</small></p>
     <p class="demo-platform-note" role="note">

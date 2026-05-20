@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Auth.API.Data;
 using Auth.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,7 +14,10 @@ namespace Auth.API.Controllers;
 [Route("api/admin")]
 [EnableCors("MercantecSpa")]
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
-public class AdminDirectoryController(AuthDbContext db, IAccountMergeService accountMerge)
+public class AdminDirectoryController(
+    AuthDbContext db,
+    IAccountMergeService accountMerge,
+    IUserDeletionService userDeletion)
     : ControllerBase
 {
     [HttpGet("users-directory")]
@@ -32,6 +36,7 @@ public class AdminDirectoryController(AuthDbContext db, IAccountMergeService acc
             u.DisplayName,
             u.Email,
             u.LocalLogin != null,
+            u.IsDisabled,
             u.ExternalLogins.Select(e => e.Provider).Distinct().OrderBy(p => p).ToList(),
             u.LinkedEmails
                 .OrderBy(e => e.Kind)
@@ -64,6 +69,34 @@ public class AdminDirectoryController(AuthDbContext db, IAccountMergeService acc
             _ => Problem(),
         };
     }
+
+    /// <summary>Fjerner en brugerkonto og alle associerede login-/session-data. Kan ikke fjerne sidste Admin eller egen konto.</summary>
+    [HttpDelete("users/{userId:guid}")]
+    public async Task<IActionResult> DeleteUser(Guid userId, CancellationToken cancellationToken)
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out var actorUserId))
+            return Unauthorized();
+
+        var r = await userDeletion.DeleteUserAsync(userId, actorUserId, cancellationToken);
+        if (r.Success)
+            return NoContent();
+
+        return r.Failure switch
+        {
+            UserDeletionFailureReason.NotFound => Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                detail: "Brugeren findes ikke."),
+            UserDeletionFailureReason.CannotDeleteSelf => Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                detail: "Du kan ikke slette din egen konto herfra."),
+            UserDeletionFailureReason.CannotDeleteLastAdmin => Conflict(new
+            {
+                error = "Sidste Administrator kan ikke fjernes — tildel Admin til en anden bruger først.",
+            }),
+            _ => Problem(),
+        };
+    }
 }
 
 public sealed record MergeUsersRequest(Guid SurvivorUserId, Guid DonorUserId);
@@ -75,6 +108,7 @@ public sealed record UserDirectoryRow(
     string DisplayName,
     string? Email,
     bool HasLocalLogin,
+    bool IsDisabled,
     IReadOnlyList<string> LinkedProviders,
     IReadOnlyList<LinkedEmailRow> LinkedEmails);
 

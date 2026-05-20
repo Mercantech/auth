@@ -43,7 +43,7 @@ npx --yes serve . -l 5173
 | `index.html` | Start PKCE-login |
 | `callback.html` | Modtager `code`, kalder `/oauth/token`, gemmer tokens i `sessionStorage` |
 | `jwt.html` | Viser JWT header/payload + **RS256-verifikation** mod `/.well-known/jwks.json` (via [jose](https://github.com/panva/jose) fra CDN) |
-| `users.html` | Kalder `GET /api/admin/users-directory` med Bearer — kræver **Admin**-rolle på Mercantec-brugeren |
+| `users.html` | Admin-brugere: liste, **sammenlæg** og **slet** via `GET /api/admin/users-directory`, `POST …/merge`, `DELETE …/{id}` med Bearer og **Admin**-rolle |
 | `appsettings-to-env.html` | **appsettings.json → .env**: fladgør nested JSON til `Section__Key` som ASP.NET Core / Docker forventer; kopiér eller download |
 | `appsettings-env.js` | Ren logik til flatten + escaping (bruges af siden ovenfor) |
 | `demo-theme.css` | Fælles visuelt tema for demo-SPA’en (varm “protokol”-stil, Epilogue + Newsreader) |

@@ -28,6 +28,7 @@ Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-
 | `POST /account/link/remove` | Fjern en `ExternalLogin` (mindst én login-metode skal blive tilbage) |
 | `GET /api/admin/users-directory` | Oversigt over brugere (kun **Bearer JWT med rolle Admin**) |
 | `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT**) |
+| `DELETE /api/admin/users/{userId}` | Slet bruger og tilhørende login-/OAuth-data (**Admin-JWT**) — ikke dig selv, ikke sidste Admin |
 
 ## Brugerkonto: flere login-udbydere (account linking)
 
@@ -75,7 +76,9 @@ Bruges når samme person **allerede har to `User`-rækker** (fx to forskellige `
 
 **Ikke automatisk:** Downstream databaser der gemmer `sub`/bruger-ID skal migrate eller opdatere henvisning fra donors gamle GUID til survivor — JWT udsteder kun den canonicale bruger derefter.
 
-`GET /api/admin/users-directory` er på samme **Admin-JWT-beskyttelse** og kan bruges til at finde GUIDs før merge.
+`GET /api/admin/users-directory` er på samme **Admin-JWT-beskyttelse** og kan bruges til at finde GUIDs før merge eller sletning.
+
+**Slet bruger:** `DELETE /api/admin/users/{userId}` → `204` ved success. Afviser sletning af egen konto (403) og af **sidste** bruger med rolle Admin (409). Fjerner også refresh tokens, ikke-brugte auth codes samt lokale/OAuth-login for den pågældende bruger.
 
 ### OAuth-klienter (SPAs / API’er)
 

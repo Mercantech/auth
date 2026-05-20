@@ -1160,6 +1160,89 @@ body::before {
   margin: 0;
 }
 
+/* Admin brugere (/Admin/Users) */
+.merc-users__header {
+  margin-bottom: 1rem;
+}
+
+.merc-users__lead {
+  margin: 0.5rem 0 0;
+  font-size: 0.92rem;
+  color: var(--merc-muted);
+  line-height: 1.55;
+  max-width: 52rem;
+}
+
+.merc-users__loading {
+  color: var(--merc-muted);
+}
+
+.merc-users__toolbar {
+  margin-bottom: 1rem;
+}
+
+.merc-users__panel-title {
+  margin: 0 0 0.5rem;
+  font-family: Syne, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.merc-users__merge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.merc-users__table-wrap {
+  overflow-x: auto;
+}
+
+.merc-users__table {
+  min-width: 46rem;
+}
+
+.merc-users__th-radio {
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.merc-users__th-sub {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--merc-muted);
+}
+
+.merc-users__td-radio {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.merc-users__th-actions {
+  text-align: right;
+}
+
+.merc-users__name {
+  display: block;
+  font-weight: 700;
+}
+
+.merc-users__id {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--merc-muted);
+}
+
+.merc-users__actions {
+  text-align: right;
+  vertical-align: middle;
+}
+
 /* Fjern Bootstrap focus-ring der klæber til gammelt tema */
 .merc-shell .btn:focus,
 .merc-shell .btn:active:focus {
