@@ -21,7 +21,38 @@ Efter password-tilknytning kører **`UserPrimaryEmailSync`** som ved OAuth, så 
 3. Efter login redirectes til din `redirect_uri` med `?code=...&state=...`.
 4. Din backend kalder **token-endpoint** med `code` og `code_verifier`.
 
-Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-UI over og der udstedes straks en `code`.
+Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-UI over og der udstedes straks en `code` — **kun** hvis sessionen er **fuld** (ikke `mfa_pending` efter primær login når brugeren har TOTP eller passkey).
+
+## MFA (TOTP) og passkeys (WebAuthn)
+
+Valgfrit pr. bruger under **`/Account/Security`** (kræver fuld session).
+
+| Trin | Beskrivelse |
+|------|-------------|
+| Primær login | Adgangskode, OAuth eller passwordless passkey |
+| `mfa_pending` | Kortlivet cookie (ca. 10 min) hvis brugeren har aktiv TOTP eller mindst én passkey |
+| `/Account/Mfa` | TOTP-kode, recovery-kode eller passkey-bekræftelse |
+| Fuld session | OAuth `GET /oauth/authorize` og øvrige beskyttede flows |
+
+**API (JSON, antiforgery på beskyttede kald):**
+
+| Endpoint | Formål |
+|----------|--------|
+| `POST /account/mfa/totp/setup` | Start TOTP (QR/secret) |
+| `POST /account/mfa/totp/confirm` | Aktivér efter første gyldige kode |
+| `POST /account/mfa/verify` | Afslut MFA-trin (pending → fuld) |
+| `POST /account/mfa/totp/disable` | Slå TOTP fra (kræver kode) |
+| `POST /account/passkeys/register/options` + `.../complete` | Registrér passkey |
+| `POST /account/passkeys/assert/options` + `.../complete` | Passkey som 2. faktor |
+| `POST /account/passkeys/login/options` + `.../complete` | Passwordless login (anonym) |
+
+**OIDC `amr` i id_token** (ved `openid` scope), når MFA er gennemført i samme session:
+
+- `pwd` — adgangskode som primær faktor
+- `otp` — TOTP eller recovery-kode
+- `webauthn` — passkey
+
+Konfiguration: `Mfa:RequireForRoles` (tom som standard), `Passkeys:RpId`, `Passkeys:Origins` i `appsettings` / miljø.
 
 ## Endpoints (relativt til auth-base-URL)
 
@@ -147,7 +178,7 @@ Svar (JSON): `access_token`, `refresh_token`, `token_type`, `expires_in`.
 
 - Algoritme: **RS256**
 - Valider med nøgler fra **JWKS**
-- Claims: `sub` (bruger-id), `name`, `email` (hvis findes), `role` (flere), `iss`, `aud`, `exp`
+- Claims: `sub` (bruger-id), `name`, `email` (hvis findes), `role` (flere), `amr` (ved openid + MFA), `iss`, `aud`, `exp`
 
 ## Demo-klient (kun Development)
 

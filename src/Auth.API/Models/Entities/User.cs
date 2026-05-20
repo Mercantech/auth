@@ -18,6 +18,8 @@ public class User
     public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
     public ICollection<UserEmail> LinkedEmails { get; set; } = new List<UserEmail>();
     public LocalLogin? LocalLogin { get; set; }
+    public UserTotpMfa? TotpMfa { get; set; }
+    public ICollection<UserPasskeyCredential> PasskeyCredentials { get; set; } = new List<UserPasskeyCredential>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<UserClientUsage> ClientUsages { get; set; } = new List<UserClientUsage>();
 }

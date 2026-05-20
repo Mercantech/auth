@@ -1,0 +1,48 @@
+@page "/Account/Mfa"
+@model Auth.API.Pages.Account.MfaModel
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Bekræft login";
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+}
+
+<div class="auth-card">
+    <h1 class="auth-headline">Anden faktor</h1>
+    <p class="auth-lead">Bekræft med authenticator-kode, recovery-kode eller passkey.</p>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
+    }
+
+    <form method="post" action="@(Request.PathBase)/account/mfa/verify" class="auth-form">
+        <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <label class="auth-label" for="code">Authenticator-kode</label>
+        <input id="code" name="code" class="auth-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
+        <label class="auth-label" for="recoveryCode">Recovery-kode (valgfri)</label>
+        <input id="recoveryCode" name="recoveryCode" class="auth-input" autocomplete="off" />
+        <button type="submit" class="auth-btn auth-btn--primary">Bekræft</button>
+    </form>
+
+    @if (Model.HasPasskeys)
+    {
+        <div class="auth-divider" role="separator"><span>eller</span></div>
+        <button type="button" class="auth-btn auth-btn--ghost" id="mfa-passkey-btn" data-return-url="@Model.ReturnUrl">Brug passkey</button>
+    }
+</div>
+
+@if (Model.HasPasskeys)
+{
+    <script src="@(Request.PathBase)/js/passkeys.js"></script>
+    <script>
+        document.getElementById("mfa-passkey-btn")?.addEventListener("click", () => {
+            window.MercantecPasskeys.assertForMfa(
+                "@(Request.PathBase)/account/passkeys/assert/options",
+                "@(Request.PathBase)/account/passkeys/assert/complete",
+                document.querySelector('input[name="__RequestVerificationToken"]').value,
+                document.getElementById("mfa-passkey-btn").dataset.returnUrl);
+        });
+    </script>
+}

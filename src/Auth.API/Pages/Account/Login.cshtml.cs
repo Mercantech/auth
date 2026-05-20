@@ -34,6 +34,7 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
         "no_password" => "Denne e-mail har endnu ikke adgangskode — log ind med Google/Microsoft m.fl. og tilføj adgangskode under Tilknyttede login, eller opret adgangskode med samme e-mail via Opret konto.",
         "disabled" => "Kontoen er deaktiveret.",
         "local_disabled" => "E-mail- og adgangskode-login er slået fra. Brug en af udbyderne ovenfor.",
+        "passkey" => "Passkey-login fejlede — registrér en passkey under Sikkerhed når du er logget ind.",
         _ => null,
     };
 

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Auth.API.Data;
 using Auth.API.Hosting;
+using Auth.API.Security;
 using Auth.API.Models;
 using Auth.API.Options;
 using Auth.API.Services;
@@ -11,7 +12,7 @@ using Microsoft.Extensions.Options;
 
 namespace Auth.API.Pages.Account;
 
-[Authorize]
+[Authorize(Policy = MfaPolicies.FullSession)]
 public class LinkedAccountsModel(
     AuthDbContext db,
     IConfiguration configuration,

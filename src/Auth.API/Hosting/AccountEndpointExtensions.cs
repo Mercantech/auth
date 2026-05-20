@@ -21,9 +21,9 @@ public static class AccountEndpointExtensions
     {
         app.MapGet("/signin/challenge", ChallengeExternalLoginAsync).AllowAnonymous();
 
-        app.MapGet("/account/link/start", StartAccountLinkAsync).RequireAuthorization();
+        app.MapGet("/account/link/start", StartAccountLinkAsync).RequireAuthorization(MfaPolicies.FullSession);
 
-        app.MapPost("/account/link/remove", RemoveAccountLinkAsync).RequireAuthorization();
+        app.MapPost("/account/link/remove", RemoveAccountLinkAsync).RequireAuthorization(MfaPolicies.FullSession);
 
         app.MapPost("/signin", HandleSignInAsync)
             .AllowAnonymous()
@@ -34,7 +34,7 @@ public static class AccountEndpointExtensions
             .DisableAntiforgery();
 
         app.MapPost("/account/password/set", HandleSetPasswordAsync)
-            .RequireAuthorization()
+            .RequireAuthorization(MfaPolicies.FullSession)
             .DisableAntiforgery();
 
         app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, string? returnUrl) =>
@@ -170,6 +170,8 @@ public static class AccountEndpointExtensions
         IAntiforgery antiforgery,
         AuthDbContext db,
         ILocalAccountService localAccounts,
+        IMfaGateService mfaGate,
+        IOptions<MfaOptions> mfaOptions,
         IReturnUrlValidator returnUrlValidator)
     {
         try
@@ -209,9 +211,20 @@ public static class AccountEndpointExtensions
         await db.Users
             .Where(u => u.Id == user.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginMethod, MercantecAuthClaims.LoginMethodValues.Password));
-        await SignInHelper.SignInAsync(ctx, user, roles);
         await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
             .RecordPasswordLoginAsync(user.Id);
+
+        var mfaRedirect = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
+            ctx,
+            user,
+            roles,
+            MercantecAuthClaims.LoginMethodValues.Password,
+            returnUrl,
+            mfaGate,
+            mfaOptions,
+            [MercantecAuthClaims.AmrValues.Password]);
+        if (mfaRedirect is not null)
+            return mfaRedirect;
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
@@ -223,6 +236,8 @@ public static class AccountEndpointExtensions
         IAntiforgery antiforgery,
         AuthDbContext db,
         ILocalAccountService localAccounts,
+        IMfaGateService mfaGate,
+        IOptions<MfaOptions> mfaOptions,
         IReturnUrlValidator returnUrlValidator,
         IOptions<BootstrapOptions> bootstrap)
     {
@@ -315,12 +330,23 @@ public static class AccountEndpointExtensions
             .Include(ur => ur.Role)
             .Select(ur => ur.Role!.Name)
             .ToListAsync(ctx.RequestAborted);
-        await SignInHelper.SignInAsync(ctx, user, roles);
         var tracker = ctx.RequestServices.GetRequiredService<IAuthUsageTracker>();
         if (linkedToExisting)
             await tracker.RecordPasswordLinkAsync(user.Id, ctx.RequestAborted);
         else
             await tracker.RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
+
+        var mfaRedirect = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
+            ctx,
+            user,
+            roles,
+            MercantecAuthClaims.LoginMethodValues.Password,
+            returnUrl,
+            mfaGate,
+            mfaOptions,
+            [MercantecAuthClaims.AmrValues.Password]);
+        if (mfaRedirect is not null)
+            return mfaRedirect;
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)

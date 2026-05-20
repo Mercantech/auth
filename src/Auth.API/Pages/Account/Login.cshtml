@@ -26,6 +26,8 @@
         ? "Vælg en udbyder eller brug din Mercantec e-mail — ét sted for hele skolen."
         : "Vælg en udbyder nedenfor — e-mail og adgangskode er slået fra i denne installation.")</p>
 
+    <input type="hidden" id="login-antiforgery" value="@tokens.RequestToken" />
+
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
         <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
@@ -35,6 +37,8 @@
     {
         <div class="auth-alert" role="alert">Ingen login-metode er aktiveret (hverken OAuth eller e-mail). Tjek serverkonfiguration.</div>
     }
+
+    <button type="button" class="auth-btn auth-btn--ghost" id="passkey-login-btn" style="margin-bottom:0.75rem">Log ind med passkey</button>
 
     @if (Model.AnyOAuthProvider)
     {
@@ -68,3 +72,17 @@
         <p class="auth-footer-link">Har du ikke en konto? <a href="@Model.RegisterLink">Opret konto</a></p>
     }
 </div>
+
+<script src="@(Request.PathBase)/js/passkeys.js"></script>
+<script>
+    document.getElementById("passkey-login-btn")?.addEventListener("click", () => {
+        const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl ?? "/"));
+        const token = document.getElementById("login-antiforgery")?.value;
+        if (!token) return;
+        window.MercantecPasskeys.loginPasswordless(
+            "@(Request.PathBase)/account/passkeys/login/options",
+            "@(Request.PathBase)/account/passkeys/login/complete",
+            token,
+            returnUrl).catch(() => alert("Passkey-login fejlede. Har du registreret en passkey under Sikkerhed?"));
+    });
+</script>

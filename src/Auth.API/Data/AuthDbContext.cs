@@ -17,6 +17,9 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
     public DbSet<AuthorizationCode> AuthorizationCodes => Set<AuthorizationCode>();
     public DbSet<AuthUsageEvent> AuthUsageEvents => Set<AuthUsageEvent>();
     public DbSet<UserClientUsage> UserClientUsages => Set<UserClientUsage>();
+    public DbSet<UserTotpMfa> UserTotpMfas => Set<UserTotpMfa>();
+    public DbSet<UserMfaRecoveryCode> UserMfaRecoveryCodes => Set<UserMfaRecoveryCode>();
+    public DbSet<UserPasskeyCredential> UserPasskeyCredentials => Set<UserPasskeyCredential>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +87,24 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
             e.HasIndex(x => x.ClientId);
             e.HasIndex(x => x.LastSeenAtUtc);
             e.HasOne(x => x.User).WithMany(u => u.ClientUsages).HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<UserTotpMfa>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.HasOne(x => x.User).WithOne(u => u.TotpMfa).HasForeignKey<UserTotpMfa>(x => x.UserId);
+        });
+
+        modelBuilder.Entity<UserMfaRecoveryCode>(e =>
+        {
+            e.HasIndex(x => x.CodeHash);
+            e.HasOne(x => x.Totp).WithMany(t => t.RecoveryCodes).HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<UserPasskeyCredential>(e =>
+        {
+            e.HasIndex(x => x.CredentialId).IsUnique();
+            e.HasOne(x => x.User).WithMany(u => u.PasskeyCredentials).HasForeignKey(x => x.UserId);
         });
     }
 }

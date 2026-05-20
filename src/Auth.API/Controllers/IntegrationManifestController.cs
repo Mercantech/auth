@@ -50,6 +50,11 @@ public class IntegrationManifestController(
             notice_da = "Denne installation er et undervisningsprojekt ved MAGS og er ikke Mercantecs officielle produktions-login. Kontakt mags@mercantec.dk ved spørgsmål.",
         },
         email_password_login_enabled = enableEmailPasswordLogin,
+        mfa_supported = true,
+        passkey_supported = true,
+        mfa_note_da = "Opt-in TOTP (authenticator-app) og passkeys (WebAuthn). Efter primær login kan brugeren blive sendt til /Account/Mfa indtil 2. faktor er bekræftet; OAuth /oauth/authorize kræver fuld session (ikke mfa_pending).",
+        account_security_ui = $"{baseUrl}/Account/Security",
+        mfa_step_ui = $"{baseUrl}/Account/Mfa",
         auth_configuration_note = "Auth:EnableEmailPasswordLogin (eller miljøvariabel Auth__EnableEmailPasswordLogin) styrer e-mail/adgangskode på /Account/Login, /Account/Register og POST /signin, /signup.",
         audience_for_this_document = new[]
         {
@@ -71,7 +76,13 @@ public class IntegrationManifestController(
                 new { claim = "sub", meaning = "Brugerens stabile GUID som streng." },
                 new { claim = "name", meaning = "Vist navn." },
                 new { claim = "email", meaning = "E-mail når den findes på brugeren." },
-                new { claim = "login_method", meaning = "Sidste login: password, google, github, discord, microsoft-work, microsoft-school, …" },
+                new { claim = "login_method", meaning = "Sidste login: password, passkey, google, github, discord, microsoft-work, microsoft-school, …" },
+                new
+                {
+                    claim = "amr",
+                    meaning = "Authentication Methods References (OIDC). I id_token ved openid: pwd (adgangskode), otp (TOTP/recovery), webauthn (passkey). Flere værdier når MFA er gennemført i samme session.",
+                    values = new[] { "pwd", "otp", "webauthn" },
+                },
                 new { claim = "role", meaning = "Rolle (gentaget claim pr. rolle). Bruges til autorisation i jeres API." },
                 new { claim = "iss", meaning = "JWT-udsteder — skal matche issuer_must_equal." },
                 new { claim = "aud", meaning = "Audience — skal matche audience_must_equal." },
@@ -178,6 +189,26 @@ public class IntegrationManifestController(
             "Implementér refresh før exp eller ved 401; brug nyt refresh_token fra hvert refresh-svar.",
             "Tilføj jeres SPA-origin til Cors:SpaOrigins og brug /signout?returnUrl= for kontoskift.",
             "Hvis I skal kalde Microsoft Graph: læs microsoft_access_token fra token-svar når det findes (kun ved Microsoft-login).",
+            "Ved openid: tjek amr i id_token hvis jeres app skal vide om MFA (otp/webauthn) blev brugt i den session.",
+        },
+        mfa_and_passkeys = new
+        {
+            totp = new
+            {
+                setup = "POST /account/mfa/totp/setup (fuld session)",
+                confirm = "POST /account/mfa/totp/confirm",
+                verify_step = "POST /account/mfa/verify (pending session → fuld)",
+                disable = "POST /account/mfa/totp/disable",
+            },
+            passkeys = new
+            {
+                register_options = "POST /account/passkeys/register/options",
+                register_complete = "POST /account/passkeys/register/complete",
+                assert_options = "POST /account/passkeys/assert/options",
+                assert_complete = "POST /account/passkeys/assert/complete",
+                passwordless_login_options = "POST /account/passkeys/login/options (anonym)",
+                passwordless_login_complete = "POST /account/passkeys/login/complete (anonym)",
+            },
         },
         ai_agent_briefing_da = "Mercantec Auth er en OAuth 2.0-server med authorization code + PKCE (S256). " +
             "Start med GET /oauth/authorize med client_id, redirect_uri, state, code_challenge og code_challenge_method=S256. " +

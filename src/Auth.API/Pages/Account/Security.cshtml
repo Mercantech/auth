@@ -1,0 +1,91 @@
+@page "/Account/Security"
+@model Auth.API.Pages.Account.SecurityModel
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Sikkerhed";
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+}
+
+<div class="auth-card linked-accounts">
+    <h1 class="auth-headline">Sikkerhed</h1>
+    <p class="auth-lead">
+        <a href="/Account/LinkedAccounts">← Tilknyttede login</a>
+    </p>
+
+    @if (!string.IsNullOrEmpty(Model.BannerMessage))
+    {
+        <div class="auth-alert" role="status">@Model.BannerMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.BannerError))
+    {
+        <div class="auth-alert" role="alert">@Model.BannerError</div>
+    }
+
+    <section class="linked-section">
+        <h2 class="linked-section__heading">Authenticator (TOTP)</h2>
+        @if (Model.TotpEnabled)
+        {
+            <p class="linked-section__lede">TOTP er aktiv.</p>
+            <form method="post" action="@(Request.PathBase)/account/mfa/totp/disable">
+                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                <label class="auth-label" for="disable-code">Kode for at slå fra</label>
+                <input id="disable-code" name="code" class="auth-input" inputmode="numeric" required />
+                <button type="submit" class="auth-btn auth-btn--ghost">Deaktivér TOTP</button>
+            </form>
+        }
+        else
+        {
+            <p class="linked-section__lede">Scan QR-koden i Google Authenticator, Microsoft Authenticator eller lignende.</p>
+            @if (!string.IsNullOrEmpty(Model.SetupUri))
+            {
+                <p><code class="linked-accounts__mono">@Model.SetupSecret</code></p>
+                <p class="linked-section__muted"><a href="@Model.SetupUri">otpauth://-link</a></p>
+            }
+            <form method="post" action="@(Request.PathBase)/account/mfa/totp/confirm">
+                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                <label class="auth-label" for="confirm-code">Bekræft med 6-cifret kode</label>
+                <input id="confirm-code" name="code" class="auth-input" inputmode="numeric" required />
+                <button type="submit" class="auth-btn auth-btn--primary">Aktivér TOTP</button>
+            </form>
+            <form method="post" asp-page-handler="RegenerateTotp" class="auth-form" style="margin-top:1rem">
+                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                <button type="submit" class="auth-btn auth-btn--ghost">Generér ny QR</button>
+            </form>
+        }
+    </section>
+
+    <section class="linked-section linked-section--bordered">
+        <h2 class="linked-section__heading">Passkeys</h2>
+        <ul class="linked-connections" role="list">
+            @foreach (var p in Model.Passkeys)
+            {
+                <li class="linked-conn-row linked-conn-row--neutral">
+                    <div class="linked-conn-row__body">
+                        <span class="linked-conn-row__name">@p.FriendlyName</span>
+                        <span class="linked-conn-row__meta">Oprettet @p.CreatedAtUtc.ToString("yyyy-MM-dd")</span>
+                    </div>
+                    <form method="post" action="@(Request.PathBase)/account/passkeys/@p.Id/delete">
+                        <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                        <button type="submit" class="linked-conn-row__unlink">Fjern</button>
+                    </form>
+                </li>
+            }
+        </ul>
+        <label class="auth-label" for="passkey-name">Navn på enhed</label>
+        <input id="passkey-name" class="auth-input" value="Min passkey" />
+        <button type="button" class="auth-btn auth-btn--primary" id="add-passkey-btn">Tilføj passkey</button>
+    </section>
+</div>
+
+<script src="@(Request.PathBase)/js/passkeys.js"></script>
+<script>
+    document.getElementById("add-passkey-btn")?.addEventListener("click", () => {
+        const name = document.getElementById("passkey-name")?.value || "Passkey";
+        window.MercantecPasskeys.register(
+            "@(Request.PathBase)/account/passkeys/register/options",
+            "@(Request.PathBase)/account/passkeys/register/complete",
+            document.querySelector('input[name="__RequestVerificationToken"]').value,
+            name).then(() => location.reload());
+    });
+</script>

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Auth.API.Data;
 using Auth.API.Hosting;
+using Auth.API.Options;
 using Auth.API.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -15,6 +16,8 @@ public static class OAuthPrincipalReplacer
         var sync = ctx.HttpContext.RequestServices.GetRequiredService<IExternalAccountService>();
         var db = ctx.HttpContext.RequestServices.GetRequiredService<AuthDbContext>();
         var usage = ctx.HttpContext.RequestServices.GetRequiredService<IAuthUsageTracker>();
+        var mfaGate = ctx.HttpContext.RequestServices.GetRequiredService<IMfaGateService>();
+        var mfaOptions = ctx.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<MfaOptions>>();
         var principal = ctx.Principal ?? throw new InvalidOperationException("Mangler principal efter OAuth.");
         var emailKind = OAuthEmailKindCookie.ReadAndClear(ctx.HttpContext);
         var isLinkMode = TryGetAccountLinkTargetUserId(ctx.Properties, out var linkTargetId);
@@ -67,17 +70,29 @@ public static class OAuthPrincipalReplacer
                 s => s.SetProperty(u => u.LastLoginMethod, loginMethod),
                 ctx.HttpContext.RequestAborted);
 
+        var roles = userEntity.UserRoles.Select(ur => ur.Role!.Name).ToList();
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, userEntity.Id.ToString()),
             new(ClaimTypes.Name, userEntity.DisplayName),
             new(MercantecAuthClaims.LoginMethod, loginMethod),
         };
-        foreach (var ur in userEntity.UserRoles)
-            claims.Add(new Claim(ClaimTypes.Role, ur.Role.Name));
+        foreach (var r in roles)
+            claims.Add(new Claim(ClaimTypes.Role, r));
+
+        if (!isLinkMode && await mfaGate.RequiresMfaStepAsync(userId, roles, ctx.HttpContext.RequestAborted))
+            claims.Add(new Claim(MercantecAuthClaims.MfaPending, "true"));
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         ctx.Principal = new ClaimsPrincipal(identity);
+
+        if (!isLinkMode && claims.Any(c => c.Type == MercantecAuthClaims.MfaPending))
+        {
+            var original = ctx.Properties?.RedirectUri ?? "/";
+            ctx.Properties ??= new AuthenticationProperties();
+            ctx.Properties.RedirectUri =
+                $"/Account/Mfa?returnUrl={Uri.EscapeDataString(original)}";
+        }
     }
 
     private static bool TryGetAccountLinkTargetUserId(AuthenticationProperties? props, out Guid userId)

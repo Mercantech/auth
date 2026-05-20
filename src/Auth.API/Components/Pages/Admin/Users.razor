@@ -62,6 +62,7 @@
                     <th scope="col">Navn</th>
                     <th scope="col">E-mail</th>
                     <th scope="col">Providers</th>
+                    <th scope="col">2FA</th>
                     <th scope="col">OAuth-klienter</th>
                     <th scope="col">Roller</th>
                     <th scope="col">Status</th>
@@ -90,6 +91,7 @@
                         </td>
                         <td>@(r.Email ?? "—")</td>
                         <td class="merc-users__meta-cell">@FormatProviders(r)</td>
+                        <td class="merc-users__meta-cell">@r.TwoFactor</td>
                         <td class="merc-users__meta-cell">@FormatClients(r)</td>
                         <td>@r.Roles</td>
                         <td>
@@ -189,8 +191,15 @@
             .Include(u => u.ExternalLogins)
             .Include(u => u.ClientUsages)
             .Include(u => u.LocalLogin)
+            .Include(u => u.TotpMfa)
             .OrderBy(u => u.DisplayName)
             .ToListAsync();
+
+        var passkeyCounts = await Db.UserPasskeyCredentials
+            .AsNoTracking()
+            .GroupBy(c => c.UserId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
 
         _rows = users.Select(u => new Row(
             u.Id,
@@ -200,8 +209,19 @@
             string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
             u.ExternalLogins.OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt).ToList(),
             u.LocalLogin is not null,
+            FormatTwoFactor(u.TotpMfa?.IsEnabled == true, passkeyCounts.GetValueOrDefault(u.Id)),
             u.ClientUsages.OrderByDescending(c => c.LastSeenAtUtc).ToList()))
             .ToList();
+    }
+
+    private static string FormatTwoFactor(bool totpEnabled, int passkeyCount)
+    {
+        var parts = new List<string>(2);
+        if (totpEnabled)
+            parts.Add("TOTP");
+        if (passkeyCount > 0)
+            parts.Add(passkeyCount == 1 ? "1 passkey" : $"{passkeyCount} passkeys");
+        return parts.Count == 0 ? "—" : string.Join(", ", parts);
     }
 
     private static string FormatProviders(Row r)
@@ -307,5 +327,6 @@
         string Roles,
         IReadOnlyList<Auth.API.Models.Entities.ExternalLogin> ExternalLogins,
         bool LocalLogin,
+        string TwoFactor,
         IReadOnlyList<Auth.API.Models.Entities.UserClientUsage> ClientUsages);
 }

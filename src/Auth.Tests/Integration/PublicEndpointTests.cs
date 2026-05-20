@@ -47,6 +47,8 @@ public class PublicEndpointTests(AuthIntegrationFixture fixture)
         Assert.Equal("1.0", root.GetProperty("schema_version").GetString());
         Assert.Equal("https://test.auth.local", root.GetProperty("issuer").GetString());
         Assert.True(root.GetProperty("email_password_login_enabled").GetBoolean());
+        Assert.True(root.GetProperty("mfa_supported").GetBoolean());
+        Assert.True(root.GetProperty("passkey_supported").GetBoolean());
     }
 
     [Theory]

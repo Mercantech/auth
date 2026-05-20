@@ -41,4 +41,12 @@ public interface IAuthUsageTracker
         string clientId,
         string? loginMethod,
         CancellationToken cancellationToken = default);
+
+    Task RecordMfaTotpVerifyAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task RecordMfaRecoveryUsedAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task RecordPasskeyAuthAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task RecordPasskeyRegisterAsync(Guid userId, CancellationToken cancellationToken = default);
 }

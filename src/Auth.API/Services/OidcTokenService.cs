@@ -16,6 +16,7 @@ namespace Auth.API.Services
             string? nonce,
             IEnumerable<string> scopes,
             string? authMethod,
+            IReadOnlyList<string> amr,
             DateTime nowUtc,
             DateTime expiresUtc);
     }
@@ -37,6 +38,7 @@ namespace Auth.API.Services
             string? nonce,
             IEnumerable<string> scopes,
             string? authMethod,
+            IReadOnlyList<string> amr,
             DateTime nowUtc,
             DateTime expiresUtc)
         {
@@ -57,6 +59,9 @@ namespace Auth.API.Services
 
             if (!string.IsNullOrWhiteSpace(nonce))
                 claims.Add(new Claim("nonce", nonce));
+
+            foreach (var amrValue in amr)
+                claims.Add(new Claim(MercantecAuthClaims.Amr, amrValue));
 
             var creds = new SigningCredentials(_signing.RsaKey, SecurityAlgorithms.RsaSha256);
             var jwt = new JwtSecurityToken(

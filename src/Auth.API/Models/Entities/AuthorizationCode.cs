@@ -18,6 +18,9 @@ public class AuthorizationCode
     /// <summary>Login-metode på tidspunktet for /oauth/authorize (så /oauth/token ikke behøver cookie).</summary>
     public string? LoginMethod { get; set; }
 
+    /// <summary>Kommasepareret OIDC <c>amr</c> (fx pwd,otp,webauthn).</summary>
+    public string? Amr { get; set; }
+
     /// <summary>Krypteret Azure AD-token payload til Graph, kun ved Microsoft-login.</summary>
     public string? ExternalOAuthTokensCipher { get; set; }
 

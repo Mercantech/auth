@@ -22,6 +22,8 @@ public class AccountMergeService(AuthDbContext db) : IAccountMergeService
                 .Include(u => u.LinkedEmails)
                 .Include(u => u.UserRoles)
                 .Include(u => u.LocalLogin)
+                .Include(u => u.TotpMfa)
+                .Include(u => u.PasskeyCredentials)
                 .FirstOrDefaultAsync(u => u.Id == survivorUserId, cancellationToken);
             if (survivor is null)
             {
@@ -41,6 +43,9 @@ public class AccountMergeService(AuthDbContext db) : IAccountMergeService
                 .Include(u => u.LinkedEmails)
                 .Include(u => u.UserRoles)
                 .Include(u => u.LocalLogin)
+                .Include(u => u.TotpMfa!)
+                .ThenInclude(t => t.RecoveryCodes)
+                .Include(u => u.PasskeyCredentials)
                 .FirstOrDefaultAsync(u => u.Id == donorUserId, cancellationToken);
             if (donor is null)
             {
@@ -52,6 +57,34 @@ public class AccountMergeService(AuthDbContext db) : IAccountMergeService
 
             foreach (var ext in donor.ExternalLogins.ToList())
                 ext.UserId = survivor.Id;
+
+            foreach (var pk in donor.PasskeyCredentials.ToList())
+                pk.UserId = survivor.Id;
+
+            if (donor.TotpMfa is not null)
+            {
+                if (survivor.TotpMfa is null)
+                {
+                    db.UserTotpMfas.Add(new UserTotpMfa
+                    {
+                        UserId = survivor.Id,
+                        SecretCipher = donor.TotpMfa.SecretCipher,
+                        IsEnabled = donor.TotpMfa.IsEnabled,
+                        EnabledAtUtc = donor.TotpMfa.EnabledAtUtc,
+                    });
+                    foreach (var rc in donor.TotpMfa.RecoveryCodes.ToList())
+                        rc.UserId = survivor.Id;
+                    db.UserTotpMfas.Remove(donor.TotpMfa);
+                }
+                else
+                {
+                    warnings.Add("Donor havde TOTP; survivor beholdt — donors authenticator er fjernet.");
+                    await db.UserMfaRecoveryCodes
+                        .Where(c => c.UserId == donor.Id)
+                        .ExecuteDeleteAsync(cancellationToken);
+                    db.UserTotpMfas.Remove(donor.TotpMfa);
+                }
+            }
 
             switch (survivor.LocalLogin, donor.LocalLogin)
             {

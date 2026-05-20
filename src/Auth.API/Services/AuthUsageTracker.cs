@@ -59,6 +59,54 @@ public class AuthUsageTracker(AuthDbContext db, TimeProvider time) : IAuthUsageT
             null,
             cancellationToken);
 
+    public Task RecordMfaTotpVerifyAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        RecordAsync(
+            AuthUsageEventTypes.MfaTotpVerify,
+            userId,
+            null,
+            null,
+            MercantecAuthClaims.AmrValues.Otp,
+            null,
+            null,
+            null,
+            cancellationToken);
+
+    public Task RecordMfaRecoveryUsedAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        RecordAsync(
+            AuthUsageEventTypes.MfaRecoveryUsed,
+            userId,
+            null,
+            null,
+            MercantecAuthClaims.AmrValues.Otp,
+            null,
+            null,
+            null,
+            cancellationToken);
+
+    public Task RecordPasskeyAuthAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        RecordAsync(
+            AuthUsageEventTypes.PasskeyAuth,
+            userId,
+            null,
+            null,
+            MercantecAuthClaims.LoginMethodValues.Passkey,
+            null,
+            null,
+            null,
+            cancellationToken);
+
+    public Task RecordPasskeyRegisterAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        RecordAsync(
+            AuthUsageEventTypes.PasskeyRegister,
+            userId,
+            null,
+            null,
+            MercantecAuthClaims.LoginMethodValues.Passkey,
+            null,
+            null,
+            null,
+            cancellationToken);
+
     public Task RecordAccountLinkAsync(
         Guid userId,
         string provider,

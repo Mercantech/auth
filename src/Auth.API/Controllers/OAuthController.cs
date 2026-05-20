@@ -70,6 +70,12 @@ public class OAuthController(
             return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}");
         }
 
+        if (SignInHelper.IsMfaPending(User))
+        {
+            var returnUrl = Request.Path + Request.QueryString;
+            return Redirect($"/Account/Mfa?returnUrl={Uri.EscapeDataString(returnUrl)}");
+        }
+
         var userIdClaim = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(Request.Path + Request.QueryString)}");
@@ -87,6 +93,7 @@ public class OAuthController(
             ?? MercantecAuthClaims.LoginMethodValues.Unknown;
 
         var externalCipher = await TryBuildMicrosoftTokensCipherAsync(loginMethod, cancellationToken);
+        var amr = string.Join(',', SignInHelper.GetAmrValues(User));
 
         db.AuthorizationCodes.Add(new AuthorizationCode
         {
@@ -103,6 +110,7 @@ public class OAuthController(
             ExpiresAt = now.AddMinutes(5),
             IsUsed = false,
             LoginMethod = loginMethod,
+            Amr = string.IsNullOrEmpty(amr) ? null : amr,
             ExternalOAuthTokensCipher = externalCipher,
         });
         await db.SaveChangesAsync(cancellationToken);
@@ -220,12 +228,16 @@ public class OAuthController(
         {
             var now = time.GetUtcNow().UtcDateTime;
             var idExp = now.AddMinutes(Math.Min(_jwt.AccessTokenExpiryMinutes, 30));
+            var amrValues = string.IsNullOrWhiteSpace(authCode.Amr)
+                ? []
+                : authCode.Amr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             body["id_token"] = oidcTokens.CreateIdToken(
                 authCode.User,
                 clientId,
                 authCode.Nonce,
                 scopes,
                 authMethod,
+                amrValues,
                 nowUtc: now,
                 expiresUtc: idExp);
         }

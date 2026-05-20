@@ -1,9 +1,13 @@
 using Auth.API.Data;
 using Auth.API.Hosting;
 using Auth.API.Options;
+using Auth.API.Security;
 using Auth.API.Services;
+using Fido2NetLib;
+using Fido2NetLib.Objects;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -13,6 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<BootstrapOptions>(builder.Configuration.GetSection(BootstrapOptions.SectionName));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.Configure<MfaOptions>(builder.Configuration.GetSection(MfaOptions.SectionName));
+builder.Services.Configure<PasskeyOptions>(builder.Configuration.GetSection(PasskeyOptions.SectionName));
 
 Action<DbContextOptionsBuilder> configureAuthDb = options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -32,6 +38,23 @@ builder.Services.AddScoped<IAccountMergeService, AccountMergeService>();
 builder.Services.AddScoped<IUserDeletionService, UserDeletionService>();
 builder.Services.AddScoped<IAuthUsageTracker, AuthUsageTracker>();
 builder.Services.AddScoped<ILocalAccountService, LocalAccountService>();
+builder.Services.AddScoped<IMfaGateService, MfaGateService>();
+builder.Services.AddScoped<ITotpMfaService, TotpMfaService>();
+builder.Services.AddScoped<IPasskeyService, PasskeyService>();
+builder.Services.AddSingleton<TotpSecretProtector>();
+builder.Services.AddMemoryCache();
+
+var passkeySection = builder.Configuration.GetSection(PasskeyOptions.SectionName);
+builder.Services.AddSingleton<IFido2>(_ =>
+{
+    var o = passkeySection.Get<PasskeyOptions>() ?? new PasskeyOptions();
+    return new Fido2(new Fido2Configuration
+    {
+        ServerDomain = o.RpId,
+        ServerName = o.RpName,
+        Origins = new HashSet<string>(o.Origins, StringComparer.Ordinal),
+    });
+});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
@@ -55,7 +78,11 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, _ => { })
     .AddMercantecExternalLogins(builder.Configuration);
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(MfaPolicies.FullSession, p => p.AddRequirements(new MfaCompletedRequirement()))
+    .AddPolicy(MfaPolicies.MfaStep, p => p.AddRequirements(new AuthenticatedRequirement()));
+builder.Services.AddSingleton<IAuthorizationHandler, MfaCompletedAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, AuthenticatedAuthorizationHandler>();
 builder.Services.AddAntiforgery();
 
 builder.Services.AddRazorComponents()
@@ -166,6 +193,7 @@ app.UseAntiforgery();
 // API og minimal endpoints før Blazor, ellers kan catch-all (MapRazorComponents) fange f.eks. /.well-known/jwks.json.
 app.MapControllers();
 app.MapAccountEndpoints();
+app.MapMfaEndpoints();
 app.MapRazorPages();
 app.MapRazorComponents<Auth.API.Components.App>()
     .AddInteractiveServerRenderMode();

@@ -8,9 +8,23 @@ public static class MercantecAuthClaims
     /// <summary>Hvordan brugeren sidst autentificerede sig (fx <c>microsoft-work</c>, <c>password</c>).</summary>
     public const string LoginMethod = "login_method";
 
+    /// <summary>Sand når primær login er OK men MFA/passkey-step mangler.</summary>
+    public const string MfaPending = "mfa_pending";
+
+    /// <summary>Authentication method references (OIDC <c>amr</c>), kan gentages.</summary>
+    public const string Amr = "amr";
+
+    public static class AmrValues
+    {
+        public const string Password = "pwd";
+        public const string Otp = "otp";
+        public const string WebAuthn = "webauthn";
+    }
+
     public static class LoginMethodValues
     {
         public const string Password = "password";
+        public const string Passkey = "passkey";
         public const string Unknown = "unknown";
         public const string Google = "google";
         public const string GitHub = "github";
