@@ -1122,6 +1122,44 @@ body::before {
   background: var(--merc-accent-soft);
 }
 
+/* Linked accounts (Razor) */
+.merc-linked-page__lead {
+  font-size: 0.92rem;
+  color: var(--merc-muted);
+  max-width: 40rem;
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+
+.merc-linked-page__meta {
+  margin: 0 0 1rem;
+}
+
+.merc-linked-page__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.merc-linked-page__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.merc-linked-page__row {
+  margin-bottom: 0.5rem;
+}
+
+.merc-linked-page__row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.merc-linked-page__rm-form {
+  margin: 0;
+}
+
 /* Fjern Bootstrap focus-ring der klæber til gammelt tema */
 .merc-shell .btn:focus,
 .merc-shell .btn:active:focus {

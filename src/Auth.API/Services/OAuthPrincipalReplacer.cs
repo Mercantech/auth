@@ -16,7 +16,36 @@ public static class OAuthPrincipalReplacer
         var db = ctx.HttpContext.RequestServices.GetRequiredService<AuthDbContext>();
         var principal = ctx.Principal ?? throw new InvalidOperationException("Mangler principal efter OAuth.");
         var emailKind = OAuthEmailKindCookie.ReadAndClear(ctx.HttpContext);
-        var userId = await sync.FindOrLinkUserAsync(principal, providerKey, emailKind, ctx.HttpContext.RequestAborted);
+
+        Guid userId;
+        if (TryGetAccountLinkTargetUserId(ctx.Properties, out var linkTargetId))
+        {
+            var outcome = await sync.LinkExternalToUserAsync(
+                linkTargetId,
+                principal,
+                providerKey,
+                emailKind,
+                ctx.HttpContext.RequestAborted);
+            if (outcome == LinkExternalOutcome.ConflictOtherUser)
+            {
+                ctx.HandleResponse();
+                var pathBase = ctx.HttpContext.Request.PathBase.Value?.TrimEnd('/') ?? "";
+                ctx.HttpContext.Response.Redirect(
+                    $"{pathBase}/Account/LinkedAccounts?error=link_conflict");
+                return;
+            }
+
+            userId = linkTargetId;
+        }
+        else
+        {
+            userId = await sync.FindOrLinkUserAsync(
+                principal,
+                providerKey,
+                emailKind,
+                ctx.HttpContext.RequestAborted);
+        }
+
         var userEntity = await db.Users
             .AsNoTracking()
             .Include(u => u.UserRoles)
@@ -42,5 +71,17 @@ public static class OAuthPrincipalReplacer
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         ctx.Principal = new ClaimsPrincipal(identity);
+    }
+
+    private static bool TryGetAccountLinkTargetUserId(AuthenticationProperties? props, out Guid userId)
+    {
+        userId = default;
+        if (props?.Items is null)
+            return false;
+        if (!props.Items.TryGetValue(AccountLinkAuthProperties.TargetUserIdKey, out var raw)
+            || string.IsNullOrEmpty(raw))
+            return false;
+
+        return Guid.TryParse(raw, out userId);
     }
 }

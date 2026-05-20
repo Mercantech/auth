@@ -24,6 +24,32 @@ Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-
 | `GET /.well-known/jwks.json` | Verificér JWT-signatur |
 | `GET /.well-known/mercantec-auth.json` | **Integrations-manifest** (JSON): maskinlæsbar guide til nye platforme og AI — endpoints, PKCE, JWT-claims, checklist, kort dansk briefing |
 | `GET /health` | Liveness |
+| `GET /account/link/start` | Eksplicit OAuth-tilknytning til **aktuelt loggede** bruger (kræver session). Query: `provider`, `returnUrl` |
+| `POST /account/link/remove` | Fjern en `ExternalLogin` (mindst én login-metode skal blive tilbage) |
+
+## Brugerkonto: flere login-udbydere (account linking)
+
+Mercantec Auth udsteder **ét stabilt `sub`** (bruger-GUID) til jeres OAuth-klienter, uanset hvilken ekstern udbyder brugeren valgte sidst.
+
+### Implicit sammenlægning (via e-mail)
+
+Når en bruger logger ind med en **ny** udbyder (fx GitHub), forsøger vi at finde en eksisterende bruger med **samme normaliserede e-mail** (fra `UserEmails`, primær profil-e-mail eller lokalt login). Matcher det, **tilføjes** den nye udbyder til **samme** bruger uden at spørge først. Det gør onboarding let, men kræver at OAuth-udbyderen returnerer pålidelig e-mail.
+
+### Eksplicit tilknytning (anbefalet ved forskellige e-mails)
+
+Når brugeren **allerede har session** på auth-domænet (`mercantec_auth` cookie), kan de under **Tilknyttede login** (`/Account/LinkedAccounts`) vælge en udbyder eller bruge:
+
+- `GET /account/link/start?provider=google|microsoft|microsoft-edu|github|discord&returnUrl=/Account/LinkedAccounts`
+
+Svaret er en **OAuth challenge** med `mercantec.account_link_target_user_id` i state, så callback **altid** binder den eksterne identitet til den **nuværende** session-bruger. Hvis udbyder-identiteten **allerede er knyttet til en anden Mercantec-bruger**, vises fejl (link-konflikt) — ingen stille sammenfletning på tværs af konti.
+
+Fjern tilknytning: `POST /account/link/remove` (formular med antiforgery-token, felter `id` = `ExternalLogin`-rækkens id, `returnUrl`).
+
+Azure / IdP: ingen **ekstra** redirect-URI i forhold til almindeligt login — linking bruger samme OAuth-callback-stier som ved login (fx `/signin-google`, `/signin-microsoft`, `/signin-microsoft-edu`, `/signin-github`, `/signin-discord`).
+
+### OAuth-klienter (SPAs / API’er)
+
+Jeres app skal **ingen** særlig kode for linking: `sub` i JWT forbliver det samme på tværs af tilknyttede udbydere. Alle accounts-håndtering sker på Mercantec Auth via browser og session.
 
 ## `GET /oauth/authorize`
 

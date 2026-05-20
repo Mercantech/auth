@@ -1,0 +1,88 @@
+@page "/Account/LinkedAccounts"
+@model LinkedAccountsModel
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Tilknyttede login";
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+}
+
+<div class="merc-page merc-linked-page">
+    <h1>Tilknyttede login</h1>
+    <p class="merc-linked-page__lead">
+        Én Mercantec-konto — du kan logge ind via flere udbydere og knytte Discord, GitHub m.m. til samme bruger.
+        Implicit sammenlægning sker også når en ny udbyder matcher din e-mail på kontoen (se integration-dokumentation).
+    </p>
+    <p class="merc-linked-page__meta">
+        <a class="merc-btn merc-btn--ghost" href="/">← Forside</a>
+    </p>
+
+    @if (!string.IsNullOrEmpty(Model.BannerError))
+    {
+        <div class="merc-alert merc-alert--error" role="alert">@Model.BannerError</div>
+    }
+    @if (Model.ShowUnlinkedOk)
+    {
+        <div class="merc-alert merc-alert--ok" role="status">Tilknytning fjernet.</div>
+    }
+
+    <section class="merc-panel" style="margin-bottom:1.25rem">
+        <h2 class="merc-panel__h3">Tilknyt mere</h2>
+        <p class="merc-hint merc-hint--block">Vælg en udbyder — du bliver sendt til deres login og ført tilbage her. Du skal allerede være logget ind på Mercantec Auth.</p>
+        @if (Model.OfferedLinkProviders.Count == 0)
+        {
+            <p class="merc-hint">Ingen eksterne udbydere konfigureret i denne installation.</p>
+        }
+        else
+        {
+            <div class="merc-linked-page__chips">
+                @foreach (var p in Model.OfferedLinkProviders)
+                {
+                    <a class="merc-btn merc-btn--primary merc-btn--sm" href="@p.Href">Tilknyt @p.Label</a>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="merc-panel">
+        <h2 class="merc-panel__h3">Aktive tilknytninger</h2>
+        @if (Model.ExternalLogins.Count == 0)
+        {
+            <p class="merc-hint">Ingen udbyder endnu — brug Til-knytningsknapperne ovenfor.</p>
+        }
+        else
+        {
+            <ul class="merc-linked-page__rows" role="list">
+                @foreach (var row in Model.ExternalLogins)
+                {
+                    <li class="merc-uri-list__row merc-linked-page__row">
+                        <div class="merc-linked-page__row-main">
+                            <strong>@row.ProviderLabel</strong>
+                            <span class="merc-hint" style="font-size:0.85rem;display:block;color:var(--merc-muted);margin-top:0.2rem;">
+                                @(string.IsNullOrEmpty(row.ProviderEmail) ? "—" : row.ProviderEmail)
+                                · Tilknyttet @LinkedAccountsModel.FormatLinkedLocal(row.LinkedAtUtc) (lokal tid)</span>
+                        </div>
+                        @if ((Model.ExternalLogins.Count > 1 || Model.HasPasswordLogin))
+                        {
+                            <form method="post" action="@(Request.PathBase)/account/link/remove" class="merc-linked-page__rm-form">
+                                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                                <input type="hidden" name="id" value="@row.Id" />
+                                <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
+                                <button type="submit" class="merc-btn merc-btn--danger merc-btn--sm">Fjern</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="merc-hint" style="font-size:0.8rem;margin:0;">Sidste login — tilknyt andet før fjern.</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.HasPasswordLogin)
+        {
+            <p class="merc-hint merc-hint--block" style="margin-top:1rem">Du har også e-mail/adgangskode-login.</p>
+        }
+    </section>
+</div>

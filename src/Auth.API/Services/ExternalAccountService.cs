@@ -100,6 +100,103 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
         return user.Id;
     }
 
+    public async Task<LinkExternalOutcome> LinkExternalToUserAsync(
+        Guid targetUserId,
+        ClaimsPrincipal externalPrincipal,
+        string provider,
+        UserEmailKind emailKind,
+        CancellationToken cancellationToken = default)
+    {
+        var providerUserId = externalPrincipal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("External login mangler NameIdentifier.");
+        var email = externalPrincipal.FindFirstValue(ClaimTypes.Email);
+        var displayName = externalPrincipal.FindFirstValue(ClaimTypes.Name)
+            ?? externalPrincipal.Identity?.Name
+            ?? email
+            ?? providerUserId;
+
+        var targetExists = await db.Users.AnyAsync(
+            u => u.Id == targetUserId && !u.IsDisabled,
+            cancellationToken);
+        if (!targetExists)
+            throw new InvalidOperationException("Ukendt eller deaktiveret bruger.");
+
+        var existing = await db.ExternalLogins
+            .FirstOrDefaultAsync(
+                x => x.Provider == provider && x.ProviderUserId == providerUserId,
+                cancellationToken);
+
+        if (existing is not null)
+        {
+            if (existing.UserId != targetUserId)
+                return LinkExternalOutcome.ConflictOtherUser;
+
+            existing.ProviderEmail = email;
+            existing.ProviderDisplayName = displayName;
+            existing.LinkedAt = time.GetUtcNow().UtcDateTime;
+            await db.Users
+                .Where(u => u.Id == targetUserId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.LastLoginAt, time.GetUtcNow().UtcDateTime),
+                    cancellationToken);
+            await ApplyEmailLinkAsync(existing.UserId, email, emailKind, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            await SyncUserPrimaryEmailAsync(existing.UserId, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            return LinkExternalOutcome.Linked;
+        }
+
+        var now = time.GetUtcNow().UtcDateTime;
+        db.ExternalLogins.Add(new ExternalLogin
+        {
+            Id = Guid.NewGuid(),
+            UserId = targetUserId,
+            Provider = provider,
+            ProviderUserId = providerUserId,
+            ProviderEmail = email,
+            ProviderDisplayName = displayName,
+            LinkedAt = now,
+        });
+
+        await db.Users
+            .Where(u => u.Id == targetUserId)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.LastLoginAt, now),
+                cancellationToken);
+        await ApplyEmailLinkAsync(targetUserId, email, emailKind, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        await SyncUserPrimaryEmailAsync(targetUserId, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return LinkExternalOutcome.Linked;
+    }
+
+    public async Task<UnlinkExternalLoginResult> UnlinkExternalLoginAsync(
+        Guid currentUserId,
+        Guid externalLoginId,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await db.ExternalLogins
+            .FirstOrDefaultAsync(
+                e => e.Id == externalLoginId && e.UserId == currentUserId,
+                cancellationToken);
+        if (row is null)
+            return UnlinkExternalLoginResult.NotFound;
+
+        var extCount = await db.ExternalLogins.CountAsync(
+            e => e.UserId == currentUserId,
+            cancellationToken);
+        var hasLocal = await db.LocalLogins.AnyAsync(
+            l => l.UserId == currentUserId,
+            cancellationToken);
+        // Mindst én login-metode: andre ExternalLogins eller e-mail/adgangskode.
+        if (extCount <= 1 && !hasLocal)
+            return UnlinkExternalLoginResult.CannotRemoveLastLoginMethod;
+
+        db.ExternalLogins.Remove(row);
+        await db.SaveChangesAsync(cancellationToken);
+        return UnlinkExternalLoginResult.Success;
+    }
+
     private async Task ApplyEmailLinkAsync(Guid userId, string? email, UserEmailKind kind, CancellationToken ct)
     {
         var norm = EmailNormalizer.Normalize(email);

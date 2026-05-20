@@ -37,6 +37,7 @@
                         <p class="home-fact"><strong>Metode</strong> @LoginMethodDa(method)</p>
                         <p class="home-fact"><strong>Roller</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
                         <p class="home-fact"><strong>Bruger-ID</strong> <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
+                        <a class="merc-btn merc-btn--ghost" href="/Account/LinkedAccounts">Tilknyt Discord, GitHub m.m.</a>
                         <a class="merc-btn merc-btn--ghost" href="/signout">Log ud</a>
                     </div>
                 </Authorized>

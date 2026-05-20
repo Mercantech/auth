@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace Auth.API.Hosting;
 
@@ -18,44 +19,11 @@ public static class AccountEndpointExtensions
 {
     public static WebApplication MapAccountEndpoints(this WebApplication app)
     {
-        app.MapGet("/signin/challenge", (
-                HttpContext ctx,
-                string provider,
-                string? returnUrl,
-                string? emailKind,
-                IReturnUrlValidator urls,
-                IConfiguration config) =>
-            {
-                returnUrl = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
-                if (!urls.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
-                    return Results.BadRequest("Ugyldig returnUrl.");
+        app.MapGet("/signin/challenge", ChallengeExternalLoginAsync).AllowAnonymous();
 
-                var redirectUri = returnUrl.StartsWith("/", StringComparison.Ordinal)
-                    ? $"{ctx.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}{returnUrl}"
-                    : returnUrl;
-                var props = new AuthenticationProperties { RedirectUri = redirectUri };
+        app.MapGet("/account/link/start", StartAccountLinkAsync).RequireAuthorization();
 
-                var providerKey = provider.ToLowerInvariant();
-                var scheme = providerKey switch
-                {
-                    "google" when !string.IsNullOrEmpty(config["OAuth:Google:ClientId"]) => GoogleDefaults.AuthenticationScheme,
-                    "microsoft" when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.WorkSection) => MercantecAuthSchemes.MicrosoftWork,
-                    "microsoft-edu" or "microsoftedu"
-                        when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.EduSection) => MercantecAuthSchemes.MicrosoftEdu,
-                    "github" when !string.IsNullOrEmpty(config["OAuth:GitHub:ClientId"]) => "GitHub",
-                    "discord" when !string.IsNullOrEmpty(config["OAuth:Discord:ClientId"]) => "Discord",
-                    _ => null,
-                };
-                if (scheme is null)
-                    return Results.BadRequest("Provider ikke konfigureret.");
-
-                var emailKindValue = providerKey is "microsoft-edu" or "microsoftedu" && string.IsNullOrWhiteSpace(emailKind)
-                    ? "school"
-                    : emailKind;
-                OAuthEmailKindCookie.Append(ctx, OAuthEmailKindCookie.ParseQuery(emailKindValue));
-                return Results.Challenge(props, [scheme]);
-            })
-            .AllowAnonymous();
+        app.MapPost("/account/link/remove", RemoveAccountLinkAsync).RequireAuthorization();
 
         app.MapPost("/signin", HandleSignInAsync)
             .AllowAnonymous()
@@ -79,6 +47,118 @@ public static class AccountEndpointExtensions
             .AllowAnonymous();
 
         return app;
+    }
+
+    private static Task<IResult> ChallengeExternalLoginAsync(
+        HttpContext ctx,
+        string provider,
+        string? returnUrl,
+        string? emailKind,
+        IReturnUrlValidator urls,
+        IConfiguration config) =>
+        OAuthChallengeCoreAsync(ctx, provider, returnUrl, emailKind, urls, config, attachAccountLinkTarget: false);
+
+    private static Task<IResult> StartAccountLinkAsync(
+        HttpContext ctx,
+        string provider,
+        string? returnUrl,
+        string? emailKind,
+        IReturnUrlValidator urls,
+        IConfiguration config) =>
+        OAuthChallengeCoreAsync(ctx, provider, returnUrl, emailKind, urls, config, attachAccountLinkTarget: true);
+
+    /// <summary>Delt OAuth-challenge til login og eksplicit kontolinking.</summary>
+    private static Task<IResult> OAuthChallengeCoreAsync(
+        HttpContext ctx,
+        string provider,
+        string? returnUrl,
+        string? emailKind,
+        IReturnUrlValidator urls,
+        IConfiguration config,
+        bool attachAccountLinkTarget)
+    {
+        returnUrl = string.IsNullOrWhiteSpace(returnUrl)
+            ? (attachAccountLinkTarget ? "/Account/LinkedAccounts" : "/")
+            : returnUrl!;
+        if (!urls.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
+            return Task.FromResult(Results.BadRequest("Ugyldig returnUrl."));
+
+        var redirectUri = returnUrl.StartsWith("/", StringComparison.Ordinal)
+            ? $"{ctx.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}{returnUrl}"
+            : returnUrl;
+        var props = new AuthenticationProperties { RedirectUri = redirectUri };
+
+        if (attachAccountLinkTarget
+            && Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var me))
+        {
+            props.Items[AccountLinkAuthProperties.TargetUserIdKey] = me.ToString("D");
+        }
+
+        var providerKey = provider.Trim().ToLowerInvariant();
+        var scheme = providerKey switch
+        {
+            "google" when !string.IsNullOrEmpty(config["OAuth:Google:ClientId"]) => GoogleDefaults.AuthenticationScheme,
+            "microsoft" when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.WorkSection) =>
+                MercantecAuthSchemes.MicrosoftWork,
+            "microsoft-edu" or "microsoftedu"
+                when MicrosoftOAuthConfiguration.IsConfigured(config, MicrosoftOAuthConfiguration.EduSection) =>
+                MercantecAuthSchemes.MicrosoftEdu,
+            "github" when !string.IsNullOrEmpty(config["OAuth:GitHub:ClientId"]) => "GitHub",
+            "discord" when !string.IsNullOrEmpty(config["OAuth:Discord:ClientId"]) => "Discord",
+            _ => null,
+        };
+
+        if (scheme is null)
+            return Task.FromResult(Results.BadRequest("Provider ikke konfigureret."));
+
+        var emailKindForCookie = providerKey is "microsoft-edu" or "microsoftedu" && string.IsNullOrWhiteSpace(emailKind)
+            ? "school"
+            : emailKind;
+        OAuthEmailKindCookie.Append(ctx, OAuthEmailKindCookie.ParseQuery(emailKindForCookie));
+        return Task.FromResult(Results.Challenge(props, [scheme]));
+    }
+
+    private static async Task<IResult> RemoveAccountLinkAsync(
+        HttpContext ctx,
+        IAntiforgery antiforgery,
+        IExternalAccountService accounts,
+        IReturnUrlValidator urls)
+    {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(ctx);
+        }
+        catch
+        {
+            return Results.Redirect("/Account/LinkedAccounts?error=invalid_token");
+        }
+
+        var form = await ctx.Request.ReadFormAsync();
+        var ru = string.IsNullOrWhiteSpace(form["returnUrl"].ToString()) ? "/Account/LinkedAccounts" : form["returnUrl"].ToString();
+        if (!urls.IsSafePostLoginReturnUrl(ru, ctx.Request))
+            ru = "/Account/LinkedAccounts";
+
+        if (!Guid.TryParse(form["id"].ToString(), out var externalLoginId)
+            || !Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return RedirectWithQuery(ru, "error=invalid");
+
+        var result = await accounts.UnlinkExternalLoginAsync(userId, externalLoginId, ctx.RequestAborted);
+        var q = result switch
+        {
+            UnlinkExternalLoginResult.Success => "unlinked=1",
+            UnlinkExternalLoginResult.NotFound => "error=not_found",
+            UnlinkExternalLoginResult.CannotRemoveLastLoginMethod => "error=last_login",
+            _ => "error=unknown",
+        };
+
+        return RedirectWithQuery(ru, q);
+    }
+
+    private static IResult RedirectWithQuery(string returnUrl, string queryPair)
+    {
+        var sep = returnUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        var target = $"{returnUrl}{sep}{queryPair}";
+        return Results.Redirect(target, permanent: false);
     }
 
     private static async Task<IResult> HandleSignInAsync(
