@@ -527,6 +527,19 @@
     color: var(--auth-muted);
 }
 
+.linked-password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 22rem;
+    margin-top: 0.75rem;
+}
+
+.linked-password-form__submit {
+    margin-top: 0.5rem;
+    align-self: flex-start;
+}
+
 .linked-accounts-banner--ok {
     padding: 0.75rem 0.9rem;
     border-radius: 4px;

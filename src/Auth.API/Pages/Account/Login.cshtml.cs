@@ -31,6 +31,7 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
     public string? ErrorMessage => Error switch
     {
         "invalid" => "Forkert e-mail eller adgangskode, eller ugyldig anmodning.",
+        "no_password" => "Denne e-mail har endnu ikke adgangskode — log ind med Google/Microsoft m.fl. og tilføj adgangskode under Tilknyttede login, eller opret adgangskode med samme e-mail via Opret konto.",
         "disabled" => "Kontoen er deaktiveret.",
         "local_disabled" => "E-mail- og adgangskode-login er slået fra. Brug en af udbyderne ovenfor.",
         _ => null,

@@ -25,6 +25,32 @@
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">Tilknytning fjernet.</div>
     }
+    @if (Model.ShowPasswordSetOk)
+    {
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">Adgangskode er tilknyttet — du kan nu logge ind med e-mail og adgangskode (samme <code class="linked-accounts__mono">sub</code>).</div>
+    }
+
+    @if (Model.CanSetPassword)
+    {
+        <section class="linked-section linked-section--bordered" aria-labelledby="password-heading">
+            <h2 id="password-heading" class="linked-section__heading">E-mail og adgangskode</h2>
+            <p class="linked-section__lede">
+                Tilføj adgangskode til din eksisterende Mercantec-konto. Brug den <strong>samme e-mail</strong> som ved Google, Microsoft eller andre tilknyttede login — så forbliver JWT <code class="linked-accounts__mono">sub</code> uændret.
+            </p>
+            <form class="linked-password-form" method="post" action="@(Request.PathBase)/account/password/set">
+                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
+                <label class="auth-label" for="password-email">E-mail</label>
+                <input id="password-email" name="email" class="auth-input" type="email" autocomplete="username" required
+                       value="@Model.SuggestedPasswordEmail" placeholder="dig@eksempel.dk" />
+                <label class="auth-label" for="password-new">Adgangskode (min. 8 tegn)</label>
+                <input id="password-new" name="password" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                <label class="auth-label" for="password-confirm">Gentag adgangskode</label>
+                <input id="password-confirm" name="passwordConfirm" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Gem adgangskode</button>
+            </form>
+        </section>
+    }
 
     <section class="linked-section" aria-labelledby="link-more-heading">
         <h2 id="link-more-heading" class="linked-section__heading">Tilknyt mere</h2>

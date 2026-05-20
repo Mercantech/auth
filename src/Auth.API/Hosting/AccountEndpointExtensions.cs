@@ -33,6 +33,10 @@ public static class AccountEndpointExtensions
             .AllowAnonymous()
             .DisableAntiforgery();
 
+        app.MapPost("/account/password/set", HandleSetPasswordAsync)
+            .RequireAuthorization()
+            .DisableAntiforgery();
+
         app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, string? returnUrl) =>
             {
                 await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -165,6 +169,7 @@ public static class AccountEndpointExtensions
         HttpContext ctx,
         IAntiforgery antiforgery,
         AuthDbContext db,
+        ILocalAccountService localAccounts,
         IReturnUrlValidator returnUrlValidator)
     {
         try
@@ -187,19 +192,20 @@ public static class AccountEndpointExtensions
         if (!ctx.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.EnableEmailPasswordLogin)
             return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=local_disabled");
 
-        var user = await db.Users
-            .Include(u => u.LocalLogin)
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.LocalLogin != null && u.LocalLogin.Email == email);
+        var user = await localAccounts.FindUserForPasswordSignInAsync(email, ctx.RequestAborted);
+        if (user is null)
+            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
 
-        if (user?.LocalLogin is null || !BCrypt.Net.BCrypt.Verify(password, user.LocalLogin.PasswordHash))
+        if (user.LocalLogin is null)
+            return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=no_password");
+
+        if (!BCrypt.Net.BCrypt.Verify(password, user.LocalLogin.PasswordHash))
             return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
 
         if (user.IsDisabled)
             return Results.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}&error=disabled");
 
-        var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
         await db.Users
             .Where(u => u.Id == user.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginMethod, MercantecAuthClaims.LoginMethodValues.Password));
@@ -216,6 +222,7 @@ public static class AccountEndpointExtensions
         HttpContext ctx,
         IAntiforgery antiforgery,
         AuthDbContext db,
+        ILocalAccountService localAccounts,
         IReturnUrlValidator returnUrlValidator,
         IOptions<BootstrapOptions> bootstrap)
     {
@@ -246,70 +253,128 @@ public static class AccountEndpointExtensions
             || string.IsNullOrWhiteSpace(password) || password.Length < 8 || password.Length > 100)
             return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
 
-        if (await db.LocalLogins.AnyAsync(l => l.Email == email))
-            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
-
         var normSignup = EmailNormalizer.Normalize(email);
-        if (normSignup is not null && await db.UserEmails.AnyAsync(e => e.NormalizedEmail == normSignup))
-            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
+        if (normSignup is null)
+            return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
 
-        var now = DateTime.UtcNow;
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            DisplayName = displayName,
-            Email = email,
-            EmailConfirmed = false,
-            CreatedAt = now,
-            LastLoginAt = now,
-            LastLoginMethod = MercantecAuthClaims.LoginMethodValues.Password,
-        };
-        db.Users.Add(user);
-        db.LocalLogins.Add(new LocalLogin
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            CreatedAt = now,
-        });
+        var existing = await localAccounts.FindUserForPasswordLinkByEmailAsync(email, ctx.RequestAborted);
+        User user;
+        var linkedToExisting = false;
 
-        if (normSignup is not null)
+        if (existing is not null)
         {
-            db.UserEmails.Add(new UserEmail
+            if (existing.LocalLogin is not null)
+                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
+
+            var linkResult = await localAccounts.SetPasswordAsync(
+                existing.Id,
+                email,
+                password,
+                ctx.RequestAborted);
+            if (linkResult is SetPasswordResult.EmailNotOwnedByUser or SetPasswordResult.InvalidEmail)
+                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=invalid");
+            if (linkResult is SetPasswordResult.UserDisabled)
+                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=disabled");
+
+            user = await db.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstAsync(u => u.Id == existing.Id, ctx.RequestAborted);
+            linkedToExisting = true;
+            await db.Users
+                .Where(u => u.Id == user.Id)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.LastLoginMethod, MercantecAuthClaims.LoginMethodValues.Password),
+                    ctx.RequestAborted);
+        }
+        else
+        {
+            if (await db.LocalLogins.AnyAsync(
+                    l => l.Email.Trim().ToLower() == normSignup,
+                    ctx.RequestAborted))
+                return Results.Redirect($"/Account/Register?returnUrl={Uri.EscapeDataString(returnUrl)}&error=email");
+
+            user = await localAccounts.CreateUserWithPasswordAsync(
+                displayName,
+                email,
+                password,
+                ctx.RequestAborted);
+
+            var adminEmail = bootstrap.Value.AdminEmail;
+            if (!string.IsNullOrWhiteSpace(adminEmail)
+                && string.Equals(email, adminEmail, StringComparison.OrdinalIgnoreCase))
             {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                NormalizedEmail = normSignup,
-                Kind = UserEmailKind.Personal,
-                LinkedAt = now,
-            });
+                var adminRole = await db.Roles.FirstAsync(r => r.Name == "Admin", ctx.RequestAborted);
+                db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = adminRole.Id });
+                await db.SaveChangesAsync(ctx.RequestAborted);
+            }
         }
-
-        var userRole = await db.Roles.FirstAsync(r => r.Name == "User");
-        db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = userRole.Id });
-
-        var adminEmail = bootstrap.Value.AdminEmail;
-        if (!string.IsNullOrWhiteSpace(adminEmail)
-            && string.Equals(email, adminEmail, StringComparison.OrdinalIgnoreCase))
-        {
-            var adminRole = await db.Roles.FirstAsync(r => r.Name == "Admin");
-            db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = adminRole.Id });
-        }
-
-        await db.SaveChangesAsync();
 
         var roles = await db.UserRoles
             .Where(ur => ur.UserId == user.Id)
             .Include(ur => ur.Role)
-            .Select(ur => ur.Role.Name)
-            .ToListAsync();
+            .Select(ur => ur.Role!.Name)
+            .ToListAsync(ctx.RequestAborted);
         await SignInHelper.SignInAsync(ctx, user, roles);
-        await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
-            .RecordPasswordSignupAsync(user.Id);
+        var tracker = ctx.RequestServices.GetRequiredService<IAuthUsageTracker>();
+        if (linkedToExisting)
+            await tracker.RecordPasswordLinkAsync(user.Id, ctx.RequestAborted);
+        else
+            await tracker.RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
             : Results.Redirect(returnUrl);
+    }
+
+    private static async Task<IResult> HandleSetPasswordAsync(
+        HttpContext ctx,
+        IAntiforgery antiforgery,
+        ILocalAccountService localAccounts)
+    {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(ctx);
+        }
+        catch
+        {
+            return Results.Redirect("/Account/LinkedAccounts?error=invalid_token");
+        }
+
+        if (!ctx.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.EnableEmailPasswordLogin)
+            return Results.Redirect("/Account/LinkedAccounts?error=local_disabled");
+
+        var form = await ctx.Request.ReadFormAsync();
+        var email = form["email"].ToString();
+        var password = form["password"].ToString();
+        var confirm = form["passwordConfirm"].ToString();
+        var returnUrl = string.IsNullOrWhiteSpace(form["returnUrl"].ToString())
+            ? "/Account/LinkedAccounts"
+            : form["returnUrl"].ToString();
+
+        if (!Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return Results.Redirect("/Account/Login");
+
+        if (!string.Equals(password, confirm, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(password)
+            || password.Length < 8
+            || password.Length > 100
+            || string.IsNullOrWhiteSpace(email))
+            return RedirectWithQuery(returnUrl, "error=password_invalid");
+
+        var result = await localAccounts.SetPasswordAsync(userId, email, password, ctx.RequestAborted);
+        var q = result switch
+        {
+            SetPasswordResult.Created or SetPasswordResult.Updated => "password_set=1",
+            SetPasswordResult.EmailNotOwnedByUser => "error=password_email",
+            SetPasswordResult.UserDisabled => "error=disabled",
+            _ => "error=password_invalid",
+        };
+
+        if (q == "password_set=1")
+            await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
+                .RecordPasswordLinkAsync(userId, ctx.RequestAborted);
+
+        return RedirectWithQuery(returnUrl, q);
     }
 }

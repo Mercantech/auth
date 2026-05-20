@@ -12,6 +12,8 @@ public interface IAuthUsageTracker
 
     Task RecordPasswordSignupAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    Task RecordPasswordLinkAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task RecordAccountLinkAsync(
         Guid userId,
         string provider,

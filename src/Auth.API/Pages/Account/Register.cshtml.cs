@@ -17,9 +17,10 @@ public class RegisterModel(IOptions<AuthOptions> authOptions) : PageModel
 
     public string? ErrorMessage => Error switch
     {
-        "email" => "E-mail er allerede registreret.",
+        "email" => "Der findes allerede adgangskode på denne e-mail. Log ind i stedet.",
         "invalid" => "Ugyldig retur-URL eller data.",
         "local_disabled" => "E-mail-oprettelse er slået fra i denne installation.",
+        "disabled" => "Kontoen er deaktiveret.",
         _ => null,
     };
 

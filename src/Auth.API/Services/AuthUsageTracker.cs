@@ -47,6 +47,18 @@ public class AuthUsageTracker(AuthDbContext db, TimeProvider time) : IAuthUsageT
             null,
             cancellationToken);
 
+    public Task RecordPasswordLinkAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        RecordAsync(
+            AuthUsageEventTypes.PasswordLink,
+            userId,
+            null,
+            null,
+            MercantecAuthClaims.LoginMethodValues.Password,
+            null,
+            null,
+            null,
+            cancellationToken);
+
     public Task RecordAccountLinkAsync(
         Guid userId,
         string provider,

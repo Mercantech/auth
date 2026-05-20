@@ -23,7 +23,7 @@
 
     <h2 class="auth-headline">Kom i gang</h2>
     <p class="auth-lead">@(Model.LocalLoginEnabled
-        ? "Udfyld felterne nedenfor. Du kan også oprette adgang via Google, Microsoft m.fl. fra loginsiden."
+        ? "Ny konto oprettes her. Har du allerede logget ind med Google, Microsoft m.fl., kan du bruge samme e-mail — så tilknyttes adgangskode til din eksisterende bruger (samme sub). Eller tilføj adgangskode under Tilknyttede login efter OAuth-login."
         : "Selvoprettelse med e-mail og adgangskode er slået fra. Brug Google, Microsoft eller en anden udbyder fra loginsiden.")</p>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))

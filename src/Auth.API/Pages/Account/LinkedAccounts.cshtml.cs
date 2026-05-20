@@ -1,16 +1,21 @@
 using System.Security.Claims;
 using Auth.API.Data;
 using Auth.API.Hosting;
+using Auth.API.Models;
+using Auth.API.Options;
+using Auth.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Auth.API.Pages.Account;
 
 [Authorize]
 public class LinkedAccountsModel(
     AuthDbContext db,
-    IConfiguration configuration) : PageModel
+    IConfiguration configuration,
+    IOptions<AuthOptions> authOptions) : PageModel
 {
     public IReadOnlyList<ExternalLoginRow> ExternalLogins { get; private set; } = [];
     public IReadOnlyList<LinkProviderOffer> OfferedLinkProviders { get; private set; } = [];
@@ -20,8 +25,14 @@ public class LinkedAccountsModel(
 
     public bool HasPasswordLogin { get; private set; }
 
+    public bool CanSetPassword => authOptions.Value.EnableEmailPasswordLogin && !HasPasswordLogin;
+
+    /// <summary>Foreslået e-mail til adgangskode-formular (profil eller Personal UserEmail).</summary>
+    public string? SuggestedPasswordEmail { get; private set; }
+
     public string? BannerError { get; private set; }
     public bool ShowUnlinkedOk { get; private set; }
+    public bool ShowPasswordSetOk { get; private set; }
 
     public sealed record ExternalLoginRow(Guid Id, string Provider, string ProviderLabel, string? ProviderEmail, DateTime LinkedAtUtc);
 
@@ -30,7 +41,7 @@ public class LinkedAccountsModel(
     private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
         OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
 
-    public async Task OnGetAsync(string? error, string? unlinked)
+    public async Task OnGetAsync(string? error, string? unlinked, string? password_set)
     {
         ReturnUrlParam = Request.Path.HasValue ? Request.PathBase + Request.Path : "/Account/LinkedAccounts";
 
@@ -41,10 +52,15 @@ public class LinkedAccountsModel(
             "not_found" => "Tilknytningen findes ikke længere.",
             "invalid_token" => "Ugyldig session — genindlæs siden og prøv igen.",
             "invalid" => "Ugyldig anmodning.",
+            "local_disabled" => "E-mail og adgangskode er slået fra i denne installation.",
+            "password_email" => "E-mail skal være en adresse der allerede hører til din Mercantec-konto (samme som ved OAuth-login).",
+            "password_invalid" => "Adgangskoder matcher ikke, eller opfylder ikke krav (mindst 8 tegn).",
+            "disabled" => "Kontoen er deaktiveret.",
             _ => null,
         };
 
         ShowUnlinkedOk = string.Equals(unlinked, "1", StringComparison.Ordinal);
+        ShowPasswordSetOk = string.Equals(password_set, "1", StringComparison.Ordinal);
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdStr, out var userId))
@@ -54,9 +70,17 @@ public class LinkedAccountsModel(
             .AsNoTracking()
             .Include(u => u.ExternalLogins)
             .Include(u => u.LocalLogin)
+            .Include(u => u.LinkedEmails)
             .FirstAsync(u => u.Id == userId);
 
         HasPasswordLogin = user.LocalLogin is not null;
+        SuggestedPasswordEmail = user.LocalLogin?.Email
+            ?? user.LinkedEmails
+                .Where(e => e.Kind == UserEmailKind.Personal)
+                .OrderByDescending(e => e.LinkedAt)
+                .Select(e => e.NormalizedEmail)
+                .FirstOrDefault()
+            ?? user.Email;
 
         ExternalLogins = user.ExternalLogins
             .OrderByDescending(x => x.LinkedAt)

@@ -6,6 +6,14 @@ I `appsettings.json` eller miljø: **`Auth:EnableEmailPasswordLogin`** (default 
 
 Miljøvariabel: `Auth__EnableEmailPasswordLogin=false`
 
+Når det er **slået til**, gælder samme **én bruger / ét `sub`** som for OAuth:
+
+- **Login** (`POST /signin`): finder bruger via normaliseret e-mail i `UserEmails`, profil-e-mail eller `LocalLogins` — ikke kun eksakt match på `LocalLogin.Email`.
+- **Opret konto** (`POST /signup`): hvis e-mail allerede matcher en OAuth-bruger **uden** adgangskode, tilknyttes `LocalLogin` til **den eksisterende** bruger (samme implicit logik som OAuth e-mail-match). Har brugeren allerede adgangskode, afvises med `error=email`.
+- **Tilføj adgangskode (anbefalet)**: logget-ind bruger på `/Account/LinkedAccounts` → `POST /account/password/set` (e-mail skal tilhøre kontoen: `UserEmails`, profil, `ExternalLogins.ProviderEmail` eller eksisterende `LocalLogin`).
+
+Efter password-tilknytning kører **`UserPrimaryEmailSync`** som ved OAuth, så JWT `email` og downstream sync forbliver konsistente.
+
 ## Overblik
 
 1. Registrér en **client** i databasen (`ClientApps` + tilladte **redirect URIs** præcist som din app kalder med).
@@ -26,6 +34,7 @@ Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-
 | `GET /health` | Liveness |
 | `GET /account/link/start` | Eksplicit OAuth-tilknytning til **aktuelt loggede** bruger (kræver session). Query: `provider`, `returnUrl` |
 | `POST /account/link/remove` | Fjern en `ExternalLogin` (mindst én login-metode skal blive tilbage) |
+| `POST /account/password/set` | Tilføj eller skift adgangskode på **aktuelt loggede** bruger (session + antiforgery). Felter: `email`, `password`, `passwordConfirm`, `returnUrl` |
 | `GET /api/admin/users-directory` | Oversigt over brugere (kun **Bearer JWT med rolle Admin**) |
 | `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT**) |
 | `DELETE /api/admin/users/{userId}` | Slet bruger og tilhørende login-/OAuth-data (**Admin-JWT**) — ikke dig selv, ikke sidste Admin |
@@ -89,7 +98,7 @@ Mercantec Auth logger hændelser i **`AuthUsageEvents`** og aggregerer OAuth-kli
 - Admin UI: `/Admin/Usage` (oversigt) og udvidede kolonner på `/Admin/Users`
 - API (Admin-JWT): `GET /api/admin/usage/summary`, `GET /api/admin/usage/events?userId=&clientId=&eventType=&limit=`
 
-Hændelsestyper: `provider_login`, `password_login`, `password_signup`, `oauth_authorize`, `oauth_token_exchange`, `oauth_refresh`, `account_link`.
+Hændelsestyper: `provider_login`, `password_login`, `password_signup`, `password_link`, `oauth_authorize`, `oauth_token_exchange`, `oauth_refresh`, `account_link`.
 
 ### OAuth-klienter (SPAs / API’er)
 
