@@ -29,15 +29,29 @@
                         var u = authState.User;
                         var method = u.FindFirstValue(MercantecAuthClaims.LoginMethod);
                         var roles = u.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                        var mfaPending = string.Equals(
+                            u.FindFirstValue(MercantecAuthClaims.MfaPending),
+                            "true",
+                            StringComparison.OrdinalIgnoreCase);
                     }
                     <div class="home-card home-card--session home-card--ok">
                         <p class="home-card__title-sm">Session</p>
-                        <div class="home-pill home-pill--in">Logget ind</div>
-                        <p class="home-fact"><strong>Navn</strong> @(u.Identity?.Name ?? "—")</p>
-                        <p class="home-fact"><strong>Metode</strong> @LoginMethodDa(method)</p>
-                        <p class="home-fact"><strong>Roller</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
-                        <p class="home-fact"><strong>Bruger-ID</strong> <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
-                        <a class="merc-btn merc-btn--ghost" href="/Account/LinkedAccounts">Tilknyt Discord, GitHub m.m.</a>
+                        <div class="home-pill home-pill--in">@(mfaPending ? "Afventer 2FA" : "Logget ind")</div>
+                        @if (mfaPending)
+                        {
+                            <p class="home-note" style="margin-top:0">
+                                Du skal bekræfte med authenticator eller passkey, før kontoindstillinger og OAuth er tilgængelige.
+                            </p>
+                            <a class="merc-btn merc-btn--primary" href="/Account/Mfa?returnUrl=%2F">Fuldfør 2FA</a>
+                        }
+                        else
+                        {
+                            <p class="home-fact"><strong>Navn</strong> @(u.Identity?.Name ?? "—")</p>
+                            <p class="home-fact"><strong>Metode</strong> @LoginMethodDa(method)</p>
+                            <p class="home-fact"><strong>Roller</strong> @(roles.Count > 0 ? string.Join(", ", roles) : "Ingen (kun basis-bruger)")</p>
+                            <p class="home-fact"><strong>Bruger-ID</strong> <code>@u.FindFirstValue(ClaimTypes.NameIdentifier)</code></p>
+                            <a class="merc-btn merc-btn--ghost" href="/Account/LinkedAccounts">Tilknyt Discord, GitHub m.m.</a>
+                        }
                         <a class="merc-btn merc-btn--ghost" href="/signout">Log ud</a>
                     </div>
                 </Authorized>

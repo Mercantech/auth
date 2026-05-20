@@ -74,6 +74,22 @@ builder.Services.AddAuthentication(options =>
         options.ExpireTimeSpan = TimeSpan.FromDays(14);
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/signout";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            if (SignInHelper.IsMfaPending(context.HttpContext.User))
+            {
+                var path = $"{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}";
+                if (string.IsNullOrEmpty(path))
+                    path = "/";
+                var returnUrl = Uri.EscapeDataString(path);
+                context.Response.Redirect($"/Account/Mfa?returnUrl={returnUrl}");
+                return Task.CompletedTask;
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
     })
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, _ => { })
     .AddMercantecExternalLogins(builder.Configuration);

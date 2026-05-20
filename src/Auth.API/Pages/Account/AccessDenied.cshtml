@@ -1,0 +1,20 @@
+@page "/Account/AccessDenied"
+@model Auth.API.Pages.Account.AccessDeniedModel
+@{
+    ViewData["Title"] = "Adgang nægtet";
+}
+
+<div class="auth-card">
+    <h1 class="auth-headline">Adgang nægtet</h1>
+    <p class="auth-lead">
+        Du er logget ind, men har ikke adgang til den side du bad om.
+    </p>
+    @if (!string.IsNullOrEmpty(Model.ReturnUrl))
+    {
+        <p class="linked-section__muted">Forespurgt: <code>@Model.ReturnUrl</code></p>
+    }
+    <p>
+        <a class="auth-btn auth-btn--primary" href="/">Forside</a>
+        <a class="auth-btn auth-btn--ghost" href="/Account/Login">Login</a>
+    </p>
+</div>

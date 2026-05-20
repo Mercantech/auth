@@ -10,7 +10,7 @@
 <div class="auth-card linked-accounts">
     <h1 class="auth-headline">Sikkerhed</h1>
     <p class="auth-lead">
-        <a href="/Account/LinkedAccounts">← Tilknyttede login</a>
+        <a href="@(Request.PathBase)/Account/LinkedAccounts">← Tilknyttede login</a>
     </p>
 
     @if (!string.IsNullOrEmpty(Model.BannerMessage))
