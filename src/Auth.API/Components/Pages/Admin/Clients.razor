@@ -2,163 +2,315 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject AuthDbContext Db
 @inject IWebHostEnvironment Env
+@inject IJSRuntime Js
 @using Auth.API.Models.Entities
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@using System.Text.RegularExpressions
 
 <PageTitle>Klienter (admin)</PageTitle>
 
-<div class="merc-page">
-<h1>Klienter</h1>
-
-@if (_clients is null)
-{
-    <p>Henter…</p>
-}
-else
-{
-    <div class="card">
-        <h2>Opret ny klient</h2>
-        <div class="field">
-            <label><strong>Navn</strong></label>
-            <input class="input" placeholder="Min app" @bind="_newClientName" />
-        </div>
-        <div class="field">
-            <label><strong>Client ID</strong></label>
-            <input class="input" placeholder="fx my-app" @bind="_newClientId" />
-            <div class="muted">Bruges som <code>client_id</code> i OAuth/OIDC.</div>
-        </div>
-        <div class="field">
-            <label><strong>Type</strong></label>
-            <label class="muted"><input type="checkbox" @bind="_newIsPublic" /> Public klient (ingen secret, PKCE anbefales)</label>
-        </div>
-        <div class="field">
-            <label class="muted"><input type="checkbox" @bind="_newRequirePkce" /> Kræv PKCE (S256)</label>
-        </div>
-        <div class="field">
-            <label class="muted"><input type="checkbox" @bind="_newIsActive" /> Aktiv</label>
-        </div>
-        <button type="button" class="btn" @onclick="CreateClientAsync">Opret klient</button>
-
-        @if (!string.IsNullOrWhiteSpace(_newClientSecretPlain))
-        {
-            <div class="divider"></div>
-            <p class="status-warn"><strong>Client secret (vises kun nu):</strong> <code>@_newClientSecretPlain</code></p>
-        }
-    </div>
-
-    <div class="card">
-        <h2>Vælg klient</h2>
-        <div class="field">
-            <label for="clientSelect"><strong>Klient</strong></label>
-            <select id="clientSelect" class="input" value="@_selectedClientId" @onchange="OnClientChanged">
-                <option value="">— vælg —</option>
-                @foreach (var c in _clients.OrderBy(x => x.Name))
-                {
-                    <option value="@c.Id">@c.Name (@c.ClientId)</option>
-                }
-            </select>
-        </div>
-        @if (!string.IsNullOrWhiteSpace(_status))
-        {
-            <p class="@(_statusIsError ? "status-warn" : "status-badge status-in")">@_status</p>
-        }
-    </div>
-
-    @if (_selected is not null)
-    {
-        <div class="card">
-            <h2>Indstillinger</h2>
-            <div class="field">
-                <label class="muted"><input type="checkbox" @bind="_editIsActive" /> Aktiv</label>
-            </div>
-            <div class="field">
-                <label class="muted"><input type="checkbox" @bind="_editIsPublic" /> Public klient</label>
-            </div>
-            <div class="field">
-                <label class="muted"><input type="checkbox" @bind="_editRequirePkce" /> Kræv PKCE (S256)</label>
-            </div>
-            <div class="field">
-                <label><strong>Tilladte scopes</strong> (valgfri)</label>
-                <input class="input" placeholder="openid profile email offline_access" @bind="_editAllowedScopes" />
-                <div class="muted">Space-separeret liste. Bruges til at dokumentere/afgrænse scopes pr. klient.</div>
-            </div>
-
-            <button type="button" class="btn" @onclick="SaveClientSettingsAsync">Gem</button>
-
-            @if (!_editIsPublic)
-            {
-                <div class="divider"></div>
-                <button type="button" class="btn btn-secondary" @onclick="RotateClientSecretAsync">Rotér client secret</button>
-                @if (!string.IsNullOrWhiteSpace(_rotatedSecretPlain))
-                {
-                    <p class="status-warn"><strong>Nyt client secret (vises kun nu):</strong> <code>@_rotatedSecretPlain</code></p>
-                }
-            }
-        </div>
-
-        <div class="card">
-            <h2>Redirect URI whitelist</h2>
-            <p class="muted">
-                OAuth2 kræver præcist match på <code>redirect_uri</code> (https/http, host og path).
+<div class="merc-page merc-clients">
+    <header class="merc-clients__header">
+        <div>
+            <h1>Klienter</h1>
+            <p class="merc-clients__lead">
+                Registrér OAuth-klienter, redirect-URI’er og PKCE/secret-indstillinger til jeres apps.
             </p>
+        </div>
+        <a class="merc-btn merc-btn--ghost" href="/.well-known/mercantec-auth.json" target="_blank" rel="noopener">Integrations-manifest</a>
+    </header>
 
-            <table class="table table-sm">
-                <thead>
-                <tr>
-                    <th>URI</th>
-                    <th style="width: 1%"></th>
-                </tr>
-                </thead>
-                <tbody>
-                @if (_selected.RedirectUris.Count == 0)
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="merc-alert @(_statusIsError ? "merc-alert--error" : "merc-alert--ok")" role="status">
+            @_status
+        </div>
+    }
+
+    @if (_clients is null)
+    {
+        <p class="merc-clients__loading">Henter klienter…</p>
+    }
+    else
+    {
+        <div class="merc-clients__layout">
+            <aside class="merc-clients__sidebar" aria-label="Klientliste">
+                <button type="button"
+                        class="merc-btn merc-btn--primary merc-clients__new-btn"
+                        @onclick="OpenCreatePanel">
+                    + Ny klient
+                </button>
+
+                @if (_clients.Count == 0)
                 {
-                    <tr><td colspan="2">Ingen redirect-URI’er endnu.</td></tr>
+                    <p class="merc-clients__sidebar-empty">Ingen klienter endnu. Opret den første ovenfor.</p>
                 }
                 else
                 {
-                    @foreach (var r in _selected.RedirectUris.OrderBy(x => x.Uri, StringComparer.Ordinal))
-                    {
-                        <tr>
-                            <td><code>@r.Uri</code></td>
-                            <td>
-                                <button type="button" class="btn btn-secondary" @onclick="() => RemoveRedirectUriAsync(r.Id)">
-                                    Fjern
+                    <ul class="merc-clients__list" role="list">
+                        @foreach (var c in _clients.OrderBy(x => x.Name))
+                        {
+                            var isSelected = _selected?.Id == c.Id && !_showCreate;
+                            <li>
+                                <button type="button"
+                                        class="merc-clients__item @(isSelected ? "merc-clients__item--active" : null)"
+                                        aria-current="@(isSelected ? "true" : null)"
+                                        @onclick="() => SelectClientAsync(c.Id)">
+                                    <span class="merc-clients__item-name">@c.Name</span>
+                                    <span class="merc-clients__item-id"><code>@c.ClientId</code></span>
+                                    <span class="merc-clients__item-badges">
+                                        @if (!c.IsActive)
+                                        {
+                                            <span class="merc-badge merc-badge--muted">Inaktiv</span>
+                                        }
+                                        <span class="merc-badge @(c.IsPublic ? "merc-badge--public" : "merc-badge--confidential")">
+                                            @(c.IsPublic ? "Public" : "Fortrolig")
+                                        </span>
+                                        <span class="merc-badge merc-badge--count">@c.RedirectUris.Count URI</span>
+                                    </span>
                                 </button>
-                            </td>
-                        </tr>
-                    }
+                            </li>
+                        }
+                    </ul>
                 }
-                </tbody>
-            </table>
+            </aside>
 
-            <div class="divider"></div>
+            <div class="merc-clients__main">
+                @if (_showCreate)
+                {
+                    <section class="merc-panel" aria-labelledby="create-heading">
+                        <div class="merc-panel__head">
+                            <div>
+                                <h2 id="create-heading">Opret ny klient</h2>
+                                <p class="merc-panel__sub">Trin 1: identitet · Trin 2: type · derefter tilføj redirect-URI’er</p>
+                            </div>
+                            <button type="button" class="merc-btn merc-btn--ghost" @onclick="CloseCreatePanel">Annuller</button>
+                        </div>
 
-            <h3>Tilføj redirect URI</h3>
-            <div class="field">
-                <label for="newUri"><strong>Ny URI</strong></label>
-                <input id="newUri" class="input" placeholder="https://auth-spa.mercantec.tech/callback.html" @bind="_newRedirectUri" />
-                <div class="muted">
-                    Produktion: brug <strong>https</strong>. Dev kan være <code>http://localhost:...</code>.
-                </div>
+                        <div class="merc-form-grid merc-form-grid--2">
+                            <div class="merc-field">
+                                <label class="merc-label" for="newName">App-navn</label>
+                                <input id="newName" class="merc-input" placeholder="Min elevportal" @bind="_newClientName" @bind:event="oninput" @bind:after="OnNewNameChanged" />
+                                <span class="merc-hint">Vises til admins; ikke sendt til OAuth.</span>
+                            </div>
+                            <div class="merc-field">
+                                <label class="merc-label" for="newClientId">Client ID</label>
+                                <input id="newClientId" class="merc-input" placeholder="min-elevportal" @bind="_newClientId" @bind:after="OnNewClientIdChanged" />
+                                <span class="merc-hint">Parameter <code>client_id</code> — små bogstaver, tal, <code>-</code>, <code>_</code>, <code>.</code></span>
+                            </div>
+                        </div>
+
+                        <fieldset class="merc-fieldset">
+                            <legend class="merc-label">Klienttype</legend>
+                            <div class="merc-choice-grid">
+                                <button type="button"
+                                        class="merc-choice @( _newClientKind == ClientKind.Spa ? "merc-choice--selected" : null)"
+                                        @onclick="() => SetNewClientKind(ClientKind.Spa)">
+                                    <span class="merc-choice__title">Webapp / SPA</span>
+                                    <span class="merc-choice__desc">Public klient uden secret. PKCE (S256) anbefales.</span>
+                                </button>
+                                <button type="button"
+                                        class="merc-choice @( _newClientKind == ClientKind.Confidential ? "merc-choice--selected" : null)"
+                                        @onclick="() => SetNewClientKind(ClientKind.Confidential)">
+                                    <span class="merc-choice__title">Server / fortrolig</span>
+                                    <span class="merc-choice__desc">Har client secret ved token-kald. Til backends.</span>
+                                </button>
+                            </div>
+                        </fieldset>
+
+                        <label class="merc-check">
+                            <input type="checkbox" @bind="_newIsActive" />
+                            <span>Klient er aktiv (kan bruges til login med det samme)</span>
+                        </label>
+
+                        <div class="merc-panel__actions">
+                            <button type="button" class="merc-btn merc-btn--primary" @onclick="CreateClientAsync" disabled="@_saving">
+                                @(_saving ? "Opretter…" : "Opret klient")
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_newClientSecretPlain))
+                        {
+                            <div class="merc-secret-box" role="alert">
+                                <p class="merc-secret-box__title">Gem client secret nu — vises ikke igen</p>
+                                <div class="merc-secret-box__row">
+                                    <input class="merc-input merc-input--mono" readonly value="@_newClientSecretPlain" aria-label="Client secret" />
+                                    <button type="button" class="merc-btn merc-btn--ghost" @onclick="() => CopyToClipboardAsync(_newClientSecretPlain)">Kopiér</button>
+                                </div>
+                            </div>
+                        }
+                    </section>
+                }
+                else if (_selected is null)
+                {
+                    <div class="merc-clients__empty">
+                        <h2>Vælg en klient</h2>
+                        <p>Klik en klient i listen til venstre, eller opret en ny OAuth-klient.</p>
+                        @if (_clients.Count > 0)
+                        {
+                            <button type="button" class="merc-btn merc-btn--primary" @onclick="() => SelectClientAsync(_clients[0].Id)">
+                                Åbn @_clients.OrderBy(c => c.Name).First().Name
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <section class="merc-panel merc-clients__detail">
+                        <div class="merc-panel__head">
+                            <div>
+                                <h2>@_selected.Name</h2>
+                                <p class="merc-panel__sub"><code>client_id=@_selected.ClientId</code></p>
+                            </div>
+                            <div class="merc-clients__detail-badges">
+                                <span class="merc-badge @(_selected.IsActive ? "merc-badge--ok" : "merc-badge--muted")">
+                                    @(_selected.IsActive ? "Aktiv" : "Inaktiv")
+                                </span>
+                                <span class="merc-badge @(_selected.IsPublic ? "merc-badge--public" : "merc-badge--confidential")">
+                                    @(_selected.IsPublic ? "Public" : "Fortrolig")
+                                </span>
+                                @if (_selected.RequirePkce)
+                                {
+                                    <span class="merc-badge merc-badge--pkce">PKCE</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="merc-tabs" role="tablist" aria-label="Klientsektioner">
+                            <button type="button" role="tab" class="merc-tabs__btn @(_activeTab == ClientTab.Settings ? "merc-tabs__btn--active" : null)" aria-selected="@(_activeTab == ClientTab.Settings)" @onclick="() => _activeTab = ClientTab.Settings">Indstillinger</button>
+                            <button type="button" role="tab" class="merc-tabs__btn @(_activeTab == ClientTab.Redirects ? "merc-tabs__btn--active" : null)" aria-selected="@(_activeTab == ClientTab.Redirects)" @onclick="() => _activeTab = ClientTab.Redirects">
+                                Redirect URI’er
+                                <span class="merc-tabs__count">@_selected.RedirectUris.Count</span>
+                            </button>
+                        </div>
+
+                        @if (_activeTab == ClientTab.Settings)
+                        {
+                            <div class="merc-form-grid merc-form-grid--2">
+                                <label class="merc-check">
+                                    <input type="checkbox" @bind="_editIsActive" />
+                                    <span>Aktiv</span>
+                                </label>
+                                <label class="merc-check">
+                                    <input type="checkbox" @bind="_editIsPublic" />
+                                    <span>Public klient (ingen secret)</span>
+                                </label>
+                                <label class="merc-check">
+                                    <input type="checkbox" @bind="_editRequirePkce" />
+                                    <span>Kræv PKCE (S256)</span>
+                                </label>
+                            </div>
+
+                            <div class="merc-field">
+                                <label class="merc-label" for="editScopes">Tilladte scopes</label>
+                                <input id="editScopes" class="merc-input" placeholder="openid profile email offline_access" @bind="_editAllowedScopes" />
+                                <span class="merc-hint">Space-separeret. Dokumenterer hvilke scopes klienten må anmode om.</span>
+                            </div>
+
+                            <div class="merc-panel__actions">
+                                <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveClientSettingsAsync" disabled="@_saving">
+                                    @(_saving ? "Gemmer…" : "Gem indstillinger")
+                                </button>
+                            </div>
+
+                            @if (!_editIsPublic)
+                            {
+                                <div class="merc-panel__divider"></div>
+                                <h3 class="merc-panel__h3">Client secret</h3>
+                                <p class="merc-hint">Secret hashes i databasen. Rotér hvis det er lækket.</p>
+                                <button type="button" class="merc-btn merc-btn--ghost" @onclick="RotateClientSecretAsync" disabled="@_saving">Rotér secret</button>
+
+                                @if (!string.IsNullOrWhiteSpace(_rotatedSecretPlain))
+                                {
+                                    <div class="merc-secret-box" role="alert">
+                                        <p class="merc-secret-box__title">Nyt secret — gem det nu</p>
+                                        <div class="merc-secret-box__row">
+                                            <input class="merc-input merc-input--mono" readonly value="@_rotatedSecretPlain" />
+                                            <button type="button" class="merc-btn merc-btn--ghost" @onclick="() => CopyToClipboardAsync(_rotatedSecretPlain)">Kopiér</button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <p class="merc-hint merc-hint--block">
+                                OAuth kræver <strong>præcist match</strong> på <code>redirect_uri</code> (skema, host og path).
+                                Produktion: <strong>https</strong>. Lokal udvikling: <code>http://localhost</code> eller <code>127.0.0.1</code>.
+                            </p>
+
+                            @if (_selected.RedirectUris.Count == 0)
+                            {
+                                <p class="merc-clients__uri-empty">Ingen redirect-URI’er — login fejler indtil mindst én er tilføjet.</p>
+                            }
+                            else
+                            {
+                                <ul class="merc-uri-list" role="list">
+                                    @foreach (var r in _selected.RedirectUris.OrderBy(x => x.Uri, StringComparer.Ordinal))
+                                    {
+                                        <li class="merc-uri-list__row">
+                                            <code class="merc-uri-list__uri">@r.Uri</code>
+                                            <button type="button" class="merc-btn merc-btn--danger merc-btn--sm" @onclick="() => RemoveRedirectUriAsync(r.Id)" disabled="@_saving">Fjern</button>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+
+                            <div class="merc-panel__divider"></div>
+                            <h3 class="merc-panel__h3">Tilføj redirect URI</h3>
+
+                            <div class="merc-field">
+                                <label class="merc-label" for="newUri">URI</label>
+                                <div class="merc-input-row">
+                                    <input id="newUri" class="merc-input" placeholder="https://min-app.example/callback" @bind="_newRedirectUri" @onkeydown="OnRedirectUriKeydown" />
+                                    <button type="button" class="merc-btn merc-btn--primary" @onclick="AddRedirectUriAsync" disabled="@_saving">Tilføj</button>
+                                </div>
+                            </div>
+
+                            @if (Env.IsDevelopment() || Env.IsEnvironment("Testing"))
+                            {
+                                <div class="merc-quick-add">
+                                    <span class="merc-quick-add__label">Hurtig tilføj (dev):</span>
+                                    @foreach (var preset in DevRedirectPresets)
+                                    {
+                                        <button type="button" class="merc-chip" @onclick="() => ApplyRedirectPreset(preset)">@preset</button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </section>
+                }
             </div>
-            <button type="button" class="btn" @onclick="AddRedirectUriAsync">Tilføj</button>
         </div>
     }
-}
 </div>
 
 @code {
+    private enum ClientTab { Settings, Redirects }
+    private enum ClientKind { Spa, Confidential }
+
+    private static readonly string[] DevRedirectPresets =
+    [
+        "http://localhost:5173/callback.html",
+        "http://localhost:5155/oauth/callback",
+        "http://localhost:8080/oauth/callback",
+    ];
+
     private List<ClientApp>? _clients;
     private ClientApp? _selected;
     private string? _selectedClientId;
     private string _newRedirectUri = "";
     private string? _status;
     private bool _statusIsError;
+    private bool _showCreate;
+    private bool _saving;
+    private ClientTab _activeTab = ClientTab.Settings;
+    private bool _clientIdWasAuto = true;
 
     private string _newClientName = "";
     private string _newClientId = "";
-    private bool _newIsPublic = true;
-    private bool _newRequirePkce = true;
+    private ClientKind _newClientKind = ClientKind.Spa;
     private bool _newIsActive = true;
     private string? _newClientSecretPlain;
 
@@ -168,9 +320,99 @@ else
     private string _editAllowedScopes = "";
     private string? _rotatedSecretPlain;
 
+    private bool _newIsPublic => _newClientKind == ClientKind.Spa;
+    private bool _newRequirePkce => _newClientKind == ClientKind.Spa;
+
     protected override async Task OnInitializedAsync()
     {
         await ReloadAsync();
+        if (_clients?.Count > 0 && _selected is null && !_showCreate)
+            await SelectClientAsync(_clients.OrderBy(c => c.Name).First().Id);
+    }
+
+    private void OpenCreatePanel()
+    {
+        _showCreate = true;
+        _selectedClientId = null;
+        _selected = null;
+        _newClientSecretPlain = null;
+        _status = null;
+        _statusIsError = false;
+    }
+
+    private void CloseCreatePanel()
+    {
+        _showCreate = false;
+        _newClientSecretPlain = null;
+        if (_clients?.Count > 0 && _selected is null)
+            _ = SelectClientAsync(_clients.OrderBy(c => c.Name).First().Id);
+    }
+
+    private void SetNewClientKind(ClientKind kind) => _newClientKind = kind;
+
+    private void OnNewNameChanged()
+    {
+        if (_clientIdWasAuto)
+            _newClientId = SlugifyClientId(_newClientName);
+    }
+
+    private void OnNewClientIdChanged() => _clientIdWasAuto = false;
+
+    private static string SlugifyClientId(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+        var s = name.Trim().ToLowerInvariant();
+        s = Regex.Replace(s, @"\s+", "-");
+        s = Regex.Replace(s, @"[^a-z0-9\-_.]", "");
+        s = Regex.Replace(s, @"[-_.]{2,}", "-").Trim('-', '_', '.');
+        return s.Length > 64 ? s[..64] : s;
+    }
+
+    private async Task SelectClientAsync(Guid id)
+    {
+        _showCreate = false;
+        _selectedClientId = id.ToString();
+        _status = null;
+        _statusIsError = false;
+        _newRedirectUri = "";
+        _rotatedSecretPlain = null;
+        _newClientSecretPlain = null;
+        _activeTab = ClientTab.Settings;
+        await ReloadAsync();
+    }
+
+    private void ApplyRedirectPreset(string uri)
+    {
+        _newRedirectUri = uri;
+        _activeTab = ClientTab.Redirects;
+    }
+
+    private async Task OnRedirectUriKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await AddRedirectUriAsync();
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        _status = message;
+        _statusIsError = isError;
+    }
+
+    private async Task CopyToClipboardAsync(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+        try
+        {
+            await Js.InvokeVoidAsync("mercAuth.copyText", text);
+            SetStatus("Kopieret til udklipsholder.", false);
+        }
+        catch
+        {
+            SetStatus("Kunne ikke kopiere — markér og kopiér manuelt.", true);
+        }
     }
 
     private async Task ReloadAsync()
@@ -193,16 +435,6 @@ else
             _editAllowedScopes = _selected.AllowedScopes ?? "";
             _rotatedSecretPlain = null;
         }
-    }
-
-    private Task OnClientChanged(ChangeEventArgs e)
-    {
-        _selectedClientId = e.Value?.ToString();
-        _status = null;
-        _statusIsError = false;
-        _newRedirectUri = "";
-        _rotatedSecretPlain = null;
-        return ReloadAsync();
     }
 
     private static string GenerateSecret(int bytes = 32)
@@ -228,121 +460,139 @@ else
 
     private async Task CreateClientAsync()
     {
-        _status = null;
-        _statusIsError = false;
+        SetStatus("", false);
         _newClientSecretPlain = null;
-
-        var name = _newClientName.Trim();
-        var clientId = _newClientId.Trim();
-
-        if (string.IsNullOrWhiteSpace(name) || name.Length > 120)
+        _saving = true;
+        try
         {
-            _status = "Udfyld et navn (max 120 tegn).";
-            _statusIsError = true;
-            return;
+            var name = _newClientName.Trim();
+            var clientId = _newClientId.Trim();
+
+            if (string.IsNullOrWhiteSpace(name) || name.Length > 120)
+            {
+                SetStatus("Udfyld et app-navn (max 120 tegn).", true);
+                return;
+            }
+
+            if (!IsValidClientId(clientId))
+            {
+                SetStatus("Ugyldigt client_id (brug a-z, 0-9, -, _, . og 2–64 tegn).", true);
+                return;
+            }
+
+            var exists = await Db.ClientApps.AsNoTracking().AnyAsync(c => c.ClientId == clientId);
+            if (exists)
+            {
+                SetStatus("client_id findes allerede — vælg et andet.", true);
+                return;
+            }
+
+            var newId = Guid.NewGuid();
+            string? secretHash = null;
+            if (!_newIsPublic)
+            {
+                var plain = GenerateSecret(48);
+                secretHash = BCrypt.Net.BCrypt.HashPassword(plain);
+                _newClientSecretPlain = plain;
+            }
+
+            Db.ClientApps.Add(new ClientApp
+            {
+                Id = newId,
+                Name = name,
+                ClientId = clientId,
+                IsActive = _newIsActive,
+                IsPublic = _newIsPublic,
+                RequirePkce = _newRequirePkce,
+                ClientSecretHash = secretHash,
+                AllowedScopes = "openid profile email offline_access",
+                CreatedAt = DateTime.UtcNow,
+            });
+            await Db.SaveChangesAsync();
+
+            _newClientName = "";
+            _newClientId = "";
+            _newClientKind = ClientKind.Spa;
+            _newIsActive = true;
+            _clientIdWasAuto = true;
+
+            _selectedClientId = newId.ToString();
+            _showCreate = false;
+            _activeTab = ClientTab.Redirects;
+            SetStatus("Klient oprettet — tilføj mindst én redirect URI.", false);
+            await ReloadAsync();
         }
-
-        if (!IsValidClientId(clientId))
+        finally
         {
-            _status = "Ugyldigt client_id (brug a-z, 0-9, -, _, . og 2-64 tegn).";
-            _statusIsError = true;
-            return;
+            _saving = false;
         }
-
-        var exists = await Db.ClientApps.AsNoTracking().AnyAsync(c => c.ClientId == clientId);
-        if (exists)
-        {
-            _status = "client_id findes allerede.";
-            _statusIsError = true;
-            return;
-        }
-
-        string? secretHash = null;
-        if (!_newIsPublic)
-        {
-            var plain = GenerateSecret(48);
-            secretHash = BCrypt.Net.BCrypt.HashPassword(plain);
-            _newClientSecretPlain = plain;
-        }
-
-        Db.ClientApps.Add(new ClientApp
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            ClientId = clientId,
-            IsActive = _newIsActive,
-            IsPublic = _newIsPublic,
-            RequirePkce = _newRequirePkce,
-            ClientSecretHash = secretHash,
-            AllowedScopes = "openid profile email offline_access",
-            CreatedAt = DateTime.UtcNow,
-        });
-        await Db.SaveChangesAsync();
-
-        _newClientName = "";
-        _newClientId = "";
-        _newIsPublic = true;
-        _newRequirePkce = true;
-        _newIsActive = true;
-
-        _status = "Klient oprettet.";
-        await ReloadAsync();
     }
 
     private async Task SaveClientSettingsAsync()
     {
-        _status = null;
-        _statusIsError = false;
+        SetStatus("", false);
         _rotatedSecretPlain = null;
-
         if (_selected is null)
             return;
 
-        var id = _selected.Id;
-        var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == id);
-        if (tracked is null)
-            return;
+        _saving = true;
+        try
+        {
+            var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == _selected.Id);
+            if (tracked is null)
+                return;
 
-        tracked.IsActive = _editIsActive;
-        tracked.IsPublic = _editIsPublic;
-        tracked.RequirePkce = _editRequirePkce;
-        tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
+            tracked.IsActive = _editIsActive;
+            tracked.IsPublic = _editIsPublic;
+            tracked.RequirePkce = _editRequirePkce;
+            tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
 
-        if (tracked.IsPublic)
-            tracked.ClientSecretHash = null;
+            if (tracked.IsPublic)
+                tracked.ClientSecretHash = null;
 
-        await Db.SaveChangesAsync();
-        _status = "Gemt.";
-        await ReloadAsync();
+            await Db.SaveChangesAsync();
+            SetStatus("Indstillinger gemt.", false);
+            await ReloadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task RotateClientSecretAsync()
     {
-        _status = null;
-        _statusIsError = false;
+        SetStatus("", false);
         _rotatedSecretPlain = null;
 
         if (_selected is null)
             return;
 
-        var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == _selected.Id);
-        if (tracked is null)
-            return;
-
-        if (tracked.IsPublic)
+        if (_editIsPublic)
         {
-            _status = "Public klient har ikke secret.";
-            _statusIsError = true;
+            SetStatus("Public klient har ikke client secret.", true);
             return;
         }
 
-        var plain = GenerateSecret(48);
-        tracked.ClientSecretHash = BCrypt.Net.BCrypt.HashPassword(plain);
-        await Db.SaveChangesAsync();
+        _saving = true;
+        try
+        {
+            var tracked = await Db.ClientApps.FirstOrDefaultAsync(c => c.Id == _selected.Id);
+            if (tracked is null)
+                return;
 
-        _rotatedSecretPlain = plain;
-        _status = "Secret roteret.";
-        await ReloadAsync();
+            var plain = GenerateSecret(48);
+            tracked.ClientSecretHash = BCrypt.Net.BCrypt.HashPassword(plain);
+            await Db.SaveChangesAsync();
+
+            _rotatedSecretPlain = plain;
+            SetStatus("Secret roteret — gem det nye secret nu.", false);
+            await ReloadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private bool TryValidateRedirectUri(string raw, out Uri uri, out string error)
@@ -358,7 +608,7 @@ else
 
         if (!Uri.TryCreate(raw, UriKind.Absolute, out var parsed) || parsed is null)
         {
-            error = "Ugyldig URI (skal være absolut, fx https://...).";
+            error = "Ugyldig URI (skal være absolut, fx https://…).";
             return false;
         }
         uri = parsed;
@@ -386,61 +636,68 @@ else
 
     private async Task AddRedirectUriAsync()
     {
-        _status = null;
-        _statusIsError = false;
-
-        if (_selected is null || _clients is null)
+        if (_selected is null)
             return;
 
-        if (!TryValidateRedirectUri(_newRedirectUri, out var uri, out var err))
+        _saving = true;
+        try
         {
-            _status = err;
-            _statusIsError = true;
-            return;
+            if (!TryValidateRedirectUri(_newRedirectUri, out var uri, out var err))
+            {
+                SetStatus(err, true);
+                return;
+            }
+
+            var normalized = uri.ToString();
+
+            var exists = await Db.ClientAppRedirectUris
+                .AsNoTracking()
+                .AnyAsync(r => r.ClientAppId == _selected.Id && r.Uri == normalized);
+            if (exists)
+            {
+                SetStatus("URI findes allerede på klienten.", true);
+                return;
+            }
+
+            Db.ClientAppRedirectUris.Add(new ClientAppRedirectUri
+            {
+                Id = Guid.NewGuid(),
+                ClientAppId = _selected.Id,
+                Uri = normalized,
+            });
+            await Db.SaveChangesAsync();
+
+            _newRedirectUri = "";
+            SetStatus("Redirect URI tilføjet.", false);
+            await ReloadAsync();
         }
-
-        var normalized = uri.ToString();
-
-        var exists = await Db.ClientAppRedirectUris
-            .AsNoTracking()
-            .AnyAsync(r => r.ClientAppId == _selected.Id && r.Uri == normalized);
-        if (exists)
+        finally
         {
-            _status = "URI findes allerede på klienten.";
-            _statusIsError = true;
-            return;
+            _saving = false;
         }
-
-        Db.ClientAppRedirectUris.Add(new ClientAppRedirectUri
-        {
-            Id = Guid.NewGuid(),
-            ClientAppId = _selected.Id,
-            Uri = normalized,
-        });
-        await Db.SaveChangesAsync();
-
-        _newRedirectUri = "";
-        _status = "Tilføjet.";
-        await ReloadAsync();
     }
 
     private async Task RemoveRedirectUriAsync(Guid redirectUriId)
     {
-        _status = null;
-        _statusIsError = false;
-
         if (_selected is null)
             return;
 
-        var row = await Db.ClientAppRedirectUris.FirstOrDefaultAsync(r => r.Id == redirectUriId && r.ClientAppId == _selected.Id);
-        if (row is null)
-            return;
+        _saving = true;
+        try
+        {
+            var row = await Db.ClientAppRedirectUris.FirstOrDefaultAsync(r => r.Id == redirectUriId && r.ClientAppId == _selected.Id);
+            if (row is null)
+                return;
 
-        Db.ClientAppRedirectUris.Remove(row);
-        await Db.SaveChangesAsync();
+            Db.ClientAppRedirectUris.Remove(row);
+            await Db.SaveChangesAsync();
 
-        _status = "Fjernet.";
-        await ReloadAsync();
+            SetStatus("Redirect URI fjernet.", false);
+            await ReloadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 }
-
