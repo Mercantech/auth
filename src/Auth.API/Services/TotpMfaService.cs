@@ -148,8 +148,19 @@ public class TotpMfaService(
     {
         var list = new List<string>(count);
         for (var i = 0; i < count; i++)
-            list.Add(SecureToken.CreateOpaqueToken(4).Replace("-", "", StringComparison.Ordinal)[..10].ToUpperInvariant());
+            list.Add(CreateRecoveryCode());
         return list;
+    }
+
+    /// <summary>10 tegn, store bogstaver + tal (uden 0/O/1/I for læsbarhed).</summary>
+    private static string CreateRecoveryCode()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        Span<char> chars = stackalloc char[10];
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(10);
+        for (var i = 0; i < 10; i++)
+            chars[i] = alphabet[bytes[i] % alphabet.Length];
+        return new string(chars);
     }
 
     private static string NormalizeRecovery(string code) =>
