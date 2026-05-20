@@ -31,7 +31,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
             existing.User.LastLoginAt = time.GetUtcNow().UtcDateTime;
             await ApplyEmailLinkAsync(existing.UserId, email, emailKind, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
-            await SyncUserPrimaryEmailAsync(existing.UserId, cancellationToken);
+            await UserPrimaryEmailSync.SyncFromLinkedEmailsAsync(db, existing.UserId, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             return existing.UserId;
         }
@@ -95,7 +95,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
 
         await ApplyEmailLinkAsync(user.Id, email, emailKind, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await SyncUserPrimaryEmailAsync(user.Id, cancellationToken);
+        await UserPrimaryEmailSync.SyncFromLinkedEmailsAsync(db, user.Id, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return user.Id;
     }
@@ -141,7 +141,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
                     cancellationToken);
             await ApplyEmailLinkAsync(existing.UserId, email, emailKind, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
-            await SyncUserPrimaryEmailAsync(existing.UserId, cancellationToken);
+            await UserPrimaryEmailSync.SyncFromLinkedEmailsAsync(db, existing.UserId, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             return LinkExternalOutcome.Linked;
         }
@@ -165,7 +165,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
                 cancellationToken);
         await ApplyEmailLinkAsync(targetUserId, email, emailKind, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await SyncUserPrimaryEmailAsync(targetUserId, cancellationToken);
+        await UserPrimaryEmailSync.SyncFromLinkedEmailsAsync(db, targetUserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return LinkExternalOutcome.Linked;
     }
@@ -229,32 +229,5 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
                 LinkedAt = now,
             });
         }
-    }
-
-    private async Task SyncUserPrimaryEmailAsync(Guid userId, CancellationToken ct)
-    {
-        var user = await db.Users
-            .Include(u => u.LinkedEmails)
-            .FirstAsync(u => u.Id == userId, ct);
-
-        var personal = user.LinkedEmails
-            .Where(e => e.Kind == UserEmailKind.Personal)
-            .OrderByDescending(e => e.LinkedAt)
-            .Select(e => e.NormalizedEmail)
-            .FirstOrDefault();
-
-        if (personal is not null)
-        {
-            user.Email = personal;
-            return;
-        }
-
-        var fallback = user.LinkedEmails
-            .OrderByDescending(e => e.LinkedAt)
-            .Select(e => e.NormalizedEmail)
-            .FirstOrDefault();
-
-        if (fallback is not null)
-            user.Email = fallback;
     }
 }

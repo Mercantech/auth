@@ -1,4 +1,5 @@
 using Auth.API.Data;
+using Auth.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -7,11 +8,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Auth.API.Controllers;
 
-/// <summary>Admin-API til oversigt over brugere (Bearer JWT med rolle Admin).</summary>
+/// <summary>Admin-API til brugerdata (Bearer JWT med rolle Admin).</summary>
 [ApiController]
 [Route("api/admin")]
 [EnableCors("MercantecSpa")]
-public class AdminDirectoryController(AuthDbContext db) : ControllerBase
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+public class AdminDirectoryController(AuthDbContext db, IAccountMergeService accountMerge)
+    : ControllerBase
 {
     [HttpGet("users-directory")]
     public async Task<ActionResult<IReadOnlyList<UserDirectoryRow>>> UsersDirectory(CancellationToken cancellationToken)
@@ -37,7 +40,35 @@ public class AdminDirectoryController(AuthDbContext db) : ControllerBase
 
         return Ok(rows);
     }
+
+    /// <summary>Sammenlægger donor-brugeren ind i survivor (som beholder samme JWT <c>sub</c>). Alle refresh tokens og ikke-brugte auth codes på begge IDs invalideres.</summary>
+    [HttpPost("users/merge")]
+    public async Task<IActionResult> MergeUsers([FromBody] MergeUsersRequest body, CancellationToken cancellationToken)
+    {
+        var r = await accountMerge.MergeUsersAsync(body.SurvivorUserId, body.DonorUserId, cancellationToken);
+        if (r.Success)
+            return Ok(new MergeUsersApiResponse(r.SurvivorUserId!.Value, r.Warnings));
+
+        return r.Failure switch
+        {
+            AccountMergeFailureReason.SameUser => BadRequest(new { error = "Survivor og donor må ikke være samme bruger." }),
+            AccountMergeFailureReason.SurvivorNotFound =>
+                Problem(statusCode: StatusCodes.Status404NotFound,
+                    detail: "Survivor-brugeren blev ikke fundet."),
+            AccountMergeFailureReason.DonorNotFound =>
+                Problem(statusCode: StatusCodes.Status404NotFound,
+                    detail: "Donor-brugeren blev ikke fundet."),
+            AccountMergeFailureReason.SurvivorDisabled =>
+                Problem(statusCode: StatusCodes.Status409Conflict,
+                    detail: "Survivor-brugeren er deaktiveret — vælg en aktiv canonisk bruger først."),
+            _ => Problem(),
+        };
+    }
 }
+
+public sealed record MergeUsersRequest(Guid SurvivorUserId, Guid DonorUserId);
+
+public sealed record MergeUsersApiResponse(Guid SurvivorUserId, IReadOnlyList<string> Warnings);
 
 public sealed record UserDirectoryRow(
     Guid Id,

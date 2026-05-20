@@ -26,6 +26,7 @@ builder.Services.AddSingleton<ExternalOAuthTokensProtector>();
 builder.Services.AddHttpClient<MicrosoftIdentityTokenRefresher>();
 builder.Services.AddScoped<ITokenIssuer, TokenIssuer>();
 builder.Services.AddScoped<IExternalAccountService, ExternalAccountService>();
+builder.Services.AddScoped<IAccountMergeService, AccountMergeService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();

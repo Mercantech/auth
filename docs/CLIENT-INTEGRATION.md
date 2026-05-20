@@ -26,6 +26,8 @@ Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-
 | `GET /health` | Liveness |
 | `GET /account/link/start` | Eksplicit OAuth-tilknytning til **aktuelt loggede** bruger (kræver session). Query: `provider`, `returnUrl` |
 | `POST /account/link/remove` | Fjern en `ExternalLogin` (mindst én login-metode skal blive tilbage) |
+| `GET /api/admin/users-directory` | Oversigt over brugere (kun **Bearer JWT med rolle Admin**) |
+| `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT**) |
 
 ## Brugerkonto: flere login-udbydere (account linking)
 
@@ -46,6 +48,34 @@ Svaret er en **OAuth challenge** med `mercantec.account_link_target_user_id` i s
 Fjern tilknytning: `POST /account/link/remove` (formular med antiforgery-token, felter `id` = `ExternalLogin`-rækkens id, `returnUrl`).
 
 Azure / IdP: ingen **ekstra** redirect-URI i forhold til almindeligt login — linking bruger samme OAuth-callback-stier som ved login (fx `/signin-google`, `/signin-microsoft`, `/signin-microsoft-edu`, `/signin-github`, `/signin-discord`).
+
+### Administrativ sammenlægning af to brugerrækker (merge)
+
+Bruges når samme person **allerede har to `User`-rækker** (fx to forskellige `sub`/GUID og separate login-spor), og alle client-systemer kan acceptere at **kun survivor-GUID bruges** fremover. Donor-rækken **slettes** efter flyt af identiteter.
+
+**Krav:**
+
+- Bearer **JWT med rolle `Admin`** (`Authorization: Bearer ...`), samme udsteder/signatur som for jeres øvrige OAuth-tokens fra Mercantec Auth.
+
+**Endpoint:**
+
+- `POST /api/admin/users/merge`
+- Body (JSON): `{ "survivorUserId": "<GUID>", "donorUserId": "<GUID>" }`
+  - **Survivor** beholder JWT `sub` (= bruger-ID). **Donor** lægges ned i survivor og fjernes.
+
+**Hvad sker:**
+
+- Alle `ExternalLogin` på donor flyttes til survivor.
+- Hvis survivor **ikke** har lokalt login: donors `LocalLogin` flyttes til survivor. Hvis **begge** har lokalt login, fjernes donors (adgangskode til donors e-mail bortfalder — advarsler i svaret beskriver).
+- `UserEmails` på donor flyttes, medmindre survivor allerede har samme «Kind» (`Personal`/`Work`/`School`); overlappende `UserEmails`-slags rækker fra donor fjernes (advarsler i svar).
+- Roller føres til union (kun nye Roller tilføjes til survivor).
+- Primær profil-/JWT-e-mail på survivor gensynkes fra `UserEmails`.
+- Alle **refresh tokens** og ikke-brugte **authorization codes** for **begge** bruger-IDs slettes (tvungen genlogin).
+- Survivor-profilit suppleres dækkende hvis fx `AvatarUrl`/displaynavn mangler og donor har det; `EmailConfirmed` sættes til union.
+
+**Ikke automatisk:** Downstream databaser der gemmer `sub`/bruger-ID skal migrate eller opdatere henvisning fra donors gamle GUID til survivor — JWT udsteder kun den canonicale bruger derefter.
+
+`GET /api/admin/users-directory` er på samme **Admin-JWT-beskyttelse** og kan bruges til at finde GUIDs før merge.
 
 ### OAuth-klienter (SPAs / API’er)
 
