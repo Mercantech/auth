@@ -612,6 +612,8 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .merc-clients__new-btn {
@@ -634,12 +636,15 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  max-height: min(70vh, 32rem);
-  overflow-y: auto;
+  /* Ingen fast max-højde: undgår unødvendige scrollbars; siden ruller ved mange klienter */
+  max-height: none;
+  overflow: visible;
 }
 
 .merc-clients__item {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   text-align: left;
   padding: 0.75rem 0.85rem;
   border: 2px solid var(--merc-card-edge);
@@ -680,6 +685,7 @@ body::before {
 
 .merc-clients__item-id code {
   font-size: 0.78rem;
+  word-break: break-word;
 }
 
 .merc-clients__item-badges {
@@ -755,11 +761,14 @@ body::before {
   border: 1px solid rgba(20, 18, 16, 0.1);
   background: rgba(247, 244, 237, 0.42);
   backdrop-filter: blur(6px);
+  overflow-x: hidden;
 }
 
 .merc-page.merc-clients .merc-clients__list {
   gap: 0.35rem;
-  max-height: min(72vh, 34rem);
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .merc-page.merc-clients .merc-clients__item {
@@ -770,6 +779,8 @@ body::before {
   background: rgba(255, 252, 247, 0.55);
   box-shadow: none;
   transition: border-color 0.12s ease, background 0.12s ease;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .merc-page.merc-clients .merc-clients__item:hover {
