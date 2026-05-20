@@ -38,7 +38,18 @@
         <div class="auth-alert" role="alert">Ingen login-metode er aktiveret (hverken OAuth eller e-mail). Tjek serverkonfiguration.</div>
     }
 
-    <button type="button" class="auth-btn auth-btn--ghost" id="passkey-login-btn" style="margin-bottom:0.75rem">Log ind med passkey</button>
+    <div class="auth-actions">
+        <button type="button" class="auth-action auth-action--passkey" id="passkey-login-btn">
+            <span class="auth-action__icon" aria-hidden="true">
+                @await Html.PartialAsync("_SecurityIcon", "passkey")
+            </span>
+            <span class="auth-action__body">
+                <span class="auth-action__name">Log ind med passkey</span>
+                <span class="auth-action__hint">Face ID, Windows Hello eller sikkerhedsnøgle</span>
+            </span>
+            <svg class="auth-action__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
+    </div>
 
     @if (Model.AnyOAuthProvider)
     {

@@ -72,7 +72,7 @@
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
                     <label class="auth-label" for="disable-code">Bekræft med kode for at slå fra</label>
                     <input id="disable-code" name="code" class="auth-input security-input--code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="8" required />
-                    <button type="submit" class="auth-btn auth-btn--ghost security-btn--danger">
+                    <button type="submit" class="auth-btn auth-btn--danger auth-btn--block security-btn--danger">
                         @await Html.PartialAsync("_SecurityIcon", "trash")
                         Deaktivér authenticator
                     </button>
@@ -116,14 +116,14 @@
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
                     <label class="auth-label" for="confirm-code">6-cifret kode fra appen</label>
                     <input id="confirm-code" name="code" class="auth-input security-input--code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="8" required />
-                    <button type="submit" class="auth-btn auth-btn--primary">
+                    <button type="submit" class="auth-btn auth-btn--primary auth-btn--block">
                         @await Html.PartialAsync("_SecurityIcon", "check")
                         Aktivér authenticator
                     </button>
                 </form>
                 <form method="post" action="@(pathBase)/account/mfa/totp/setup" class="security-form security-form--inline">
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                    <button type="submit" class="auth-btn auth-btn--ghost">
+                    <button type="submit" class="auth-btn auth-btn--ghost auth-btn--block">
                         @await Html.PartialAsync("_SecurityIcon", "refresh")
                         Generér ny QR-kode
                     </button>
@@ -194,7 +194,7 @@
                 <h3 class="security-add-passkey__title">Tilføj ny passkey</h3>
                 <label class="auth-label" for="passkey-name">Navn på enhed</label>
                 <input id="passkey-name" class="auth-input" value="Min passkey" maxlength="80" autocomplete="off" />
-                <button type="button" class="auth-btn auth-btn--primary" id="add-passkey-btn">
+                <button type="button" class="auth-btn auth-btn--passkey auth-btn--block" id="add-passkey-btn">
                     @await Html.PartialAsync("_SecurityIcon", "plus")
                     Registrér passkey
                 </button>

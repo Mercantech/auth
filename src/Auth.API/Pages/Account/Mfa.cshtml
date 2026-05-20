@@ -19,17 +19,30 @@
     <form method="post" action="@(Request.PathBase)/account/mfa/verify" class="auth-form">
         <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
         <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-        <label class="auth-label" for="code">Authenticator-kode</label>
-        <input id="code" name="code" class="auth-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
-        <label class="auth-label" for="recoveryCode">Recovery-kode (valgfri)</label>
-        <input id="recoveryCode" name="recoveryCode" class="auth-input" autocomplete="off" />
-        <button type="submit" class="auth-btn auth-btn--primary">Bekræft</button>
+        <div class="auth-field">
+            <label class="auth-label" for="code">Authenticator-kode</label>
+            <input id="code" name="code" class="auth-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="recoveryCode">Recovery-kode (valgfri)</label>
+            <input id="recoveryCode" name="recoveryCode" class="auth-input" autocomplete="off" placeholder="XXXX-XXXX" />
+        </div>
+        <button type="submit" class="auth-submit">Bekræft kode</button>
     </form>
 
     @if (Model.HasPasskeys)
     {
         <div class="auth-divider" role="separator"><span>eller</span></div>
-        <button type="button" class="auth-btn auth-btn--ghost" id="mfa-passkey-btn" data-return-url="@Model.ReturnUrl">Brug passkey</button>
+        <button type="button" class="auth-action auth-action--passkey" id="mfa-passkey-btn" data-return-url="@Model.ReturnUrl">
+            <span class="auth-action__icon" aria-hidden="true">
+                @await Html.PartialAsync("_SecurityIcon", "passkey")
+            </span>
+            <span class="auth-action__body">
+                <span class="auth-action__name">Bekræft med passkey</span>
+                <span class="auth-action__hint">Samme enhed som ved registrering under Sikkerhed</span>
+            </span>
+            <svg class="auth-action__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
     }
 </div>
 
