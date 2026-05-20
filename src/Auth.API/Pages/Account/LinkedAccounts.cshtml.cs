@@ -13,7 +13,7 @@ public class LinkedAccountsModel(
     IConfiguration configuration) : PageModel
 {
     public IReadOnlyList<ExternalLoginRow> ExternalLogins { get; private set; } = [];
-    public IReadOnlyList<LinkProviderChip> OfferedLinkProviders { get; private set; } = [];
+    public IReadOnlyList<LinkProviderOffer> OfferedLinkProviders { get; private set; } = [];
 
     /// <summary>Relativ eller absolut return-sti til brug i link/remove forms.</summary>
     public string ReturnUrlParam { get; private set; } = "/Account/LinkedAccounts";
@@ -25,7 +25,7 @@ public class LinkedAccountsModel(
 
     public sealed record ExternalLoginRow(Guid Id, string Provider, string ProviderLabel, string? ProviderEmail, DateTime LinkedAtUtc);
 
-    public sealed record LinkProviderChip(string ProviderKey, string Label, string Href);
+    public sealed record LinkProviderOffer(string ProviderKey, string Name, string Hint, string Href);
 
     private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
         OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
@@ -71,33 +71,77 @@ public class LinkedAccountsModel(
         OfferedLinkProviders = BuildOfferedProviders();
     }
 
-    private IReadOnlyList<LinkProviderChip> BuildOfferedProviders()
+    private IReadOnlyList<LinkProviderOffer> BuildOfferedProviders()
     {
-        var chips = new List<LinkProviderChip>();
-        void Add(string key, string label, bool enabled)
+        var list = new List<LinkProviderOffer>();
+        void Add(string key, string name, string hint, bool enabled)
         {
             if (enabled)
-                chips.Add(new LinkProviderChip(key, label,
+            {
+                list.Add(new LinkProviderOffer(
+                    key,
+                    name,
+                    hint,
                     $"{Request.PathBase}/account/link/start?provider={Uri.EscapeDataString(key)}&returnUrl={Uri.EscapeDataString(ReturnUrlParam)}"));
+            }
         }
 
-        Add("google", "Google",
+        Add(
+            "google",
+            "Google",
+            "Tilknyt din Google-konto — godkend hos Google",
             !string.IsNullOrEmpty(configuration["OAuth:Google:ClientId"]));
 
-        Add("microsoft", "Microsoft 365",
+        Add(
+            "microsoft",
+            "Microsoft 365",
+            "Tilknyt arbejds- eller Mercantec-konto (Azure AD)",
             MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.WorkSection));
 
-        Add("microsoft-edu", "Microsoft — skolemail",
+        Add(
+            "microsoft-edu",
+            "Microsoft — skolemail",
+            "Tilknyt skole-/edu-konto (@edu.mercantec.dk)",
             MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.EduSection));
 
-        Add("github", "GitHub",
+        Add(
+            "github",
+            "GitHub",
+            "Tilknyt GitHub til samme Mercantec-bruger",
             !string.IsNullOrEmpty(configuration["OAuth:GitHub:ClientId"]));
 
-        Add("discord", "Discord",
+        Add(
+            "discord",
+            "Discord",
+            "Tilknyt Discord til samme Mercantec-bruger",
             !string.IsNullOrEmpty(configuration["OAuth:Discord:ClientId"]));
 
-        return chips;
+        return list;
     }
+
+    /// <summary>CSS-modifikatorer (<c>auth-provider--*</c>) til udbyderfliser.</summary>
+    public static string LinkTileCssModifiers(string providerKey) =>
+        providerKey.Trim().ToLowerInvariant() switch
+        {
+            "google" => "auth-provider--google",
+            "microsoft" => "auth-provider--microsoft",
+            "microsoft-edu" => "auth-provider--microsoft auth-provider--microsoft-edu",
+            "github" => "auth-provider--github",
+            "discord" => "auth-provider--discord",
+            _ => "",
+        };
+
+    /// <summary>Ikonliste for allerede tilknyttede konti.</summary>
+    public static string ConnectedRowModifierClass(string provider) =>
+        provider.Trim().ToLowerInvariant() switch
+        {
+            "google" => "linked-conn-row--google",
+            "microsoft" => "linked-conn-row--microsoft",
+            "microsoft-edu" => "linked-conn-row--microsoft linked-conn-row--microsoft-edu",
+            "github" => "linked-conn-row--github",
+            "discord" => "linked-conn-row--discord",
+            _ => "linked-conn-row--neutral",
+        };
 
     public static string FormatLinkedLocal(DateTime linkedAtUtc)
     {
@@ -117,6 +161,7 @@ public class LinkedAccountsModel(
         {
             "google" => "Google",
             "microsoft" => "Microsoft",
+            "microsoft-edu" => "Microsoft — skolemail",
             "github" => "GitHub",
             "discord" => "Discord",
             _ => provider,

@@ -7,74 +7,84 @@
     var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
 }
 
-<div class="merc-page merc-linked-page">
-    <h1>Tilknyttede login</h1>
-    <p class="merc-linked-page__lead">
-        Én Mercantec-konto — du kan logge ind via flere udbydere og knytte Discord, GitHub m.m. til samme bruger.
-        Implicit sammenlægning sker også når en ny udbyder matcher din e-mail på kontoen (se integration-dokumentation).
+<div class="auth-card linked-accounts">
+    <h1 class="auth-headline linked-accounts__title">Tilknyttede login</h1>
+    <p class="auth-lead linked-accounts__intro">
+        Én Mercantec-konto kan bruge flere udbydere — samme <strong>JWT <code class="linked-accounts__mono">sub</code></strong> til alle jeres apps.
+        Hvis en ny udbyder matcher din e-mail, kan kontoerne også flettes automatisk ved login (se dokumentation).
     </p>
-    <p class="merc-linked-page__meta">
-        <a class="merc-btn merc-btn--ghost" href="/">← Forside</a>
+    <p class="linked-accounts__breadcrumb">
+        <a class="linked-accounts__back" href="/">← Til forsiden</a>
     </p>
 
     @if (!string.IsNullOrEmpty(Model.BannerError))
     {
-        <div class="merc-alert merc-alert--error" role="alert">@Model.BannerError</div>
+        <div class="auth-alert" role="alert">@Model.BannerError</div>
     }
     @if (Model.ShowUnlinkedOk)
     {
-        <div class="merc-alert merc-alert--ok" role="status">Tilknytning fjernet.</div>
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">Tilknytning fjernet.</div>
     }
 
-    <section class="merc-panel" style="margin-bottom:1.25rem">
-        <h2 class="merc-panel__h3">Tilknyt mere</h2>
-        <p class="merc-hint merc-hint--block">Vælg en udbyder — du bliver sendt til deres login og ført tilbage her. Du skal allerede være logget ind på Mercantec Auth.</p>
+    <section class="linked-section" aria-labelledby="link-more-heading">
+        <h2 id="link-more-heading" class="linked-section__heading">Tilknyt mere</h2>
+        <p class="linked-section__lede">
+            Vælg en udbyder nedenfor. Du sendes til udbyderens login og derefter tilbage til denne side. Du skal allerede være logget ind her som Mercantec-bruger.
+        </p>
         @if (Model.OfferedLinkProviders.Count == 0)
         {
-            <p class="merc-hint">Ingen eksterne udbydere konfigureret i denne installation.</p>
+            <p class="linked-section__muted">Ingen OAuth-udbydere konfigureret på serveren.</p>
         }
         else
         {
-            <div class="merc-linked-page__chips">
+            <div class="auth-providers linked-accounts__provider-grid">
                 @foreach (var p in Model.OfferedLinkProviders)
                 {
-                    <a class="merc-btn merc-btn--primary merc-btn--sm" href="@p.Href">Tilknyt @p.Label</a>
+                    @await Html.PartialAsync("_LinkProviderTile", p)
                 }
             </div>
         }
     </section>
 
-    <section class="merc-panel">
-        <h2 class="merc-panel__h3">Aktive tilknytninger</h2>
+    <section class="linked-section linked-section--bordered" aria-labelledby="connections-heading">
+        <h2 id="connections-heading" class="linked-section__heading">Aktive tilknytninger</h2>
+
         @if (Model.ExternalLogins.Count == 0)
         {
-            <p class="merc-hint">Ingen udbyder endnu — brug Til-knytningsknapperne ovenfor.</p>
+            <p class="linked-empty">Du har ikke tilknyttet ekstra udbydere endnu. Brug felterne ovenfor.</p>
         }
         else
         {
-            <ul class="merc-linked-page__rows" role="list">
+            <ul class="linked-connections" role="list">
                 @foreach (var row in Model.ExternalLogins)
                 {
-                    <li class="merc-uri-list__row merc-linked-page__row">
-                        <div class="merc-linked-page__row-main">
-                            <strong>@row.ProviderLabel</strong>
-                            <span class="merc-hint" style="font-size:0.85rem;display:block;color:var(--merc-muted);margin-top:0.2rem;">
-                                @(string.IsNullOrEmpty(row.ProviderEmail) ? "—" : row.ProviderEmail)
-                                · Tilknyttet @LinkedAccountsModel.FormatLinkedLocal(row.LinkedAtUtc) (lokal tid)</span>
+                    <li class="linked-conn-row @LinkedAccountsModel.ConnectedRowModifierClass(row.Provider)">
+                        <span class="linked-conn-row__badge" aria-hidden="true">
+                            @await Html.PartialAsync("_ProviderOAuthIcon", row.Provider)
+                        </span>
+                        <div class="linked-conn-row__body">
+                            <span class="linked-conn-row__name">@row.ProviderLabel</span>
+                            <span class="linked-conn-row__meta">
+                                @(string.IsNullOrEmpty(row.ProviderEmail) ? "Skjult eller ingen e-mail fra udbyder" : row.ProviderEmail)
+                                <span aria-hidden="true"> · </span>
+                                Tilføjet @LinkedAccountsModel.FormatLinkedLocal(row.LinkedAtUtc)
+                            </span>
                         </div>
-                        @if ((Model.ExternalLogins.Count > 1 || Model.HasPasswordLogin))
-                        {
-                            <form method="post" action="@(Request.PathBase)/account/link/remove" class="merc-linked-page__rm-form">
-                                <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
-                                <input type="hidden" name="id" value="@row.Id" />
-                                <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
-                                <button type="submit" class="merc-btn merc-btn--danger merc-btn--sm">Fjern</button>
-                            </form>
-                        }
-                        else
-                        {
-                            <span class="merc-hint" style="font-size:0.8rem;margin:0;">Sidste login — tilknyt andet før fjern.</span>
-                        }
+                        <div class="linked-conn-row__action">
+                            @if (Model.ExternalLogins.Count > 1 || Model.HasPasswordLogin)
+                            {
+                                <form method="post" action="@(Request.PathBase)/account/link/remove">
+                                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                                    <input type="hidden" name="id" value="@row.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
+                                    <button type="submit" class="linked-conn-row__unlink">Fjern</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="linked-conn-row__muted">Sidste login — tilknyt en anden før fjern.</span>
+                            }
+                        </div>
                     </li>
                 }
             </ul>
@@ -82,7 +92,7 @@
 
         @if (Model.HasPasswordLogin)
         {
-            <p class="merc-hint merc-hint--block" style="margin-top:1rem">Du har også e-mail/adgangskode-login.</p>
+            <p class="linked-section__footnote">Du har også <strong>e-mail og adgangskode</strong> som login.</p>
         }
     </section>
 </div>

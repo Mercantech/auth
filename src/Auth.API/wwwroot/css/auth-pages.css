@@ -455,13 +455,262 @@
     border-bottom-color: #c45c3e;
 }
 
+/* ——— Tilknyttede login (/Account/LinkedAccounts) ——— */
+.linked-accounts {
+    max-width: 28rem;
+}
+
+.linked-accounts__title {
+    font-size: 1.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.linked-accounts__intro .linked-accounts__mono {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: var(--auth-code-bg);
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+    border: 1px solid var(--auth-input-border);
+}
+
+.linked-accounts__breadcrumb {
+    margin: 0 0 1rem;
+}
+
+.linked-accounts__back {
+    font-weight: 700;
+    color: var(--auth-accent);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+}
+
+.linked-accounts__back:hover {
+    border-bottom-color: var(--auth-warm);
+}
+
+.linked-section {
+    margin-top: 1.5rem;
+}
+
+.linked-section--bordered {
+    padding-top: 1.25rem;
+    border-top: 2px dashed rgba(20, 18, 16, 0.15);
+}
+
+.linked-section__heading {
+    font-family: "Syne", system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.5rem;
+    color: var(--auth-ink);
+}
+
+.linked-section__lede {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--auth-muted);
+    line-height: 1.5;
+}
+
+.linked-section__muted {
+    font-size: 0.875rem;
+    color: var(--auth-muted);
+    margin: 0;
+}
+
+.linked-section__footnote {
+    margin: 1rem 0 0;
+    font-size: 0.8rem;
+    color: var(--auth-muted);
+}
+
+.linked-accounts-banner--ok {
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: rgba(42, 92, 69, 0.1);
+    border: 2px solid rgba(42, 92, 69, 0.35);
+    color: #1f4a36;
+}
+
+.auth-provider--microsoft-edu {
+    border-color: rgba(0, 120, 212, 0.35);
+    background: linear-gradient(135deg, #e8f4fc 0%, #fffcf7 100%);
+}
+
+.auth-provider--microsoft-edu:hover {
+    border-color: #106ebe;
+}
+
+.linked-accounts__provider-grid.auth-providers {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+}
+
+@media (min-width: 520px) {
+    .linked-accounts__provider-grid.auth-providers {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .linked-accounts {
+        max-width: 36rem;
+    }
+}
+
+.linked-accounts-provider {
+    min-height: 3.25rem;
+}
+
+.linked-empty {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--auth-muted);
+    padding: 0.75rem 0.85rem;
+    border: 2px dashed var(--auth-input-border);
+    border-radius: 4px;
+    background: rgba(255, 252, 247, 0.65);
+}
+
+.linked-connections {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.linked-conn-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+    padding: 0.75rem 0.9rem;
+    border: 2px solid var(--auth-edge);
+    border-radius: 4px;
+    background: #fffcf7;
+    box-shadow: 2px 2px 0 rgba(20, 18, 16, 0.08);
+    border-left-width: 4px;
+}
+
+.linked-conn-row--google {
+    border-left-color: #4285f4;
+}
+
+.linked-conn-row--microsoft {
+    border-left-color: #0078d4;
+}
+
+.linked-conn-row--microsoft-edu {
+    border-left-color: #106ebe;
+}
+
+.linked-conn-row--github {
+    border-left-color: #24292f;
+}
+
+.linked-conn-row--discord {
+    border-left-color: #5865f2;
+}
+
+.linked-conn-row--neutral {
+    border-left-color: var(--auth-accent);
+}
+
+.linked-conn-row__badge {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    background: var(--auth-code-bg);
+    border: 1px solid var(--auth-input-border);
+}
+
+.linked-conn-row__badge svg {
+    display: block;
+}
+
+.linked-conn-row--github .linked-conn-row__badge {
+    background: #24292f;
+}
+
+.linked-conn-row--discord .linked-conn-row__badge {
+    background: #5865f2;
+    border-color: #4752c4;
+}
+
+.linked-conn-row--google .linked-conn-row__badge {
+    background: #fff;
+}
+
+.linked-conn-row__body {
+    flex: 1;
+    min-width: 10rem;
+}
+
+.linked-conn-row__name {
+    display: block;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--auth-ink);
+}
+
+.linked-conn-row__meta {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--auth-muted);
+    margin-top: 0.15rem;
+    line-height: 1.4;
+}
+
+.linked-conn-row__action {
+    flex-shrink: 0;
+}
+
+.linked-conn-row__unlink {
+    font-family: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    border: 2px solid var(--auth-edge);
+    cursor: pointer;
+    background: #f4ebe8;
+    color: #8b2c26;
+    box-shadow: 2px 2px 0 rgba(20, 18, 16, 0.12);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.linked-conn-row__unlink:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 rgba(20, 18, 16, 0.12);
+}
+
+.linked-conn-row__muted {
+    font-size: 0.72rem;
+    color: var(--auth-muted);
+    max-width: 12rem;
+    line-height: 1.35;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .auth-card {
         animation: none;
     }
 
     .auth-provider:hover,
-    .auth-submit:hover {
+    .auth-submit:hover,
+    .linked-conn-row__unlink:hover {
         transform: none;
     }
 }

@@ -1,0 +1,12 @@
+@model LinkedAccountsModel.LinkProviderOffer
+
+<a class="auth-provider linked-accounts-provider @LinkedAccountsModel.LinkTileCssModifiers(Model.ProviderKey)" href="@Model.Href">
+    <span class="auth-provider__icon" aria-hidden="true">
+        @await Html.PartialAsync("_ProviderOAuthIcon", Model.ProviderKey)
+    </span>
+    <span class="auth-provider__body">
+        <span class="auth-provider__name">Tilknyt @Model.Name</span>
+        <span class="auth-provider__hint">@Model.Hint</span>
+    </span>
+    <svg class="auth-provider__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+</a>
