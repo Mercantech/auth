@@ -2,12 +2,13 @@
 @using Auth.API.Services
 @{
     var branding = Context.GetLoginBranding();
-    var isOAuthBranding = branding?.IsOAuthFlow == true;
-    var themeId = branding?.Theme.Id ?? LoginThemeCatalog.DefaultId;
     var theme = branding?.Theme ?? LoginThemeCatalog.Mercantec;
+    var themeId = theme.Id;
+    var isOAuthBranding = branding?.IsOAuthFlow == true;
+    var applyClientTheme = isOAuthBranding || themeId != LoginThemeCatalog.DefaultId;
     var pageTitle = ViewData["Title"] as string ?? "Mercantec Auth";
-    var titleSuffix = isOAuthBranding ? theme.PageTitleSuffix : "Mercantec Auth";
-    var topbarTitle = isOAuthBranding ? theme.TopbarTitle : "Mercantec Auth";
+    var titleSuffix = applyClientTheme ? theme.PageTitleSuffix : "Mercantec Auth";
+    var topbarTitle = applyClientTheme ? theme.TopbarTitle : "Mercantec Auth";
 }
 <!DOCTYPE html>
 <html lang="da">
@@ -21,16 +22,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/css/auth-pages.css" asp-append-version="true" />
-    @if (isOAuthBranding)
+    @if (applyClientTheme)
     {
         <link rel="stylesheet" href="@(Context.Request.PathBase + theme.Stylesheet)" asp-append-version="true" />
     }
 </head>
 <body class="auth-body">
     <div class="auth-page" data-login-theme="@themeId">
-        <header class="auth-topbar @(isOAuthBranding ? "auth-topbar--branded" : null)">
+        <header class="auth-topbar @(applyClientTheme ? "auth-topbar--branded" : null)">
             <a class="auth-topbar__brand" href="/">
-                @if (isOAuthBranding && !string.IsNullOrEmpty(theme.LogoUrl))
+                @if (applyClientTheme && !string.IsNullOrEmpty(theme.LogoUrl))
                 {
                     <img src="@(Context.Request.PathBase + theme.LogoUrl)" alt="" class="auth-topbar__logo" width="28" height="28" />
                 }

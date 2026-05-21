@@ -208,6 +208,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseLoginBranding();
 app.UseCors("MercantecSpa");
 app.UseAuthentication();
 app.UseAuthorization();

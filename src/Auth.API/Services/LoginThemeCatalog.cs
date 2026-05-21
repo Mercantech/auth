@@ -29,12 +29,31 @@ public static class LoginThemeCatalog
             [Mercanlink.Id] = Mercanlink,
         };
 
+    /// <summary>Fallback når <see cref="ClientApp.LoginThemeId"/> ikke er sat i DB endnu.</summary>
+    private static readonly IReadOnlyDictionary<string, string> DefaultThemeIdByClientId =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["mercanlink"] = Mercanlink.Id,
+            ["Mercanlink-app"] = Mercanlink.Id,
+        };
+
     public static IReadOnlyList<LoginTheme> All { get; } = [Mercantec, Mercanlink];
 
     public static LoginTheme Resolve(string? themeId) =>
         !string.IsNullOrWhiteSpace(themeId) && ById.TryGetValue(themeId.Trim(), out var theme)
             ? theme
             : Mercantec;
+
+    public static LoginTheme ResolveForClient(string? loginThemeId, string? clientId)
+    {
+        var fromDb = Resolve(loginThemeId);
+        if (fromDb.Id != DefaultId || string.IsNullOrWhiteSpace(clientId))
+            return fromDb;
+
+        return DefaultThemeIdByClientId.TryGetValue(clientId.Trim(), out var presetId)
+            ? Resolve(presetId)
+            : Mercantec;
+    }
 
     public static bool IsKnown(string? themeId) =>
         !string.IsNullOrWhiteSpace(themeId) && ById.ContainsKey(themeId.Trim());

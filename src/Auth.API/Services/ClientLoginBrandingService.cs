@@ -27,7 +27,7 @@ public class ClientLoginBrandingService(AuthDbContext db) : IClientLoginBranding
         if (app is null)
             return new LoginBrandingContext(LoginThemeCatalog.Mercantec, clientId, isOAuth);
 
-        var theme = LoginThemeCatalog.Resolve(app.LoginThemeId);
+        var theme = LoginThemeCatalog.ResolveForClient(app.LoginThemeId, clientId);
         return new LoginBrandingContext(theme, clientId, isOAuth);
     }
 

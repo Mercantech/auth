@@ -33,6 +33,14 @@ public class ClientLoginBrandingTests
     }
 
     [Fact]
+    public void ResolveForClient_maps_Mercanlink_app_without_db_theme()
+    {
+        var theme = LoginThemeCatalog.ResolveForClient(null, "Mercanlink-app");
+        Assert.Equal("mercanlink", theme.Id);
+        Assert.Equal("Mercanlink", theme.PageTitleSuffix);
+    }
+
+    [Fact]
     public void Login_url_includes_client_id()
     {
         var url = LoginBrandingUrls.Login("/oauth/authorize?client_id=mercanlink", clientId: "mercanlink");
