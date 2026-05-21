@@ -44,19 +44,14 @@ window.MercantecPasskeys = {
         RequestVerificationToken: antiforgeryToken,
       },
       body: JSON.stringify({ assertion, returnUrl }),
-      redirect: "manual",
       credentials: "same-origin",
     });
-    const location = completeRes.headers.get("Location");
-    if (location) {
-      window.location.assign(new URL(location, window.location.href).href);
-      return;
-    }
-    if (completeRes.status >= 300 && completeRes.status < 400) {
-      window.location.reload();
-      return;
-    }
     if (!completeRes.ok) throw new Error("Passkey-bekræftelse fejlede");
+    const body = await completeRes.json();
+    if (body.redirect) {
+      window.location.assign(body.redirect);
+      return;
+    }
     window.location.reload();
   },
 

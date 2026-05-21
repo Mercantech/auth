@@ -74,7 +74,7 @@
     }
 </div>
 
-<script src="@(Request.PathBase)/js/passkeys.js"></script>
+<script src="@(Request.PathBase)/js/passkeys.js" asp-append-version="true"></script>
 <script>
     document.getElementById("passkey-login-btn")?.addEventListener("click", () => {
         const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl ?? "/"));

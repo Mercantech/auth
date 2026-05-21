@@ -50,7 +50,7 @@
 
 @if (Model.HasPasskeys)
 {
-    <script src="@(Request.PathBase)/js/passkeys.js"></script>
+    <script src="@(Request.PathBase)/js/passkeys.js" asp-append-version="true"></script>
     <script>
         document.getElementById("mfa-passkey-btn")?.addEventListener("click", () => {
             window.MercantecPasskeys.assertForMfa(

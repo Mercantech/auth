@@ -267,9 +267,11 @@ public static class MfaEndpointExtensions
         await usage.RecordPasskeyAuthAsync(userId, ctx.RequestAborted);
         await SignInHelper.CompleteMfaAsync(ctx, user, roles, loginMethod, MercantecAuthClaims.AmrValues.WebAuthn);
 
-        return returnUrl.StartsWith("/", StringComparison.Ordinal)
-            ? Results.LocalRedirect(returnUrl)
-            : Results.Redirect(returnUrl);
+        // JSON så fetch-klienten kan navigere (Location-header er ikke læsbar ved redirect: manual).
+        var redirectTo = returnUrl.StartsWith("/", StringComparison.Ordinal) && !string.IsNullOrEmpty(ctx.Request.PathBase)
+            ? ctx.Request.PathBase + returnUrl
+            : returnUrl;
+        return Results.Json(new { redirect = redirectTo });
     }
 
     private static async Task<IResult> PasskeyLoginOptionsAsync(
