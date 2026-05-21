@@ -17,9 +17,12 @@ public class ClientLoginBrandingService(AuthDbContext db) : IClientLoginBranding
         if (string.IsNullOrEmpty(clientId))
             return new LoginBrandingContext(LoginThemeCatalog.Mercantec, null, isOAuth);
 
+        var clientIdNorm = clientId.Trim();
         var app = await db.ClientApps
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ClientId == clientId && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(
+                c => c.IsActive && EF.Functions.ILike(c.ClientId, clientIdNorm),
+                cancellationToken);
 
         if (app is null)
             return new LoginBrandingContext(LoginThemeCatalog.Mercantec, clientId, isOAuth);

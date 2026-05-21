@@ -10,7 +10,7 @@
     var topbarTitle = isOAuthBranding ? theme.TopbarTitle : "Mercantec Auth";
 }
 <!DOCTYPE html>
-<html lang="da" data-login-theme="@themeId">
+<html lang="da">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -27,7 +27,7 @@
     }
 </head>
 <body class="auth-body">
-    <div class="auth-page">
+    <div class="auth-page" data-login-theme="@themeId">
         <header class="auth-topbar @(isOAuthBranding ? "auth-topbar--branded" : null)">
             <a class="auth-topbar__brand" href="/">
                 @if (isOAuthBranding && !string.IsNullOrEmpty(theme.LogoUrl))
