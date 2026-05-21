@@ -72,10 +72,12 @@ window.MercantecPasskeys = {
         RequestVerificationToken: antiforgeryToken,
       },
       body: JSON.stringify({ assertion, returnUrl }),
-      redirect: "follow",
+      credentials: "same-origin",
     });
-    if (res.redirected) {
-      window.location = res.url;
+    if (!res.ok) throw new Error("Passkey-login fejlede");
+    const body = await res.json();
+    if (body.redirect) {
+      window.location.assign(body.redirect);
       return;
     }
     throw new Error("Passkey-login fejlede");

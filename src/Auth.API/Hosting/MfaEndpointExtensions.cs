@@ -261,10 +261,7 @@ public static class MfaEndpointExtensions
         await SignInHelper.CompleteMfaAsync(ctx, user, roles, loginMethod, MercantecAuthClaims.AmrValues.WebAuthn);
 
         // JSON så fetch-klienten kan navigere (Location-header er ikke læsbar ved redirect: manual).
-        var redirectTo = returnUrl.StartsWith("/", StringComparison.Ordinal) && !string.IsNullOrEmpty(ctx.Request.PathBase)
-            ? ctx.Request.PathBase + returnUrl
-            : returnUrl;
-        return Results.Json(new { redirect = redirectTo });
+        return PasskeyLoginJsonRedirect(ctx, returnUrl);
     }
 
     private static async Task<IResult> PasskeyLoginOptionsAsync(
@@ -289,16 +286,18 @@ public static class MfaEndpointExtensions
         IOptions<MfaOptions> mfaOptions,
         IAntiforgery antiforgery)
     {
+        var clientId = LoginBrandingUrls.ClientIdFromContext(ctx);
+
         if (!await ValidateAntiforgery(ctx, antiforgery))
-            return Results.Redirect(LoginBrandingUrls.Login(null, "invalid", LoginBrandingUrls.ClientIdFromContext(ctx)));
+            return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(null, "invalid", clientId));
 
         var (assertion, returnUrlBody, _) = await Fido2JsonHelper.ReadAssertionBodyAsync(ctx.Request);
         if (assertion is null)
-            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "invalid", LoginBrandingUrls.ClientIdFromContext(ctx)));
+            return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "invalid", clientId));
 
         var auth = await passkeys.CompleteAssertionAsync(assertion, ctx.RequestAborted);
         if (auth != PasskeyAuthResult.Success)
-            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "passkey", LoginBrandingUrls.ClientIdFromContext(ctx)));
+            return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "passkey", clientId));
 
         var credId = assertion.RawId;
         var stored = await db.UserPasskeyCredentials
@@ -311,7 +310,7 @@ public static class MfaEndpointExtensions
             .FirstAsync(u => u.Id == stored.UserId, ctx.RequestAborted);
 
         if (user.IsDisabled)
-            return Results.Redirect(LoginBrandingUrls.Login(returnUrlBody, "disabled", LoginBrandingUrls.ClientIdFromContext(ctx)));
+            return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "disabled", clientId));
 
         var returnUrl = string.IsNullOrWhiteSpace(returnUrlBody) ? "/" : returnUrlBody!;
         if (!urls.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
@@ -326,7 +325,7 @@ public static class MfaEndpointExtensions
         await usage.RecordPasskeyAuthAsync(user.Id, ctx.RequestAborted);
 
         var roles = user.UserRoles.Select(ur => ur.Role!.Name).ToList();
-        var redirect = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
+        var mfaUrl = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
             ctx,
             user,
             roles,
@@ -336,13 +335,19 @@ public static class MfaEndpointExtensions
             mfaOptions,
             [MercantecAuthClaims.AmrValues.WebAuthn]);
 
-        if (redirect is not null)
-            return redirect;
+        if (mfaUrl is not null)
+            return PasskeyLoginJsonRedirect(ctx, mfaUrl);
 
-        return returnUrl.StartsWith("/", StringComparison.Ordinal)
-            ? Results.LocalRedirect(returnUrl)
-            : Results.Redirect(returnUrl);
+        return PasskeyLoginJsonRedirect(ctx, returnUrl);
     }
+
+    private static IResult PasskeyLoginJsonRedirect(HttpContext ctx, string path) =>
+        Results.Json(new { redirect = ToAppRedirectPath(ctx, path) });
+
+    private static string ToAppRedirectPath(HttpContext ctx, string path) =>
+        path.StartsWith("/", StringComparison.Ordinal) && !string.IsNullOrEmpty(ctx.Request.PathBase)
+            ? ctx.Request.PathBase + path
+            : path;
 
     private static async Task<IResult> PasskeyDeleteAsync(
         Guid id,

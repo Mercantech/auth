@@ -4,13 +4,15 @@ using Auth.API.Options;
 using Auth.API.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace Auth.API.Services;
 
 public static class SignInHelper
 {
-    public static async Task<IResult?> EstablishSessionAfterPrimaryAuthAsync(
+    /// <returns>Relativ redirect-URL til MFA, eller null når fuld session er etableret.</returns>
+    public static async Task<string?> EstablishSessionAfterPrimaryAuthAsync(
         HttpContext http,
         User user,
         IReadOnlyList<string> roleNames,
@@ -32,7 +34,7 @@ public static class SignInHelper
             await SignInPendingAsync(http, user, roleNames, loginMethod, mfaOptions.Value.PendingSessionMinutes);
             var clientId = ClientLoginBrandingService.TryParseClientIdFromReturnUrl(returnUrl)
                 ?? LoginBrandingUrls.ClientIdFromContext(http);
-            return Results.Redirect(LoginBrandingUrls.Mfa(returnUrl, string.IsNullOrEmpty(clientId) ? null : clientId));
+            return LoginBrandingUrls.Mfa(returnUrl, string.IsNullOrEmpty(clientId) ? null : clientId);
         }
 
         await SignInFullAsync(http, user, roleNames, loginMethod, amr);

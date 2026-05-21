@@ -215,7 +215,7 @@ public static class AccountEndpointExtensions
         await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
             .RecordPasswordLoginAsync(user.Id);
 
-        var mfaRedirect = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
+        var mfaUrl = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
             ctx,
             user,
             roles,
@@ -224,8 +224,8 @@ public static class AccountEndpointExtensions
             mfaGate,
             mfaOptions,
             [MercantecAuthClaims.AmrValues.Password]);
-        if (mfaRedirect is not null)
-            return mfaRedirect;
+        if (mfaUrl is not null)
+            return Results.Redirect(mfaUrl);
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
@@ -337,7 +337,7 @@ public static class AccountEndpointExtensions
         else
             await tracker.RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
 
-        var mfaRedirect = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
+        var mfaUrl = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
             ctx,
             user,
             roles,
@@ -346,8 +346,8 @@ public static class AccountEndpointExtensions
             mfaGate,
             mfaOptions,
             [MercantecAuthClaims.AmrValues.Password]);
-        if (mfaRedirect is not null)
-            return mfaRedirect;
+        if (mfaUrl is not null)
+            return Results.Redirect(mfaUrl);
 
         return returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? Results.LocalRedirect(returnUrl)
