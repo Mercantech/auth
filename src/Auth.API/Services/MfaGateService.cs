@@ -1,5 +1,6 @@
 using Auth.API.Data;
 using Auth.API.Options;
+using Auth.API.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -23,8 +24,13 @@ public class MfaGateService(AuthDbContext db, IOptions<MfaOptions> mfaOptions) :
     public async Task<bool> RequiresMfaStepAsync(
         Guid userId,
         IReadOnlyList<string> roleNames,
+        string? primaryLoginMethod = null,
         CancellationToken cancellationToken = default)
     {
+        // Passwordless passkey er phishing-resistent og opfylder 2FA i sig selv.
+        if (string.Equals(primaryLoginMethod, MercantecAuthClaims.LoginMethodValues.Passkey, StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (!await HasSecondFactorConfiguredAsync(userId, cancellationToken))
             return false;
 

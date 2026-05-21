@@ -80,7 +80,7 @@ public static class OAuthPrincipalReplacer
         foreach (var r in roles)
             claims.Add(new Claim(ClaimTypes.Role, r));
 
-        if (!isLinkMode && await mfaGate.RequiresMfaStepAsync(userId, roles, ctx.HttpContext.RequestAborted))
+        if (!isLinkMode && await mfaGate.RequiresMfaStepAsync(userId, roles, loginMethod, ctx.HttpContext.RequestAborted))
             claims.Add(new Claim(MercantecAuthClaims.MfaPending, "true"));
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

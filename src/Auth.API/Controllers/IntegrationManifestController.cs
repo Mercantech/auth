@@ -53,7 +53,7 @@ public class IntegrationManifestController(
         email_password_login_enabled = enableEmailPasswordLogin,
         mfa_supported = true,
         passkey_supported = true,
-        mfa_note_da = "Opt-in TOTP (authenticator-app) og passkeys (WebAuthn). Efter primær login kan brugeren blive sendt til /Account/Mfa indtil 2. faktor er bekræftet; OAuth /oauth/authorize kræver fuld session (ikke mfa_pending).",
+        mfa_note_da = "Opt-in TOTP (authenticator-app) og passkeys (WebAuthn). Efter adgangskode eller OAuth-login kan brugeren sendes til /Account/Mfa indtil 2. faktor er bekræftet. Passwordless passkey-login springer MFA over. OAuth /oauth/authorize kræver fuld session (ikke mfa_pending).",
         account_security_ui = $"{baseUrl}/Account/Security",
         mfa_step_ui = $"{baseUrl}/Account/Mfa",
         login_themes_supported = true,

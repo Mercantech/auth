@@ -27,7 +27,7 @@ public static class SignInHelper
             amr = [MapLoginMethodToAmr(loginMethod)];
         }
 
-        if (await mfaGate.RequiresMfaStepAsync(user.Id, roleNames, http.RequestAborted))
+        if (await mfaGate.RequiresMfaStepAsync(user.Id, roleNames, loginMethod, http.RequestAborted))
         {
             await SignInPendingAsync(http, user, roleNames, loginMethod, mfaOptions.Value.PendingSessionMinutes);
             var clientId = ClientLoginBrandingService.TryParseClientIdFromReturnUrl(returnUrl)
