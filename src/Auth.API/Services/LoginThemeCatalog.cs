@@ -17,10 +17,10 @@ public static class LoginThemeCatalog
         Id: "mercanlink",
         DisplayName: "Mercanlink",
         Stylesheet: "/themes/mercanlink.css",
-        LogoUrl: "/themes/mercanlink/logo.svg",
+        LogoUrl: "/themes/mercanlink/logo.png",
         PageTitleSuffix: "Mercanlink",
         TopbarTitle: "Mercanlink",
-        LeadText: "Log ind for at fortsætte til Mercanlink");
+        LeadText: "Designet til moderne læringsmiljøer — log ind for at fortsætte");
 
     private static readonly IReadOnlyDictionary<string, LoginTheme> ById =
         new Dictionary<string, LoginTheme>(StringComparer.OrdinalIgnoreCase)
