@@ -31,7 +31,7 @@ Valgfrit pr. bruger under **`/Account/Security`** (kræver fuld session).
 |------|-------------|
 | Primær login | Adgangskode, OAuth eller passwordless passkey |
 | `mfa_pending` | Kortlivet cookie (ca. 10 min) hvis brugeren har aktiv TOTP eller passkey **og** primær login **ikke** var passkey |
-| `/Account/Mfa` | TOTP-kode, recovery-kode eller passkey-bekræftelse (kun efter adgangskode/OAuth) |
+| `/Account/Mfa` | TOTP-kode eller passkey-bekræftelse (kun efter adgangskode/OAuth) |
 | Passkey-login | Springer MFA over — WebAuthn tæller som stærk 2. faktor |
 | Fuld session | OAuth `GET /oauth/authorize` og øvrige beskyttede flows |
 

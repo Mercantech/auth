@@ -11,7 +11,7 @@
 <div class="auth-card">
     @await Html.PartialAsync("_LoginBrandHeader")
     <h2 class="auth-headline">Anden faktor</h2>
-    <p class="auth-lead">Bekræft med authenticator-kode, recovery-kode eller passkey.</p>
+    <p class="auth-lead">Bekræft med authenticator-kode eller passkey.</p>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
@@ -23,11 +23,7 @@
         <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
         <div class="auth-field">
             <label class="auth-label" for="code">Authenticator-kode</label>
-            <input id="code" name="code" class="auth-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="recoveryCode">Recovery-kode (valgfri)</label>
-            <input id="recoveryCode" name="recoveryCode" class="auth-input" autocomplete="off" placeholder="XXXX-XXXX" />
+            <input id="code" name="code" class="auth-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" required />
         </div>
         <button type="submit" class="auth-submit">Bekræft kode</button>
     </form>

@@ -61,7 +61,7 @@
             @if (Model.TotpEnabled)
             {
                 <p class="security-panel__text">
-                    Ved næste login skal du indtaste en 6-cifret kode fra din app (eller recovery-kode).
+                    Ved næste login skal du indtaste en 6-cifret kode fra din app.
                 </p>
                 <form class="security-form" method="post" action="@(pathBase)/account/mfa/totp/disable">
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />

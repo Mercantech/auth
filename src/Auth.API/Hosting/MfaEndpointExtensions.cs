@@ -109,22 +109,15 @@ public static class MfaEndpointExtensions
             returnUrl = "/";
 
         var code = form["code"].ToString();
-        var recovery = form["recoveryCode"].ToString();
         var verified = false;
-        string mfaAmr = MercantecAuthClaims.AmrValues.Otp;
-
-        if (!string.IsNullOrWhiteSpace(recovery))
-        {
-            verified = await totp.TryConsumeRecoveryCodeAsync(userId, recovery, ctx.RequestAborted);
-            if (verified)
-                await usage.RecordMfaRecoveryUsedAsync(userId, ctx.RequestAborted);
-        }
-        else if (!string.IsNullOrWhiteSpace(code))
+        if (!string.IsNullOrWhiteSpace(code))
         {
             verified = await totp.VerifyCodeAsync(userId, code, ctx.RequestAborted);
             if (verified)
                 await usage.RecordMfaTotpVerifyAsync(userId, ctx.RequestAborted);
         }
+
+        const string mfaAmr = MercantecAuthClaims.AmrValues.Otp;
 
         if (!verified)
             return Results.Redirect(LoginBrandingUrls.Mfa(returnUrl, LoginBrandingUrls.ClientIdFromContext(ctx), "invalid"));
