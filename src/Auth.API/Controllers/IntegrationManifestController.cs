@@ -63,6 +63,14 @@ public class IntegrationManifestController(
             display_name = t.DisplayName,
             note = "Vælg i admin under OAuth-klient. Gælder Login, Register og MFA under OAuth-flow.",
         }).ToArray(),
+        login_methods_per_client = true,
+        login_methods = ClientLoginMethodCatalog.All.Select(m => new
+        {
+            id = m.Id,
+            display_name = m.DisplayName,
+            category = m.Category,
+        }).ToArray(),
+        login_methods_note_da = "Felt AllowedLoginMethods på ClientApps (admin → Klienter). Komma-separeret whitelist (fx passkey,password,google). Null = alle metoder aktiveret på serveren. Gælder kun OAuth-flow (/oauth/authorize); direkte besøg på /Account/Login uden klient viser alle server-metoder.",
         auth_configuration_note = "Auth:EnableEmailPasswordLogin (eller miljøvariabel Auth__EnableEmailPasswordLogin) styrer e-mail/adgangskode på /Account/Login, /Account/Register og POST /signin, /signup.",
         audience_for_this_document = new[]
         {

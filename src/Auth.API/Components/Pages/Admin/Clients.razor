@@ -4,8 +4,12 @@
 @inject AuthDbContext Db
 @inject IWebHostEnvironment Env
 @inject IJSRuntime Js
+@inject IConfiguration Config
+@inject IOptions<AuthOptions> AuthOptions
 @using Auth.API.Models.Entities
+@using Auth.API.Options
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Options
 @using Microsoft.JSInterop
 @using System.Text.RegularExpressions
 
@@ -221,6 +225,36 @@
                                 <span class="merc-hint">Vises på Login, Register og MFA når brugeren starter OAuth med denne <code>client_id</code>. Tom = Mercantec standard.</span>
                             </div>
 
+                            <fieldset class="merc-fieldset">
+                                <legend class="merc-label">Login-metoder (OAuth)</legend>
+                                <p class="merc-hint merc-hint--block">
+                                    Styr hvilke login-metoder brugeren ser når de logger ind via denne klient.
+                                    Kun metoder der også er aktiveret på serveren vises — tom liste = alle server-metoder.
+                                </p>
+                                <label class="merc-check">
+                                    <input type="checkbox" checked="@_editUseAllLoginMethods" @onchange="OnUseAllLoginMethodsChanged" />
+                                    <span>Alle aktiverede metoder på serveren (anbefalet)</span>
+                                </label>
+                                @if (!_editUseAllLoginMethods)
+                                {
+                                    @foreach (var group in ClientLoginMethodCatalog.All.GroupBy(m => m.Category))
+                                    {
+                                        <p class="merc-panel__h3">@group.Key</p>
+                                        @foreach (var method in group)
+                                        {
+                                            var serverOn = _globalLoginMethods.IsAllowed(method.Id);
+                                            <label class="merc-check @(serverOn ? null : "merc-check--muted")">
+                                                <input type="checkbox"
+                                                       checked="@_editLoginMethods.Contains(method.Id)"
+                                                       disabled="@(!serverOn)"
+                                                       @onchange="e => ToggleLoginMethod(method.Id, e)" />
+                                                <span>@method.DisplayName@(!serverOn ? " (ikke konfigureret på serveren)" : "")</span>
+                                            </label>
+                                        }
+                                    }
+                                }
+                            </fieldset>
+
                             <div class="merc-panel__actions">
                                 <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveClientSettingsAsync" disabled="@_saving">
                                     @(_saving ? "Gemmer…" : "Gem indstillinger")
@@ -333,6 +367,9 @@
     private bool _editRequirePkce;
     private string _editAllowedScopes = "";
     private string _editLoginThemeId = "";
+    private bool _editUseAllLoginMethods = true;
+    private HashSet<string> _editLoginMethods = new(StringComparer.OrdinalIgnoreCase);
+    private ClientLoginMethodsPolicy _globalLoginMethods = null!;
     private string? _rotatedSecretPlain;
 
     private bool _newIsPublic => _newClientKind == ClientKind.Spa;
@@ -340,6 +377,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _globalLoginMethods = ClientLoginMethodsPolicy.FromGlobalConfiguration(Config, AuthOptions.Value);
         await ReloadAsync();
         if (_clients?.Count > 0 && _selected is null && !_showCreate)
             await SelectClientAsync(_clients.OrderBy(c => c.Name).First().Id);
@@ -449,8 +487,44 @@
             _editRequirePkce = _selected.RequirePkce;
             _editAllowedScopes = _selected.AllowedScopes ?? "";
             _editLoginThemeId = _selected.LoginThemeId ?? "";
+            LoadLoginMethodsFromSelected(_selected.AllowedLoginMethods);
             _rotatedSecretPlain = null;
         }
+    }
+
+    private void LoadLoginMethodsFromSelected(string? allowedLoginMethods)
+    {
+        _editUseAllLoginMethods = string.IsNullOrWhiteSpace(allowedLoginMethods);
+        _editLoginMethods = _editUseAllLoginMethods
+            ? DefaultEnabledLoginMethodIds()
+            : ClientLoginMethodCatalog.ParseStored(allowedLoginMethods);
+    }
+
+    private HashSet<string> DefaultEnabledLoginMethodIds()
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var method in ClientLoginMethodCatalog.All)
+        {
+            if (_globalLoginMethods.IsAllowed(method.Id))
+                set.Add(method.Id);
+        }
+
+        return set;
+    }
+
+    private void OnUseAllLoginMethodsChanged(ChangeEventArgs e)
+    {
+        _editUseAllLoginMethods = e.Value is true;
+        if (_editUseAllLoginMethods)
+            _editLoginMethods = DefaultEnabledLoginMethodIds();
+    }
+
+    private void ToggleLoginMethod(string methodId, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _editLoginMethods.Add(methodId);
+        else
+            _editLoginMethods.Remove(methodId);
     }
 
     private static string GenerateSecret(int bytes = 32)
@@ -564,6 +638,22 @@
             tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
             tracked.LoginThemeId = LoginThemeCatalog.NormalizeStored(
                 string.IsNullOrWhiteSpace(_editLoginThemeId) ? null : _editLoginThemeId);
+
+            if (_editUseAllLoginMethods)
+            {
+                tracked.AllowedLoginMethods = null;
+            }
+            else
+            {
+                var normalized = ClientLoginMethodCatalog.NormalizeStored(_editLoginMethods);
+                if (normalized is null)
+                {
+                    SetStatus("Vælg mindst én login-metode, eller brug «Alle aktiverede metoder».", true);
+                    return;
+                }
+
+                tracked.AllowedLoginMethods = normalized;
+            }
 
             if (tracked.IsPublic)
                 tracked.ClientSecretHash = null;

@@ -67,6 +67,22 @@ Flow: `GET /oauth/authorize?client_id=…` → redirect til login med samme `cli
 
 Nye temaer tilføjes i kode (`LoginThemeCatalog` + `wwwroot/themes/{id}.css`) — ikke vilkårlig CSS upload.
 
+## Login-metoder per klient
+
+Under OAuth-flow kan hver klient begrænse hvilke login-metoder brugeren ser på **`/Account/Login`** og **`/Account/Register`**.
+
+| Admin | Felt `AllowedLoginMethods` på `ClientApps` (checkbokse i **Admin → Klienter**) |
+|-------|--------------------------------------------------------------------------------|
+| Standard | Tom / «Alle aktiverede metoder» — alle metoder serveren har slået til |
+| Whitelist | Komma-separeret liste, fx `passkey,password,google,microsoft` |
+| Metoder | `passkey`, `password`, `google`, `microsoft`, `microsoft_edu`, `github`, `discord` |
+
+Effektiv liste = **klient-whitelist ∩ server-konfiguration** (OAuth-nøgler i `appsettings`, `Auth:EnableEmailPasswordLogin`). Passkey er altid tilgængelig på serveren når den er konfigureret.
+
+Gælder kun når brugeren kommer via **`GET /oauth/authorize?client_id=…`** (eller har cookie `mercantec_login_client`). Direkte besøg på login uden OAuth-klient viser alle server-metoder.
+
+Backend afviser også forsøg på deaktiverede metoder (`GET /signin/challenge`, `POST /signin`, `POST /signup`, passkey-login) med `error=provider`.
+
 ## Endpoints (relativt til auth-base-URL)
 
 | Endpoint | Formål |

@@ -14,7 +14,11 @@
     <h2 class="auth-headline">Log ind</h2>
     <p class="auth-lead">@(Model.LocalLoginEnabled
         ? "Vælg en udbyder eller brug din Mercantec e-mail — ét sted for hele skolen."
-        : "Vælg en udbyder nedenfor — e-mail og adgangskode er slået fra i denne installation.")</p>
+        : Model.AnyOAuthProvider
+            ? "Vælg en udbyder nedenfor."
+            : Model.PasskeyEnabled
+                ? "Log ind med passkey."
+                : "Ingen login-metoder er tilgængelige for denne app.")</p>
 
     <input type="hidden" id="login-antiforgery" value="@tokens.RequestToken" />
 
@@ -23,23 +27,26 @@
         <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
     }
 
-    @if (!Model.AnyOAuthProvider && !Model.LocalLoginEnabled)
+    @if (!Model.AnyMethodEnabled)
     {
-        <div class="auth-alert" role="alert">Ingen login-metode er aktiveret (hverken OAuth eller e-mail). Tjek serverkonfiguration.</div>
+        <div class="auth-alert" role="alert">Ingen login-metode er aktiveret for denne app. Kontakt administratoren.</div>
     }
 
-    <div class="auth-actions">
-        <button type="button" class="auth-action auth-action--passkey" id="passkey-login-btn">
-            <span class="auth-action__icon" aria-hidden="true">
-                @await Html.PartialAsync("_SecurityIcon", "passkey")
-            </span>
-            <span class="auth-action__body">
-                <span class="auth-action__name">Log ind med passkey</span>
-                <span class="auth-action__hint">Face ID, Windows Hello eller sikkerhedsnøgle</span>
-            </span>
-            <svg class="auth-action__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-    </div>
+    @if (Model.PasskeyEnabled)
+    {
+        <div class="auth-actions">
+            <button type="button" class="auth-action auth-action--passkey" id="passkey-login-btn">
+                <span class="auth-action__icon" aria-hidden="true">
+                    @await Html.PartialAsync("_SecurityIcon", "passkey")
+                </span>
+                <span class="auth-action__body">
+                    <span class="auth-action__name">Log ind med passkey</span>
+                    <span class="auth-action__hint">Face ID, Windows Hello eller sikkerhedsnøgle</span>
+                </span>
+                <svg class="auth-action__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+        </div>
+    }
 
     @if (Model.AnyOAuthProvider)
     {
@@ -74,16 +81,19 @@
     }
 </div>
 
-<script src="@(Request.PathBase)/js/passkeys.js" asp-append-version="true"></script>
-<script>
-    document.getElementById("passkey-login-btn")?.addEventListener("click", () => {
-        const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl ?? "/"));
-        const token = document.getElementById("login-antiforgery")?.value;
-        if (!token) return;
-        window.MercantecPasskeys.loginPasswordless(
-            "@(Request.PathBase)/account/passkeys/login/options",
-            "@(Request.PathBase)/account/passkeys/login/complete",
-            token,
-            returnUrl).catch(() => alert("Passkey-login fejlede. Har du registreret en passkey under Sikkerhed?"));
-    });
-</script>
+@if (Model.PasskeyEnabled)
+{
+    <script src="@(Request.PathBase)/js/passkeys.js" asp-append-version="true"></script>
+    <script>
+        document.getElementById("passkey-login-btn")?.addEventListener("click", () => {
+            const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl ?? "/"));
+            const token = document.getElementById("login-antiforgery")?.value;
+            if (!token) return;
+            window.MercantecPasskeys.loginPasswordless(
+                "@(Request.PathBase)/account/passkeys/login/options",
+                "@(Request.PathBase)/account/passkeys/login/complete",
+                token,
+                returnUrl).catch(() => alert("Passkey-login fejlede. Har du registreret en passkey under Sikkerhed?"));
+        });
+    </script>
+}

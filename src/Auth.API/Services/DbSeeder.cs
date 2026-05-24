@@ -94,7 +94,7 @@ public static class DbSeeder
         await EnsureMercanlinkThemeAsync(db, ct);
     }
 
-    /// <summary>Sætter login-tema på Mercanlink OAuth-klienter hvis de findes.</summary>
+    /// <summary>Sætter login-tema og login-metoder på Mercanlink OAuth-klienter hvis de findes.</summary>
     private static async Task EnsureMercanlinkThemeAsync(AuthDbContext db, CancellationToken ct)
     {
         var mercanlinkClientIds = new[] { "mercanlink", "Mercanlink-app" };
@@ -105,11 +105,18 @@ public static class DbSeeder
         var changed = false;
         foreach (var client in clients)
         {
-            if (string.Equals(client.LoginThemeId, "mercanlink", StringComparison.OrdinalIgnoreCase))
-                continue;
+            if (!string.Equals(client.LoginThemeId, "mercanlink", StringComparison.OrdinalIgnoreCase))
+            {
+                client.LoginThemeId = "mercanlink";
+                changed = true;
+            }
 
-            client.LoginThemeId = "mercanlink";
-            changed = true;
+            var mercanlinkMethods = "passkey,password,google,microsoft,microsoft_edu";
+            if (!string.Equals(client.AllowedLoginMethods, mercanlinkMethods, StringComparison.OrdinalIgnoreCase))
+            {
+                client.AllowedLoginMethods = mercanlinkMethods;
+                changed = true;
+            }
         }
 
         if (changed)

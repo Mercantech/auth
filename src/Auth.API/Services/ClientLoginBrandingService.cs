@@ -1,10 +1,17 @@
 using Auth.API.Data;
+using Auth.API.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Auth.API.Services;
 
-public class ClientLoginBrandingService(AuthDbContext db) : IClientLoginBrandingService
+public class ClientLoginBrandingService(
+    AuthDbContext db,
+    IConfiguration configuration,
+    IOptions<AuthOptions> authOptions) : IClientLoginBrandingService
 {
+    private readonly AuthOptions _authOptions = authOptions.Value;
+
     public async Task<LoginBrandingContext> ResolveAsync(
         HttpContext http,
         string? returnUrl,
@@ -15,7 +22,13 @@ public class ClientLoginBrandingService(AuthDbContext db) : IClientLoginBranding
         var clientId = ResolveClientId(clientIdFromQuery, returnUrl, http, isOAuth);
 
         if (string.IsNullOrEmpty(clientId))
-            return new LoginBrandingContext(LoginThemeCatalog.Mercantec, null, isOAuth);
+        {
+            return new LoginBrandingContext(
+                LoginThemeCatalog.Mercantec,
+                null,
+                isOAuth,
+                ClientLoginMethodsPolicy.Resolve(configuration, _authOptions, null, isOAuth));
+        }
 
         var clientIdNorm = clientId.Trim();
         var app = await db.ClientApps
@@ -25,10 +38,22 @@ public class ClientLoginBrandingService(AuthDbContext db) : IClientLoginBranding
                 cancellationToken);
 
         if (app is null)
-            return new LoginBrandingContext(LoginThemeCatalog.Mercantec, clientId, isOAuth);
+        {
+            return new LoginBrandingContext(
+                LoginThemeCatalog.Mercantec,
+                clientId,
+                isOAuth,
+                ClientLoginMethodsPolicy.Resolve(configuration, _authOptions, null, isOAuth));
+        }
 
         var theme = LoginThemeCatalog.ResolveForClient(app.LoginThemeId, clientId);
-        return new LoginBrandingContext(theme, clientId, isOAuth);
+        var methods = ClientLoginMethodsPolicy.Resolve(
+            configuration,
+            _authOptions,
+            app.AllowedLoginMethods,
+            isOAuth);
+
+        return new LoginBrandingContext(theme, clientId, isOAuth, methods);
     }
 
     public void SetClientCookie(HttpContext http, string clientId)

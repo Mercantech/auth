@@ -73,7 +73,7 @@ public static class AccountEndpointExtensions
         OAuthChallengeCoreAsync(ctx, provider, returnUrl, emailKind, urls, config, attachAccountLinkTarget: true);
 
     /// <summary>Delt OAuth-challenge til login og eksplicit kontolinking.</summary>
-    private static Task<IResult> OAuthChallengeCoreAsync(
+    private static async Task<IResult> OAuthChallengeCoreAsync(
         HttpContext ctx,
         string provider,
         string? returnUrl,
@@ -86,7 +86,18 @@ public static class AccountEndpointExtensions
             ? (attachAccountLinkTarget ? "/Account/LinkedAccounts" : "/")
             : returnUrl!;
         if (!urls.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
-            return Task.FromResult(Results.BadRequest("Ugyldig returnUrl."));
+            return Results.BadRequest("Ugyldig returnUrl.");
+
+        var providerKey = provider.Trim().ToLowerInvariant();
+        if (!attachAccountLinkTarget)
+        {
+            var methodId = ClientLoginMethodCatalog.ProviderKeyToMethodId(providerKey);
+            if (methodId is null
+                || !await ClientLoginMethodsHttpExtensions.IsLoginMethodAllowedAsync(ctx, methodId, returnUrl, ctx.RequestAborted))
+            {
+                return Results.Redirect(BrandedLogin(ctx, returnUrl, "provider"));
+            }
+        }
 
         var redirectUri = returnUrl.StartsWith("/", StringComparison.Ordinal)
             ? $"{ctx.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}{returnUrl}"
@@ -99,7 +110,6 @@ public static class AccountEndpointExtensions
             props.Items[AccountLinkAuthProperties.TargetUserIdKey] = me.ToString("D");
         }
 
-        var providerKey = provider.Trim().ToLowerInvariant();
         var scheme = providerKey switch
         {
             "google" when !string.IsNullOrEmpty(config["OAuth:Google:ClientId"]) => GoogleDefaults.AuthenticationScheme,
@@ -114,13 +124,13 @@ public static class AccountEndpointExtensions
         };
 
         if (scheme is null)
-            return Task.FromResult(Results.BadRequest("Provider ikke konfigureret."));
+            return Results.BadRequest("Provider ikke konfigureret.");
 
         var emailKindForCookie = providerKey is "microsoft-edu" or "microsoftedu" && string.IsNullOrWhiteSpace(emailKind)
             ? "school"
             : emailKind;
         OAuthEmailKindCookie.Append(ctx, OAuthEmailKindCookie.ParseQuery(emailKindForCookie));
-        return Task.FromResult(Results.Challenge(props, [scheme]));
+        return Results.Challenge(props, [scheme]);
     }
 
     private static async Task<IResult> RemoveAccountLinkAsync(
@@ -191,6 +201,10 @@ public static class AccountEndpointExtensions
 
         if (!returnUrlValidator.IsSafePostLoginReturnUrl(returnUrl, ctx.Request))
             return Results.Redirect(BrandedLogin(ctx, returnUrl, "invalid"));
+
+        if (!await ClientLoginMethodsHttpExtensions.IsLoginMethodAllowedAsync(
+                ctx, ClientLoginMethodCatalog.Password.Id, returnUrl, ctx.RequestAborted))
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "provider"));
 
         if (!ctx.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.EnableEmailPasswordLogin)
             return Results.Redirect(BrandedLogin(ctx, returnUrl, "local_disabled"));
@@ -268,6 +282,10 @@ public static class AccountEndpointExtensions
             || string.IsNullOrWhiteSpace(email)
             || string.IsNullOrWhiteSpace(password) || password.Length < 8 || password.Length > 100)
             return Results.Redirect(BrandedRegister(ctx, returnUrl, "invalid"));
+
+        if (!await ClientLoginMethodsHttpExtensions.IsLoginMethodAllowedAsync(
+                ctx, ClientLoginMethodCatalog.Password.Id, returnUrl, ctx.RequestAborted))
+            return Results.Redirect(BrandedRegister(ctx, returnUrl, "provider"));
 
         var normSignup = EmailNormalizer.Normalize(email);
         if (normSignup is null)

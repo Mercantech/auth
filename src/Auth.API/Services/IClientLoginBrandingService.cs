@@ -16,4 +16,5 @@ public interface IClientLoginBrandingService
 public sealed record LoginBrandingContext(
     LoginTheme Theme,
     string? OAuthClientId,
-    bool IsOAuthFlow);
+    bool IsOAuthFlow,
+    ClientLoginMethodsPolicy LoginMethods);

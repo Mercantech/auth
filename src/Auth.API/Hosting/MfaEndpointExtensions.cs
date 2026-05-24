@@ -295,6 +295,11 @@ public static class MfaEndpointExtensions
         if (assertion is null)
             return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "invalid", clientId));
 
+        var returnUrlForPolicy = string.IsNullOrWhiteSpace(returnUrlBody) ? "/" : returnUrlBody!;
+        if (!await ClientLoginMethodsHttpExtensions.IsLoginMethodAllowedAsync(
+                ctx, ClientLoginMethodCatalog.Passkey.Id, returnUrlForPolicy, ctx.RequestAborted))
+            return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "provider", clientId));
+
         var auth = await passkeys.CompleteAssertionAsync(assertion, ctx.RequestAborted);
         if (auth != PasskeyAuthResult.Success)
             return PasskeyLoginJsonRedirect(ctx, LoginBrandingUrls.Login(returnUrlBody, "passkey", clientId));

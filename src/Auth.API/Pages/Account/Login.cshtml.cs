@@ -9,25 +9,24 @@ namespace Auth.API.Pages.Account;
 
 public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> authOptions) : PageModel
 {
+    private ClientLoginMethodsPolicy _methods =
+        ClientLoginMethodsPolicy.FromGlobalConfiguration(configuration, authOptions.Value);
+
     [BindProperty(SupportsGet = true)]
     public string? ReturnUrl { get; set; }
 
     [BindProperty(SupportsGet = true)]
     public string? Error { get; set; }
 
-    public bool LocalLoginEnabled => authOptions.Value.EnableEmailPasswordLogin;
-
-    public bool GoogleEnabled => !string.IsNullOrEmpty(configuration["OAuth:Google:ClientId"]);
-
-    public bool MicrosoftEnabled => MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.WorkSection);
-
-    public bool MicrosoftEduEnabled => MicrosoftOAuthConfiguration.IsConfigured(configuration, MicrosoftOAuthConfiguration.EduSection);
-
-    public bool GitHubEnabled => !string.IsNullOrEmpty(configuration["OAuth:GitHub:ClientId"]);
-
-    public bool DiscordEnabled => !string.IsNullOrEmpty(configuration["OAuth:Discord:ClientId"]);
-
-    public bool AnyOAuthProvider => GoogleEnabled || MicrosoftEnabled || MicrosoftEduEnabled || GitHubEnabled || DiscordEnabled;
+    public bool PasskeyEnabled => _methods.Passkey;
+    public bool LocalLoginEnabled => _methods.Password;
+    public bool GoogleEnabled => _methods.Google;
+    public bool MicrosoftEnabled => _methods.Microsoft;
+    public bool MicrosoftEduEnabled => _methods.MicrosoftEdu;
+    public bool GitHubEnabled => _methods.GitHub;
+    public bool DiscordEnabled => _methods.Discord;
+    public bool AnyOAuthProvider => _methods.AnyOAuthProvider;
+    public bool AnyMethodEnabled => _methods.AnyMethod;
 
     public string? ErrorMessage => Error switch
     {
@@ -36,6 +35,7 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
         "disabled" => "Kontoen er deaktiveret.",
         "local_disabled" => "E-mail- og adgangskode-login er slået fra. Brug en af udbyderne ovenfor.",
         "passkey" => "Passkey-login fejlede — registrér en passkey under Sikkerhed når du er logget ind.",
+        "provider" => "Denne login-metode er ikke tilladt for denne app.",
         _ => null,
     };
 
@@ -52,7 +52,5 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
         return $"/signin/challenge?{q}";
     }
 
-    public void OnGet()
-    {
-    }
+    public void OnGet() => _methods = HttpContext.GetLoginMethods();
 }

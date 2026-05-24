@@ -12,6 +12,8 @@ public class ClientApp
     public string? AllowedScopes { get; set; }
     /// <summary>Preset-id for OAuth login-UI (fx mercanlink). Null = Mercantec standard.</summary>
     public string? LoginThemeId { get; set; }
+    /// <summary>Komma-separeret whitelist af login-metoder (passkey, password, google, …). Null = alle server-aktiverede.</summary>
+    public string? AllowedLoginMethods { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<ClientAppRedirectUri> RedirectUris { get; set; } = new List<ClientAppRedirectUri>();
