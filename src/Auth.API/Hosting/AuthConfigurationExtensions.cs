@@ -45,7 +45,7 @@ public static class AuthConfigurationExtensions
                 options.SignInScheme = cookie;
                 options.CallbackPath = "/signin-microsoft-edu";
                 MicrosoftOAuthConfiguration.Apply(options, configuration, MicrosoftOAuthConfiguration.EduSection);
-                options.Events.OnTicketReceived = ctx => OAuthPrincipalReplacer.ReplaceWithAppPrincipalAsync(ctx, "microsoft");
+                options.Events.OnTicketReceived = ctx => OAuthPrincipalReplacer.ReplaceWithAppPrincipalAsync(ctx, "microsoft-edu");
             });
         }
 

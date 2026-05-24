@@ -255,6 +255,29 @@
                                 }
                             </fieldset>
 
+                            <fieldset class="merc-fieldset">
+                                <legend class="merc-label">Krævet tilknytning (OAuth)</legend>
+                                <p class="merc-hint merc-hint--block">
+                                    Brugeren skal have tilknyttet valgte udbydere på sin Mercantec-konto før appen udsteder OAuth-kode.
+                                    De kan stadig logge ind med andre metoder — men bliver bedt om at tilknytte manglende udbydere undervejs.
+                                </p>
+                                @foreach (var group in ClientLoginMethodCatalog.ExternalProviders.GroupBy(m => m.Category))
+                                {
+                                    <p class="merc-panel__h3">@group.Key</p>
+                                    @foreach (var method in group)
+                                    {
+                                        var serverOn = _globalLoginMethods.IsAllowed(method.Id);
+                                        <label class="merc-check @(serverOn ? null : "merc-check--muted")">
+                                            <input type="checkbox"
+                                                   checked="@_editRequiredLinkedProviders.Contains(method.Id)"
+                                                   disabled="@(!serverOn)"
+                                                   @onchange="e => ToggleRequiredLinkedProvider(method.Id, e)" />
+                                            <span>@method.DisplayName@(!serverOn ? " (ikke konfigureret på serveren)" : "")</span>
+                                        </label>
+                                    }
+                                }
+                            </fieldset>
+
                             <div class="merc-panel__actions">
                                 <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveClientSettingsAsync" disabled="@_saving">
                                     @(_saving ? "Gemmer…" : "Gem indstillinger")
@@ -369,6 +392,7 @@
     private string _editLoginThemeId = "";
     private bool _editUseAllLoginMethods = true;
     private HashSet<string> _editLoginMethods = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _editRequiredLinkedProviders = new(StringComparer.OrdinalIgnoreCase);
     private ClientLoginMethodsPolicy _globalLoginMethods = null!;
     private string? _rotatedSecretPlain;
 
@@ -488,6 +512,7 @@
             _editAllowedScopes = _selected.AllowedScopes ?? "";
             _editLoginThemeId = _selected.LoginThemeId ?? "";
             LoadLoginMethodsFromSelected(_selected.AllowedLoginMethods);
+            _editRequiredLinkedProviders = ClientLoginMethodCatalog.ParseRequiredLinked(_selected.RequiredLinkedProviders);
             _rotatedSecretPlain = null;
         }
     }
@@ -525,6 +550,14 @@
             _editLoginMethods.Add(methodId);
         else
             _editLoginMethods.Remove(methodId);
+    }
+
+    private void ToggleRequiredLinkedProvider(string methodId, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _editRequiredLinkedProviders.Add(methodId);
+        else
+            _editRequiredLinkedProviders.Remove(methodId);
     }
 
     private static string GenerateSecret(int bytes = 32)
@@ -654,6 +687,8 @@
 
                 tracked.AllowedLoginMethods = normalized;
             }
+
+            tracked.RequiredLinkedProviders = ClientLoginMethodCatalog.NormalizeRequiredLinked(_editRequiredLinkedProviders);
 
             if (tracked.IsPublic)
                 tracked.ClientSecretHash = null;

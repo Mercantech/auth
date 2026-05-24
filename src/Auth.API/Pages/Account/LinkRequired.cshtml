@@ -1,0 +1,63 @@
+@page "/Account/LinkRequired"
+@model Auth.API.Pages.Account.LinkRequiredModel
+@{
+    ViewData["Title"] = "Tilknyt login";
+    ViewData["BrandSubtitle"] = "Krævet for at fortsætte";
+}
+
+<div class="auth-card">
+    @await Html.PartialAsync("_LoginBrandHeader")
+
+    <h2 class="auth-headline">Tilknyt login</h2>
+    <p class="auth-lead">
+        <strong>@Model.ClientDisplayName</strong> kræver at din Mercantec-konto har tilknyttet følgende udbyder(e).
+        Du kan stadig logge ind med andre metoder — men før appen kan bruges, skal du aktivt tilknytte kontoen nedenfor.
+    </p>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
+    }
+
+    @if (Model.MissingProviders.Count == 0)
+    {
+        <p class="auth-lead">Alle krævede tilknytninger er på plads.</p>
+        @if (!string.IsNullOrEmpty(Model.ReturnUrl))
+        {
+            <a class="auth-submit auth-submit--link" href="@Model.ReturnUrl">Fortsæt</a>
+        }
+    }
+    else
+    {
+        <div class="auth-providers">
+            @foreach (var p in Model.MissingProviders)
+            {
+                @if (p.Href == "#")
+                {
+                    <div class="auth-provider auth-provider--disabled @LinkRequiredModel.LinkTileCssModifiers(p.ProviderKey)" aria-disabled="true">
+                        <span class="auth-provider__icon" aria-hidden="true">
+                            @await Html.PartialAsync("_ProviderOAuthIcon", p.ProviderKey)
+                        </span>
+                        <span class="auth-provider__body">
+                            <span class="auth-provider__name">@p.Name</span>
+                            <span class="auth-provider__hint">Ikke konfigureret på serveren — kontakt administrator</span>
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <a class="auth-provider @LinkRequiredModel.LinkTileCssModifiers(p.ProviderKey)" href="@p.Href">
+                        <span class="auth-provider__icon" aria-hidden="true">
+                            @await Html.PartialAsync("_ProviderOAuthIcon", p.ProviderKey)
+                        </span>
+                        <span class="auth-provider__body">
+                            <span class="auth-provider__name">Tilknyt @p.Name</span>
+                            <span class="auth-provider__hint">@p.Hint</span>
+                        </span>
+                        <svg class="auth-provider__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+                    </a>
+                }
+            }
+        </div>
+    }
+</div>

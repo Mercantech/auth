@@ -71,6 +71,8 @@ public class IntegrationManifestController(
             category = m.Category,
         }).ToArray(),
         login_methods_note_da = "Felt AllowedLoginMethods på ClientApps (admin → Klienter). Komma-separeret whitelist (fx passkey,password,google). Null = alle metoder aktiveret på serveren. Gælder kun OAuth-flow (/oauth/authorize); direkte besøg på /Account/Login uden klient viser alle server-metoder.",
+        required_linked_providers_per_client = true,
+        required_linked_providers_note_da = "Felt RequiredLinkedProviders på ClientApps. Komma-separeret (fx microsoft). Bruger skal have tilknyttet udbyderen på sin Mercantec-konto før OAuth-kode udstedes — kan stadig logge ind med andre metoder. UI: /Account/LinkRequired.",
         auth_configuration_note = "Auth:EnableEmailPasswordLogin (eller miljøvariabel Auth__EnableEmailPasswordLogin) styrer e-mail/adgangskode på /Account/Login, /Account/Register og POST /signin, /signup.",
         audience_for_this_document = new[]
         {

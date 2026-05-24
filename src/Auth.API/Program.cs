@@ -43,6 +43,7 @@ builder.Services.AddScoped<IMfaGateService, MfaGateService>();
 builder.Services.AddScoped<ITotpMfaService, TotpMfaService>();
 builder.Services.AddScoped<IPasskeyService, PasskeyService>();
 builder.Services.AddScoped<IClientLoginBrandingService, ClientLoginBrandingService>();
+builder.Services.AddScoped<IClientRequiredLinkService, ClientRequiredLinkService>();
 builder.Services.AddScoped<LoginBrandingPageFilter>();
 builder.Services.AddSingleton<TotpSecretProtector>();
 builder.Services.AddMemoryCache();

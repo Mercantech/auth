@@ -83,6 +83,20 @@ Gælder kun når brugeren kommer via **`GET /oauth/authorize?client_id=…`** (e
 
 Backend afviser også forsøg på deaktiverede metoder (`GET /signin/challenge`, `POST /signin`, `POST /signup`, passkey-login) med `error=provider`.
 
+## Krævet tilknytning per klient
+
+Nogle apps skal sikre at brugeren har **tilknyttet** en bestemt udbyder (fx Mercantec arbejdslogin / Microsoft 365) — uanset hvordan de logger ind.
+
+| Admin | Felt `RequiredLinkedProviders` på `ClientApps` (checkbokse i **Admin → Klienter → Krævet tilknytning**) |
+|-------|----------------------------------------------------------------------------------------------------------|
+| Standard | Tom — intet krav |
+| Eksempel | `microsoft` — bruger skal have tilknyttet Microsoft 365 / arbejdskonto |
+| Metoder | Samme udbyder-id'er som OAuth: `google`, `microsoft`, `microsoft_edu`, `github`, `discord` |
+
+Flow: bruger logger ind (passkey, password, GitHub, …) → ved `GET /oauth/authorize` tjekkes tilknytning → mangler den, sendes brugeren til **`/Account/LinkRequired`** med link-knapper → efter tilknytning fortsættes OAuth automatisk.
+
+Microsoft arbejde kræver `ExternalLogin` med provider `microsoft` **og** tilknyttet arbejds-e-mail. Skolemail accepterer `microsoft-edu` eller legacy `microsoft` + skole-e-mail.
+
 ## Endpoints (relativt til auth-base-URL)
 
 | Endpoint | Formål |

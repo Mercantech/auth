@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Auth.API.Hosting;
 
-/// <summary>OAuth login-branding på Login, Register og Mfa.</summary>
+/// <summary>OAuth login-branding på Login, Register, Mfa og LinkRequired.</summary>
 public sealed class LoginBrandingPageFilter(IClientLoginBrandingService branding) : IAsyncPageFilter
 {
     private static readonly HashSet<string> BrandedPageNames = new(StringComparer.OrdinalIgnoreCase)
@@ -12,6 +12,7 @@ public sealed class LoginBrandingPageFilter(IClientLoginBrandingService branding
         "/Account/Login",
         "/Account/Register",
         "/Account/Mfa",
+        "/Account/LinkRequired",
     };
 
     public Task OnPageHandlerSelectionAsync(PageHandlerSelectedContext context) => Task.CompletedTask;

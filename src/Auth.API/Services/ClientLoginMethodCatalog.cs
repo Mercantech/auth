@@ -27,6 +27,9 @@ public static class ClientLoginMethodCatalog
     public static IReadOnlyList<ClientLoginMethod> All { get; } =
         [Passkey, Password, Google, Microsoft, MicrosoftEdu, GitHub, Discord];
 
+    public static IReadOnlyList<ClientLoginMethod> ExternalProviders { get; } =
+        [Google, Microsoft, MicrosoftEdu, GitHub, Discord];
+
     public static bool IsKnown(string? id) =>
         !string.IsNullOrWhiteSpace(id) && ById.ContainsKey(id.Trim());
 
@@ -70,4 +73,34 @@ public static class ClientLoginMethodCatalog
             "discord" => Discord.Id,
             _ => null,
         };
+
+    public static bool IsExternalProvider(string? id) =>
+        !string.IsNullOrWhiteSpace(id) && ExternalProviders.Any(m =>
+            string.Equals(m.Id, id.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public static string? NormalizeRequiredLinked(IEnumerable<string>? ids)
+    {
+        if (ids is null)
+            return null;
+
+        var list = ids
+            .Select(i => i.Trim())
+            .Where(IsExternalProvider)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return list.Count == 0 ? null : string.Join(',', list);
+    }
+
+    public static HashSet<string> ParseRequiredLinked(string? raw)
+    {
+        var set = ParseStored(raw);
+        set.Remove(Passkey.Id);
+        set.Remove(Password.Id);
+        return set;
+    }
+
+    public static string MethodIdToLinkProviderKey(string methodId) =>
+        string.Equals(methodId, MicrosoftEdu.Id, StringComparison.OrdinalIgnoreCase) ? "microsoft-edu" : methodId.Trim().ToLowerInvariant();
 }

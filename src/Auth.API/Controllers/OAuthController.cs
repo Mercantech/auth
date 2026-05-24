@@ -26,6 +26,7 @@ public class OAuthController(
     ITokenIssuer tokenIssuer,
     IAuthUsageTracker usageTracker,
     IOidcTokenService oidcTokens,
+    IClientRequiredLinkService requiredLinkService,
     IOptions<JwtOptions> jwtOptions,
     TimeProvider time) : ControllerBase
 {
@@ -80,6 +81,9 @@ public class OAuthController(
         var authReturn = Request.Path + Request.QueryString;
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Redirect(LoginBrandingUrls.AuthorizeLoginRedirect(authReturn.ToString()!, client_id));
+
+        if (!await requiredLinkService.MeetsRequirementsAsync(userId, client.RequiredLinkedProviders, cancellationToken))
+            return Redirect(LoginBrandingUrls.LinkRequired(authReturn.ToString()!, client_id));
 
         var appUser = await db.Users
             .AsNoTracking()

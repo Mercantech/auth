@@ -35,8 +35,14 @@ public static class OAuthPrincipalReplacer
             {
                 ctx.HandleResponse();
                 var pathBase = ctx.HttpContext.Request.PathBase.Value?.TrimEnd('/') ?? "";
-                ctx.HttpContext.Response.Redirect(
-                    $"{pathBase}/Account/LinkedAccounts?error=link_conflict");
+                var returnUri = ctx.Properties?.RedirectUri;
+                var target = ClientLoginBrandingService.IsOAuthReturnUrl(returnUri)
+                    ? LoginBrandingUrls.LinkRequired(
+                        returnUri!,
+                        ClientLoginBrandingService.TryParseClientIdFromReturnUrl(returnUri),
+                        "link_conflict")
+                    : $"{pathBase}/Account/LinkedAccounts?error=link_conflict";
+                ctx.HttpContext.Response.Redirect(target);
                 return;
             }
 
