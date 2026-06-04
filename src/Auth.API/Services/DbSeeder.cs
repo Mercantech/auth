@@ -92,6 +92,7 @@ public static class DbSeeder
             await db.SaveChangesAsync(ct);
 
         await EnsureMercanlinkThemeAsync(db, ct);
+        await EnsureGf2LearnThemeAsync(db, ct);
     }
 
     /// <summary>Sætter login-tema og login-metoder på Mercanlink OAuth-klienter hvis de findes.</summary>
@@ -115,6 +116,35 @@ public static class DbSeeder
             if (!string.Equals(client.AllowedLoginMethods, mercanlinkMethods, StringComparison.OrdinalIgnoreCase))
             {
                 client.AllowedLoginMethods = mercanlinkMethods;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Sætter login-tema og login-metoder på GF2 Learn OAuth-klienten hvis den findes.</summary>
+    private static async Task EnsureGf2LearnThemeAsync(AuthDbContext db, CancellationToken ct)
+    {
+        var gf2ClientIds = new[] { "gf2-learn" };
+        var clients = await db.ClientApps
+            .Where(c => gf2ClientIds.Contains(c.ClientId))
+            .ToListAsync(ct);
+
+        var changed = false;
+        foreach (var client in clients)
+        {
+            if (!string.Equals(client.LoginThemeId, "gf2learn", StringComparison.OrdinalIgnoreCase))
+            {
+                client.LoginThemeId = "gf2learn";
+                changed = true;
+            }
+
+            var gf2Methods = "passkey,password,google,microsoft,microsoft_edu";
+            if (!string.Equals(client.AllowedLoginMethods, gf2Methods, StringComparison.OrdinalIgnoreCase))
+            {
+                client.AllowedLoginMethods = gf2Methods;
                 changed = true;
             }
         }

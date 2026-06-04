@@ -22,11 +22,21 @@ public static class LoginThemeCatalog
         TopbarTitle: "Mercanlink",
         LeadText: "Designet til moderne læringsmiljøer — log ind for at fortsætte");
 
+    public static readonly LoginTheme Gf2Learn = new(
+        Id: "gf2learn",
+        DisplayName: "GF2 Learn",
+        Stylesheet: "/themes/gf2learn.css",
+        LogoUrl: "/themes/gf2learn/logo.svg",
+        PageTitleSuffix: "GF2 Learn",
+        TopbarTitle: "GF2 Learn",
+        LeadText: "Grundforløb 2 programmering — log ind for at fortsætte til platformen");
+
     private static readonly IReadOnlyDictionary<string, LoginTheme> ById =
         new Dictionary<string, LoginTheme>(StringComparer.OrdinalIgnoreCase)
         {
             [Mercantec.Id] = Mercantec,
             [Mercanlink.Id] = Mercanlink,
+            [Gf2Learn.Id] = Gf2Learn,
         };
 
     /// <summary>Fallback når <see cref="ClientApp.LoginThemeId"/> ikke er sat i DB endnu.</summary>
@@ -35,9 +45,10 @@ public static class LoginThemeCatalog
         {
             ["mercanlink"] = Mercanlink.Id,
             ["Mercanlink-app"] = Mercanlink.Id,
+            ["gf2-learn"] = Gf2Learn.Id,
         };
 
-    public static IReadOnlyList<LoginTheme> All { get; } = [Mercantec, Mercanlink];
+    public static IReadOnlyList<LoginTheme> All { get; } = [Mercantec, Mercanlink, Gf2Learn];
 
     public static LoginTheme Resolve(string? themeId) =>
         !string.IsNullOrWhiteSpace(themeId) && ById.TryGetValue(themeId.Trim(), out var theme)

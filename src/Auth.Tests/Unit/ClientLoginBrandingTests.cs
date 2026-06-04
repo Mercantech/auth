@@ -29,6 +29,7 @@ public class ClientLoginBrandingTests
     {
         Assert.Null(LoginThemeCatalog.NormalizeStored("not-a-theme"));
         Assert.Equal("mercanlink", LoginThemeCatalog.NormalizeStored("mercanlink"));
+        Assert.Equal("gf2learn", LoginThemeCatalog.NormalizeStored("gf2learn"));
         Assert.Null(LoginThemeCatalog.NormalizeStored(""));
     }
 
@@ -38,6 +39,15 @@ public class ClientLoginBrandingTests
         var theme = LoginThemeCatalog.ResolveForClient(null, "Mercanlink-app");
         Assert.Equal("mercanlink", theme.Id);
         Assert.Equal("Mercanlink", theme.PageTitleSuffix);
+    }
+
+    [Fact]
+    public void ResolveForClient_maps_gf2_learn_without_db_theme()
+    {
+        var theme = LoginThemeCatalog.ResolveForClient(null, "gf2-learn");
+        Assert.Equal("gf2learn", theme.Id);
+        Assert.Equal("GF2 Learn", theme.PageTitleSuffix);
+        Assert.Contains("Grundforløb 2", theme.LeadText, StringComparison.Ordinal);
     }
 
     [Fact]
