@@ -1,0 +1,44 @@
+@page "/Account/ConfirmEmailSent"
+@model ConfirmEmailSentModel
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    ViewData["Title"] = "Bekræft e-mail";
+    ViewData["BrandSubtitle"] = "Tjek din indbakke";
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+}
+
+<div class="auth-card">
+    @await Html.PartialAsync("_LoginBrandHeader")
+
+    <h2 class="auth-headline">Tjek din e-mail</h2>
+    <p class="auth-lead">@Model.StatusMessage</p>
+
+    @if (!string.IsNullOrEmpty(Model.Email))
+    {
+        <p class="auth-lead">Sendt til <strong>@Model.Email</strong></p>
+    }
+
+    @if (Model.LocalLoginEnabled)
+    {
+        <form method="post" action="/account/email/resend" class="auth-actions">
+            <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            @if (!string.IsNullOrEmpty(Model.Email))
+            {
+                <input type="hidden" name="email" value="@Model.Email" />
+                <button type="submit" class="auth-submit auth-submit--secondary">Send bekræftelsesmail igen</button>
+            }
+            else
+            {
+                <div class="auth-field">
+                    <label class="auth-label" for="email">E-mail</label>
+                    <input id="email" name="email" class="auth-input" type="email" autocomplete="username" placeholder="dig@eksempel.dk" required />
+                </div>
+                <button type="submit" class="auth-submit auth-submit--secondary">Send bekræftelsesmail igen</button>
+            }
+        </form>
+    }
+
+    <p class="auth-footer-link">Allerede bekræftet? <a href="@Model.LoginLink">Log ind</a></p>
+</div>

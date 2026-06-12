@@ -24,7 +24,13 @@
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="auth-alert" role="alert">@Model.ErrorMessage</div>
+        <div class="auth-alert" role="alert">
+            @Model.ErrorMessage
+            @if (Model.Error == "email_unconfirmed")
+            {
+                <span> <a href="@Model.ConfirmEmailSentLink">Send bekræftelsesmail igen</a></span>
+            }
+        </div>
     }
 
     @if (!Model.AnyMethodEnabled)
@@ -71,6 +77,9 @@
                 <label class="auth-label" for="password">Adgangskode</label>
                 <input id="password" name="password" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" required />
             </div>
+            <p class="auth-footer-link" style="margin-top:0;margin-bottom:1rem;text-align:right;">
+                <a href="@Model.ForgotPasswordLink">Glemt adgangskode?</a>
+            </p>
             <button type="submit" class="auth-submit">Log ind med e-mail</button>
         </form>
     }

@@ -36,8 +36,22 @@ public class LoginModel(IConfiguration configuration, IOptions<AuthOptions> auth
         "local_disabled" => "E-mail- og adgangskode-login er slået fra. Brug en af udbyderne ovenfor.",
         "passkey" => "Passkey-login fejlede — registrér en passkey under Sikkerhed når du er logget ind.",
         "provider" => "Denne login-metode er ikke tilladt for denne app.",
+        "email_unconfirmed" => "Bekræft din e-mail før du logger ind. Tjek din indbakke eller anmod om en ny bekræftelsesmail.",
+        "confirm_ok" => "Din e-mail er bekræftet. Du kan nu logge ind.",
+        "confirm_invalid" => "Bekræftelseslinket er ugyldigt eller udløbet.",
+        "password_reset_ok" => "Adgangskoden er opdateret. Log ind med din nye adgangskode.",
         _ => null,
     };
+
+    public string ForgotPasswordLink =>
+        LoginBrandingUrls.ForgotPassword(
+            ReturnUrl,
+            clientId: LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(ReturnUrl, HttpContext));
+
+    public string ConfirmEmailSentLink =>
+        LoginBrandingUrls.ConfirmEmailSent(
+            ReturnUrl,
+            clientId: LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(ReturnUrl, HttpContext));
 
     public string RegisterLink =>
         LoginBrandingUrls.Register(

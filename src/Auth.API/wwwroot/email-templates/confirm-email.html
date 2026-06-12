@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bekræft din e-mail</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a2e;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:12px;padding:32px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 8px;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">{{fromName}}</p>
+              <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;">Hej {{displayName}}</h1>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;">Tak fordi du oprettede en konto. Bekræft din e-mail for at kunne logge ind.</p>
+              <p style="margin:0 0 24px;">
+                <a href="{{actionUrl}}" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px;">Bekræft e-mail</a>
+              </p>
+              <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#6b7280;">Linket udløber om {{expiryHours}} timer. Hvis knappen ikke virker, kopier denne URL:</p>
+              <p style="margin:0;font-size:12px;line-height:1.5;word-break:break-all;color:#4b5563;">{{actionUrl}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

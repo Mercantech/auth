@@ -14,6 +14,22 @@ Når det er **slået til**, gælder samme **én bruger / ét `sub`** som for OAu
 
 Efter password-tilknytning kører **`UserPrimaryEmailSync`** som ved OAuth, så JWT `email` og downstream sync forbliver konsistente.
 
+### E-mail-bekræftelse og password reset
+
+Ny password-signup sender bekræftelsesmail og **logger ikke ind** før e-mail er bekræftet (`EmailConfirmed`). OAuth-brugere påvirkes ikke.
+
+| Endpoint / side | Formål |
+|-----------------|--------|
+| `GET /Account/ConfirmEmailSent` | Info efter signup |
+| `GET /account/confirm-email?token=` | Bekræft e-mail (link fra mail) |
+| `POST /account/email/resend` | Gensend bekræftelsesmail (rate-limited) |
+| `GET /Account/ForgotPassword` | Anmod om nulstilling |
+| `POST /account/password/forgot` | Sender reset-mail (svarer ens uanset e-mail) |
+| `GET /Account/ResetPassword?token=` | Formular til ny adgangskode |
+| `POST /account/password/reset` | Gem ny adgangskode |
+
+**SMTP (Brevo):** `Email:SmtpHost=smtp-relay.brevo.com`, port `587`, `Email:FromAddress=noreply@auth.mercantec.tech`. Verificér domænet i Brevo og tilføj SPF/DKIM/DMARC i Cloudflare. Dev: Mailpit på port `1025` (UI `8025`).
+
 ## Overblik
 
 1. Registrér en **client** i databasen (`ClientApps` + tilladte **redirect URIs** præcist som din app kalder med).

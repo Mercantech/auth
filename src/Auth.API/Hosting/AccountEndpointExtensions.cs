@@ -219,6 +219,9 @@ public static class AccountEndpointExtensions
         if (!BCrypt.Net.BCrypt.Verify(password, user.LocalLogin.PasswordHash))
             return Results.Redirect(BrandedLogin(ctx, returnUrl, "invalid"));
 
+        if (!user.EmailConfirmed)
+            return Results.Redirect(BrandedLogin(ctx, returnUrl, "email_unconfirmed"));
+
         if (user.IsDisabled)
             return Results.Redirect(BrandedLogin(ctx, returnUrl, "disabled"));
 
@@ -344,16 +347,37 @@ public static class AccountEndpointExtensions
             }
         }
 
+        if (!linkedToExisting)
+        {
+            var accountEmail = ctx.RequestServices.GetRequiredService<IAccountEmailService>();
+            try
+            {
+                await accountEmail.SendEmailConfirmationAsync(user, ctx.RequestAborted);
+            }
+            catch (Exception ex)
+            {
+                ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AccountSignup")
+                    .LogError(ex, "Kunne ikke sende bekræftelsesmail til {UserId}", user.Id);
+            }
+
+            await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
+                .RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
+
+            return Results.Redirect(LoginBrandingUrls.ConfirmEmailSent(
+                returnUrl,
+                email,
+                status: "sent",
+                clientId: LoginBrandingUrls.ClientIdFromContext(ctx)));
+        }
+
         var roles = await db.UserRoles
             .Where(ur => ur.UserId == user.Id)
             .Include(ur => ur.Role)
             .Select(ur => ur.Role!.Name)
             .ToListAsync(ctx.RequestAborted);
         var tracker = ctx.RequestServices.GetRequiredService<IAuthUsageTracker>();
-        if (linkedToExisting)
-            await tracker.RecordPasswordLinkAsync(user.Id, ctx.RequestAborted);
-        else
-            await tracker.RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
+        await tracker.RecordPasswordLinkAsync(user.Id, ctx.RequestAborted);
 
         var mfaUrl = await SignInHelper.EstablishSessionAfterPrimaryAuthAsync(
             ctx,

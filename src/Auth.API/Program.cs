@@ -20,6 +20,7 @@ builder.Services.Configure<BootstrapOptions>(builder.Configuration.GetSection(Bo
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 builder.Services.Configure<MfaOptions>(builder.Configuration.GetSection(MfaOptions.SectionName));
 builder.Services.Configure<PasskeyOptions>(builder.Configuration.GetSection(PasskeyOptions.SectionName));
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 
 Action<DbContextOptionsBuilder> configureAuthDb = options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -44,9 +45,21 @@ builder.Services.AddScoped<ITotpMfaService, TotpMfaService>();
 builder.Services.AddScoped<IPasskeyService, PasskeyService>();
 builder.Services.AddScoped<IClientLoginBrandingService, ClientLoginBrandingService>();
 builder.Services.AddScoped<IClientRequiredLinkService, ClientRequiredLinkService>();
+builder.Services.AddScoped<IUserActionTokenService, UserActionTokenService>();
+builder.Services.AddScoped<IAccountEmailService, AccountEmailService>();
+builder.Services.AddSingleton<EmailTemplateRenderer>();
+builder.Services.AddSingleton<EmailRateLimiter>();
 builder.Services.AddScoped<LoginBrandingPageFilter>();
 builder.Services.AddSingleton<TotpSecretProtector>();
 builder.Services.AddMemoryCache();
+
+builder.Services.AddSingleton<IEmailService>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<EmailOptions>>().Value;
+    if (!opts.Enabled || string.IsNullOrWhiteSpace(opts.SmtpHost))
+        return new NoOpEmailService(sp.GetRequiredService<ILogger<NoOpEmailService>>());
+    return new SmtpEmailService(sp.GetRequiredService<IOptions<EmailOptions>>(), sp.GetRequiredService<ILogger<SmtpEmailService>>());
+});
 
 var passkeySection = builder.Configuration.GetSection(PasskeyOptions.SectionName);
 builder.Services.AddSingleton<IFido2>(_ =>
@@ -218,6 +231,7 @@ app.UseAntiforgery();
 // API og minimal endpoints før Blazor, ellers kan catch-all (MapRazorComponents) fange f.eks. /.well-known/jwks.json.
 app.MapControllers();
 app.MapAccountEndpoints();
+app.MapEmailAccountEndpoints();
 app.MapMfaEndpoints();
 app.MapRazorPages();
 app.MapRazorComponents<Auth.API.Components.App>()

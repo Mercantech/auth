@@ -20,6 +20,7 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
     public DbSet<UserTotpMfa> UserTotpMfas => Set<UserTotpMfa>();
     public DbSet<UserMfaRecoveryCode> UserMfaRecoveryCodes => Set<UserMfaRecoveryCode>();
     public DbSet<UserPasskeyCredential> UserPasskeyCredentials => Set<UserPasskeyCredential>();
+    public DbSet<UserActionToken> UserActionTokens => Set<UserActionToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +106,13 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
         {
             e.HasIndex(x => x.CredentialId).IsUnique();
             e.HasOne(x => x.User).WithMany(u => u.PasskeyCredentials).HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<UserActionToken>(e =>
+        {
+            e.HasIndex(x => x.TokenHash);
+            e.HasIndex(x => new { x.UserId, x.Purpose, x.ConsumedAtUtc });
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
         });
     }
 }

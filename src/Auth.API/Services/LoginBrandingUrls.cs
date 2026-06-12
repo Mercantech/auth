@@ -73,6 +73,41 @@ public static class LoginBrandingUrls
     public static string AuthorizeLoginRedirect(string authorizePathAndQuery, string clientId) =>
         Login(authorizePathAndQuery, clientId: clientId);
 
+    public static string ForgotPassword(string? returnUrl = null, string? error = null, string? clientId = null)
+    {
+        var q = new List<string>();
+        if (!string.IsNullOrWhiteSpace(returnUrl))
+            q.Add($"returnUrl={Uri.EscapeDataString(returnUrl)}");
+        if (!string.IsNullOrWhiteSpace(error))
+            q.Add($"error={Uri.EscapeDataString(error)}");
+        AppendClientId(q, clientId);
+        return q.Count == 0 ? "/Account/ForgotPassword" : $"/Account/ForgotPassword?{string.Join('&', q)}";
+    }
+
+    public static string ResetPassword(string? token = null, string? error = null, string? clientId = null)
+    {
+        var q = new List<string>();
+        if (!string.IsNullOrWhiteSpace(token))
+            q.Add($"token={Uri.EscapeDataString(token)}");
+        if (!string.IsNullOrWhiteSpace(error))
+            q.Add($"error={Uri.EscapeDataString(error)}");
+        AppendClientId(q, clientId);
+        return q.Count == 0 ? "/Account/ResetPassword" : $"/Account/ResetPassword?{string.Join('&', q)}";
+    }
+
+    public static string ConfirmEmailSent(string? returnUrl = null, string? email = null, string? status = null, string? clientId = null)
+    {
+        var q = new List<string>();
+        if (!string.IsNullOrWhiteSpace(returnUrl))
+            q.Add($"returnUrl={Uri.EscapeDataString(returnUrl)}");
+        if (!string.IsNullOrWhiteSpace(email))
+            q.Add($"email={Uri.EscapeDataString(email)}");
+        if (!string.IsNullOrWhiteSpace(status))
+            q.Add($"status={Uri.EscapeDataString(status)}");
+        AppendClientId(q, clientId);
+        return q.Count == 0 ? "/Account/ConfirmEmailSent" : $"/Account/ConfirmEmailSent?{string.Join('&', q)}";
+    }
+
     private static void AppendClientId(List<string> q, string? clientId)
     {
         if (!string.IsNullOrWhiteSpace(clientId))
