@@ -352,7 +352,10 @@ public static class AccountEndpointExtensions
             var accountEmail = ctx.RequestServices.GetRequiredService<IAccountEmailService>();
             try
             {
-                await accountEmail.SendEmailConfirmationAsync(user, ctx.RequestAborted);
+                await accountEmail.SendEmailConfirmationAsync(
+                    user,
+                    LoginBrandingUrls.ClientIdFromContext(ctx),
+                    ctx.RequestAborted);
             }
             catch (Exception ex)
             {

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>{{brandTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Segoe UI, Helvetica, Arial, sans-serif !important; }
+  </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:{{pageBg}};font-family:{{fontFamily}};color:{{ink}};-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{preheader}}</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:{{pageBg}};padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;">
+          <tr>
+            <td style="padding:0 0 20px 0;">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    {{logoBlock}}
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <p style="margin:0;font-family:{{titleFontFamily}};font-size:18px;font-weight:800;letter-spacing:-0.03em;color:{{ink}};">{{brandTitle}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:{{cardBg}};border:{{cardBorder}};border-radius:{{cardRadius}};box-shadow:{{cardShadow}};padding:32px 28px;">
+              {{content}}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 8px 0;font-size:12px;line-height:1.5;color:{{muted}};text-align:center;">
+              Denne mail er sendt fra {{brandTitle}}. Hvis du ikke har anmodet om den, kan du ignorere den.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

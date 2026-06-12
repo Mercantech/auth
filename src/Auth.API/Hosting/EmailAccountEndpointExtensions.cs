@@ -69,7 +69,10 @@ public static class EmailAccountEndpointExtensions
         {
             try
             {
-                await accountEmail.SendEmailConfirmationAsync(user, ctx.RequestAborted);
+                await accountEmail.SendEmailConfirmationAsync(
+                    user,
+                    ResolveEmailClientId(ctx, returnUrl),
+                    ctx.RequestAborted);
             }
             catch (Exception ex)
             {
@@ -112,7 +115,10 @@ public static class EmailAccountEndpointExtensions
         {
             try
             {
-                await accountEmail.SendPasswordResetAsync(user, ctx.RequestAborted);
+                await accountEmail.SendPasswordResetAsync(
+                    user,
+                    ResolveEmailClientId(ctx, returnUrl),
+                    ctx.RequestAborted);
             }
             catch (Exception ex)
             {
@@ -169,7 +175,10 @@ public static class EmailAccountEndpointExtensions
 
         try
         {
-            await accountEmail.SendPasswordChangedNoticeAsync(user, ctx.RequestAborted);
+            await accountEmail.SendPasswordChangedNoticeAsync(
+                user,
+                LoginBrandingUrls.ClientIdFromContext(ctx),
+                ctx.RequestAborted);
         }
         catch (Exception ex)
         {
@@ -179,5 +188,11 @@ public static class EmailAccountEndpointExtensions
         }
 
         return Results.Redirect(LoginBrandingUrls.Login(error: "password_reset_ok"));
+    }
+
+    private static string? ResolveEmailClientId(HttpContext ctx, string? returnUrl)
+    {
+        var fromReturn = LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(returnUrl, ctx);
+        return string.IsNullOrWhiteSpace(fromReturn) ? null : fromReturn;
     }
 }

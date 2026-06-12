@@ -4,7 +4,7 @@ namespace Auth.API.Services;
 
 public interface IAccountEmailService
 {
-    Task SendEmailConfirmationAsync(User user, CancellationToken cancellationToken = default);
-    Task SendPasswordResetAsync(User user, CancellationToken cancellationToken = default);
-    Task SendPasswordChangedNoticeAsync(User user, CancellationToken cancellationToken = default);
+    Task SendEmailConfirmationAsync(User user, string? clientId = null, CancellationToken cancellationToken = default);
+    Task SendPasswordResetAsync(User user, string? clientId = null, CancellationToken cancellationToken = default);
+    Task SendPasswordChangedNoticeAsync(User user, string? clientId = null, CancellationToken cancellationToken = default);
 }

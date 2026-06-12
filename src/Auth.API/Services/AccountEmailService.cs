@@ -1,3 +1,4 @@
+using Auth.API.Data;
 using Auth.API.Models;
 using Auth.API.Models.Entities;
 using Auth.API.Options;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Auth.API.Services;
 
 public sealed class AccountEmailService(
+    AuthDbContext db,
     IEmailService emailService,
     IUserActionTokenService tokenService,
     EmailTemplateRenderer templates,
@@ -13,72 +15,89 @@ public sealed class AccountEmailService(
 {
     private readonly EmailOptions _options = emailOptions.Value;
 
-    public async Task SendEmailConfirmationAsync(User user, CancellationToken cancellationToken = default)
-    {
-        var token = await tokenService.IssueAsync(
-            user.Id,
+    public Task SendEmailConfirmationAsync(User user, string? clientId = null, CancellationToken cancellationToken = default) =>
+        SendTemplatedAsync(
+            user,
+            clientId,
+            "confirm-email.html",
+            $"Bekræft din e-mail",
+            "Bekræft din e-mail for at aktivere din konto.",
+            async token =>
+            {
+                var actionUrl = $"{_options.PublicBaseUrl.TrimEnd('/')}/account/confirm-email?token={Uri.EscapeDataString(token)}";
+                return new Dictionary<string, string>
+                {
+                    ["displayName"] = user.DisplayName,
+                    ["actionUrl"] = actionUrl,
+                    ["expiryHours"] = _options.EmailConfirmExpiryHours.ToString(),
+                };
+            },
             UserActionTokenPurpose.EmailConfirmation,
             TimeSpan.FromHours(_options.EmailConfirmExpiryHours),
             cancellationToken);
 
-        var actionUrl = $"{_options.PublicBaseUrl.TrimEnd('/')}/account/confirm-email?token={Uri.EscapeDataString(token)}";
-        var html = await templates.RenderAsync("confirm-email.html", new Dictionary<string, string>
-        {
-            ["displayName"] = user.DisplayName,
-            ["actionUrl"] = actionUrl,
-            ["expiryHours"] = _options.EmailConfirmExpiryHours.ToString(),
-            ["fromName"] = _options.FromName,
-        });
-
-        await emailService.SendAsync(new EmailMessage
-        {
-            ToAddress = RequireEmail(user),
-            ToName = user.DisplayName,
-            Subject = "Bekræft din e-mail — Mercantec Auth",
-            HtmlBody = html,
-        }, cancellationToken);
-    }
-
-    public async Task SendPasswordResetAsync(User user, CancellationToken cancellationToken = default)
-    {
-        var token = await tokenService.IssueAsync(
-            user.Id,
+    public Task SendPasswordResetAsync(User user, string? clientId = null, CancellationToken cancellationToken = default) =>
+        SendTemplatedAsync(
+            user,
+            clientId,
+            "reset-password.html",
+            "Nulstil din adgangskode",
+            "Du har anmodet om at nulstille din adgangskode.",
+            async token =>
+            {
+                var actionUrl = $"{_options.PublicBaseUrl.TrimEnd('/')}/Account/ResetPassword?token={Uri.EscapeDataString(token)}";
+                return new Dictionary<string, string>
+                {
+                    ["displayName"] = user.DisplayName,
+                    ["actionUrl"] = actionUrl,
+                    ["expiryMinutes"] = _options.PasswordResetExpiryMinutes.ToString(),
+                };
+            },
             UserActionTokenPurpose.PasswordReset,
             TimeSpan.FromMinutes(_options.PasswordResetExpiryMinutes),
             cancellationToken);
 
-        var actionUrl = $"{_options.PublicBaseUrl.TrimEnd('/')}/Account/ResetPassword?token={Uri.EscapeDataString(token)}";
-        var html = await templates.RenderAsync("reset-password.html", new Dictionary<string, string>
+    public async Task SendPasswordChangedNoticeAsync(User user, string? clientId = null, CancellationToken cancellationToken = default)
+    {
+        var palette = await EmailThemeCatalog.ResolveForClientAsync(db, emailOptions, clientId, cancellationToken);
+        var values = new Dictionary<string, string>
         {
             ["displayName"] = user.DisplayName,
-            ["actionUrl"] = actionUrl,
-            ["expiryMinutes"] = _options.PasswordResetExpiryMinutes.ToString(),
-            ["fromName"] = _options.FromName,
-        });
-
+            ["supportUrl"] = _options.PublicBaseUrl.TrimEnd('/'),
+            ["preheader"] = "Din adgangskode er blevet ændret.",
+        };
+        var html = await templates.RenderThemedAsync("password-changed.html", palette, values);
         await emailService.SendAsync(new EmailMessage
         {
             ToAddress = RequireEmail(user),
             ToName = user.DisplayName,
-            Subject = "Nulstil din adgangskode — Mercantec Auth",
+            Subject = $"Din adgangskode er ændret — {palette.BrandTitle}",
             HtmlBody = html,
         }, cancellationToken);
     }
 
-    public async Task SendPasswordChangedNoticeAsync(User user, CancellationToken cancellationToken = default)
+    private async Task SendTemplatedAsync(
+        User user,
+        string? clientId,
+        string templateFile,
+        string subjectCore,
+        string preheader,
+        Func<string, Task<Dictionary<string, string>>> buildValues,
+        UserActionTokenPurpose purpose,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken)
     {
-        var html = await templates.RenderAsync("password-changed.html", new Dictionary<string, string>
-        {
-            ["displayName"] = user.DisplayName,
-            ["fromName"] = _options.FromName,
-            ["supportUrl"] = _options.PublicBaseUrl.TrimEnd('/'),
-        });
+        var token = await tokenService.IssueAsync(user.Id, purpose, lifetime, cancellationToken);
+        var palette = await EmailThemeCatalog.ResolveForClientAsync(db, emailOptions, clientId, cancellationToken);
+        var values = await buildValues(token);
+        values["preheader"] = preheader;
+        var html = await templates.RenderThemedAsync(templateFile, palette, values);
 
         await emailService.SendAsync(new EmailMessage
         {
             ToAddress = RequireEmail(user),
             ToName = user.DisplayName,
-            Subject = "Din adgangskode er ændret — Mercantec Auth",
+            Subject = $"{subjectCore} — {palette.BrandTitle}",
             HtmlBody = html,
         }, cancellationToken);
     }
