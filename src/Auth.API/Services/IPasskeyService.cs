@@ -29,7 +29,7 @@ public interface IPasskeyService
 
     Task<IReadOnlyList<PasskeyListItem>> ListForUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteAsync(Guid userId, Guid credentialRowId, CancellationToken cancellationToken = default);
+    Task<string?> DeleteAsync(Guid userId, Guid credentialRowId, CancellationToken cancellationToken = default);
 }
 
 public enum PasskeyRegisterResult

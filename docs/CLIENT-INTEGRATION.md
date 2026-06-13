@@ -30,6 +30,18 @@ Ny password-signup sender bekræftelsesmail og **logger ikke ind** før e-mail e
 
 **SMTP (Brevo):** `Email:SmtpHost=smtp-relay.brevo.com`, port `587`, `Email:FromAddress=noreply@auth.mercantec.tech`. Verificér domænet i Brevo og tilføj SPF/DKIM/DMARC i Cloudflare. Dev: Mailpit på port `1025` (UI `8025`).
 
+### Sikkerhedsmails (MFA / passkey)
+
+Sendes automatisk ved ændringer på `/Account/Security` (kræver e-mail på kontoen):
+
+| Hændelse | Trigger |
+|----------|---------|
+| To-faktor aktiveret | `POST /account/mfa/totp/confirm` |
+| To-faktor deaktiveret | `POST /account/mfa/totp/disable` |
+| Passkey tilføjet | `POST /account/passkeys/register/complete` |
+| Passkey fjernet | `POST /account/passkeys/{id}/delete` |
+| Adgangskode ændret | `POST /account/password/reset` |
+
 ## Overblik
 
 1. Registrér en **client** i databasen (`ClientApps` + tilladte **redirect URIs** præcist som din app kalder med).

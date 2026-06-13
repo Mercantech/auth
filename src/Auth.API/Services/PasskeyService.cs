@@ -197,7 +197,7 @@ public class PasskeyService(
             .Select(c => new PasskeyListItem(c.Id, c.FriendlyName, c.CreatedAtUtc, c.LastUsedAtUtc))
             .ToListAsync(cancellationToken);
 
-    public async Task<bool> DeleteAsync(
+    public async Task<string?> DeleteAsync(
         Guid userId,
         Guid credentialRowId,
         CancellationToken cancellationToken = default)
@@ -205,10 +205,11 @@ public class PasskeyService(
         var row = await db.UserPasskeyCredentials
             .FirstOrDefaultAsync(c => c.Id == credentialRowId && c.UserId == userId, cancellationToken);
         if (row is null)
-            return false;
+            return null;
 
+        var name = row.FriendlyName;
         db.UserPasskeyCredentials.Remove(row);
         await db.SaveChangesAsync(cancellationToken);
-        return true;
+        return name;
     }
 }

@@ -68,6 +68,7 @@ public static class MfaEndpointExtensions
 
     private static async Task<IResult> TotpConfirmAsync(
         HttpContext ctx,
+        AuthDbContext db,
         ITotpMfaService totp,
         IAntiforgery antiforgery)
     {
@@ -82,6 +83,12 @@ public static class MfaEndpointExtensions
         var result = await totp.ConfirmSetupAsync(userId, code, ctx.RequestAborted);
         if (result != TotpConfirmResult.Success)
             return Results.Redirect("/Account/Security?error=totp_confirm");
+
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ctx.RequestAborted);
+        await TrySendSecurityEmailAsync(
+            ctx,
+            user,
+            email => email.SendTotpEnabledNoticeAsync(user, LoginBrandingUrls.ClientIdFromContext(ctx), ctx.RequestAborted));
 
         return Results.Redirect("/Account/Security?totp_enabled=1");
     }
@@ -141,6 +148,7 @@ public static class MfaEndpointExtensions
 
     private static async Task<IResult> TotpDisableAsync(
         HttpContext ctx,
+        AuthDbContext db,
         ITotpMfaService totp,
         IAntiforgery antiforgery)
     {
@@ -153,6 +161,12 @@ public static class MfaEndpointExtensions
         var form = await ctx.Request.ReadFormAsync();
         if (!await totp.DisableAsync(userId, form["code"].ToString(), ctx.RequestAborted))
             return Results.Redirect("/Account/Security?error=totp_disable");
+
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ctx.RequestAborted);
+        await TrySendSecurityEmailAsync(
+            ctx,
+            user,
+            email => email.SendTotpDisabledNoticeAsync(user, LoginBrandingUrls.ClientIdFromContext(ctx), ctx.RequestAborted));
 
         return Results.Redirect("/Account/Security?totp_disabled=1");
     }
@@ -180,6 +194,7 @@ public static class MfaEndpointExtensions
 
     private static async Task<IResult> PasskeyRegisterCompleteAsync(
         HttpContext ctx,
+        AuthDbContext db,
         IPasskeyService passkeys,
         IAntiforgery antiforgery)
     {
@@ -204,6 +219,18 @@ public static class MfaEndpointExtensions
 
         await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
             .RecordPasskeyRegisterAsync(userId, ctx.RequestAborted);
+
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ctx.RequestAborted);
+        var passkeyName = string.IsNullOrWhiteSpace(friendlyName) ? "Passkey" : friendlyName.Trim();
+        await TrySendSecurityEmailAsync(
+            ctx,
+            user,
+            email => email.SendPasskeyAddedNoticeAsync(
+                user,
+                passkeyName,
+                LoginBrandingUrls.ClientIdFromContext(ctx),
+                ctx.RequestAborted));
+
         return Results.Ok(new { ok = true });
     }
 
@@ -357,6 +384,7 @@ public static class MfaEndpointExtensions
     private static async Task<IResult> PasskeyDeleteAsync(
         Guid id,
         HttpContext ctx,
+        AuthDbContext db,
         IPasskeyService passkeys,
         IAntiforgery antiforgery)
     {
@@ -366,7 +394,20 @@ public static class MfaEndpointExtensions
         if (!TryGetUserId(ctx, out var userId))
             return Results.Unauthorized();
 
-        await passkeys.DeleteAsync(userId, id, ctx.RequestAborted);
+        var removedName = await passkeys.DeleteAsync(userId, id, ctx.RequestAborted);
+        if (removedName is not null)
+        {
+            var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ctx.RequestAborted);
+            await TrySendSecurityEmailAsync(
+                ctx,
+                user,
+                email => email.SendPasskeyRemovedNoticeAsync(
+                    user,
+                    removedName,
+                    LoginBrandingUrls.ClientIdFromContext(ctx),
+                    ctx.RequestAborted));
+        }
+
         return Results.Redirect("/Account/Security?passkey_removed=1");
     }
 
@@ -374,6 +415,26 @@ public static class MfaEndpointExtensions
     {
         userId = default;
         return Guid.TryParse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+    }
+
+    private static async Task TrySendSecurityEmailAsync(
+        HttpContext ctx,
+        Models.Entities.User user,
+        Func<IAccountEmailService, Task> send)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return;
+
+        try
+        {
+            await send(ctx.RequestServices.GetRequiredService<IAccountEmailService>());
+        }
+        catch (Exception ex)
+        {
+            ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("SecurityEmail")
+                .LogError(ex, "Kunne ikke sende sikkerhedsmail til {UserId}", user.Id);
+        }
     }
 
     private static async Task<bool> ValidateAntiforgery(HttpContext ctx, IAntiforgery antiforgery)
