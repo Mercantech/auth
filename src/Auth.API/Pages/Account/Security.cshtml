@@ -72,16 +72,29 @@
                         Deaktivér authenticator
                     </button>
                 </form>
-                @if (Model.Passkeys.Count > 0)
+
+                @if (Model.HasPasskeys)
                 {
-                    <div class="auth-divider security-divider" role="separator"><span>eller</span></div>
-                    <p class="security-panel__text">
-                        Virker authenticator-appen ikke? Bekræft med en registreret passkey i stedet.
+                    <section class="security-totp-passkey-fallback" aria-labelledby="totp-passkey-fallback-heading">
+                        <div class="auth-divider security-divider" role="separator"><span>eller</span></div>
+                        <h3 id="totp-passkey-fallback-heading" class="security-totp-passkey-fallback__title">
+                            @await Html.PartialAsync("_SecurityIcon", "passkey")
+                            Nulstil med passkey
+                        </h3>
+                        <p class="security-panel__text security-totp-passkey-fallback__text">
+                            Virker authenticator-appen ikke? Bekræft med en af dine registrerede passkeys (@Model.Passkeys.Count @(Model.Passkeys.Count == 1 ? "enhed" : "enheder")) i stedet for TOTP-kode.
+                        </p>
+                        <button type="button" class="auth-btn auth-btn--passkey auth-btn--block" id="disable-totp-passkey-btn">
+                            @await Html.PartialAsync("_SecurityIcon", "passkey")
+                            Deaktivér authenticator med passkey
+                        </button>
+                    </section>
+                }
+                else
+                {
+                    <p class="security-panel__text security-panel__text--muted">
+                        Tip: Registrér en passkey nedenfor — så kan du nulstille authenticator uden TOTP-kode, hvis appen fejler.
                     </p>
-                    <button type="button" class="auth-btn auth-btn--passkey auth-btn--block" id="disable-totp-passkey-btn">
-                        @await Html.PartialAsync("_SecurityIcon", "passkey")
-                        Deaktivér med passkey
-                    </button>
                 }
             }
             else

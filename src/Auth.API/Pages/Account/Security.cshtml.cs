@@ -13,6 +13,7 @@ public class SecurityModel(
     IPasskeyService passkeys) : PageModel
 {
     public bool TotpEnabled { get; private set; }
+    public bool HasPasskeys => Passkeys.Count > 0;
     public string? SetupSecret { get; private set; }
     public string? SetupUri { get; private set; }
     public string? SetupQrDataUrl { get; private set; }

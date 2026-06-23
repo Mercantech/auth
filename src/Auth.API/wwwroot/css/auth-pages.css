@@ -1054,6 +1054,42 @@
     line-height: 1.55;
 }
 
+.security-panel__text--muted {
+    margin-top: 1rem;
+    margin-bottom: 0;
+    font-size: 0.82rem;
+}
+
+.security-totp-passkey-fallback {
+    margin-top: 0.25rem;
+}
+
+.security-totp-passkey-fallback__title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 0.5rem;
+    font-family: "Syne", system-ui, sans-serif;
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--auth-ink);
+}
+
+.security-totp-passkey-fallback__title .security-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: #6b4f3a;
+}
+
+.security-totp-passkey-fallback__text {
+    margin-bottom: 0.85rem;
+}
+
+.security-divider {
+    margin: 1.1rem 0;
+}
+
 .security-steps {
     list-style: none;
     margin: 0 0 1.1rem;
