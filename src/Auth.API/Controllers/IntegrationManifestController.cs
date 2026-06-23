@@ -217,6 +217,7 @@ public class IntegrationManifestController(
                 confirm = "POST /account/mfa/totp/confirm",
                 verify_step = "POST /account/mfa/verify (pending session → fuld)",
                 disable = "POST /account/mfa/totp/disable",
+                disable_with_passkey = "POST /account/mfa/totp/disable/passkey/options + .../complete (fuld session, kræver registreret passkey)",
             },
             passkeys = new
             {

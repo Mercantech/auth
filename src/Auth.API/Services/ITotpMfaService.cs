@@ -15,6 +15,9 @@ public interface ITotpMfaService
 
     Task<bool> DisableAsync(Guid userId, string totpCode, CancellationToken cancellationToken = default);
 
+    /// <summary>Slår TOTP fra uden kode — kun efter separat stærk verifikation (fx passkey).</summary>
+    Task<bool> DisableAfterTrustedVerificationAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<bool> IsEnabledAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 

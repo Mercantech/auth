@@ -25,6 +25,13 @@ public static class MfaEndpointExtensions
             .RequireAuthorization(MfaPolicies.FullSession)
             .DisableAntiforgery();
 
+        app.MapPost("/account/mfa/totp/disable/passkey/options", TotpDisablePasskeyOptionsAsync)
+            .RequireAuthorization(MfaPolicies.FullSession)
+            .DisableAntiforgery();
+        app.MapPost("/account/mfa/totp/disable/passkey/complete", TotpDisablePasskeyCompleteAsync)
+            .RequireAuthorization(MfaPolicies.FullSession)
+            .DisableAntiforgery();
+
         var passkeys = app.MapGroup("/account/passkeys");
         passkeys.MapPost("/register/options", PasskeyRegisterOptionsAsync)
             .RequireAuthorization(MfaPolicies.FullSession)
@@ -169,6 +176,76 @@ public static class MfaEndpointExtensions
             email => email.SendTotpDisabledNoticeAsync(user, LoginBrandingUrls.ClientIdFromContext(ctx), ctx.RequestAborted));
 
         return Results.Redirect("/Account/Security?totp_disabled=1");
+    }
+
+    private static async Task<IResult> TotpDisablePasskeyOptionsAsync(
+        HttpContext ctx,
+        AuthDbContext db,
+        IPasskeyService passkeys,
+        ITotpMfaService totp,
+        IAntiforgery antiforgery)
+    {
+        if (!await ValidateAntiforgery(ctx, antiforgery))
+            return Results.BadRequest();
+
+        if (!TryGetUserId(ctx, out var userId))
+            return Results.Unauthorized();
+
+        if (!await totp.IsEnabledAsync(userId, ctx.RequestAborted))
+            return Results.BadRequest();
+
+        if (!await db.UserPasskeyCredentials.AnyAsync(c => c.UserId == userId, ctx.RequestAborted))
+            return Results.BadRequest();
+
+        var options = await passkeys.GetAssertionOptionsForUserAsync(userId, ctx.RequestAborted);
+        return Results.Json(options);
+    }
+
+    private static async Task<IResult> TotpDisablePasskeyCompleteAsync(
+        HttpContext ctx,
+        AuthDbContext db,
+        IPasskeyService passkeys,
+        ITotpMfaService totp,
+        IAuthUsageTracker usage,
+        IAntiforgery antiforgery)
+    {
+        if (!await ValidateAntiforgery(ctx, antiforgery))
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?error=invalid_token");
+
+        if (!TryGetUserId(ctx, out var userId))
+            return Results.Unauthorized();
+
+        if (!await totp.IsEnabledAsync(userId, ctx.RequestAborted))
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?totp_disabled=1");
+
+        var (assertion, _, _) = await Fido2JsonHelper.ReadAssertionBodyAsync(ctx.Request);
+        if (assertion is null)
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?error=totp_disable_passkey");
+
+        var auth = await passkeys.CompleteAssertionAsync(assertion, ctx.RequestAborted);
+        if (auth != PasskeyAuthResult.Success)
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?error=totp_disable_passkey");
+
+        var credOwner = await db.UserPasskeyCredentials
+            .AsNoTracking()
+            .Where(c => c.CredentialId == assertion.RawId)
+            .Select(c => c.UserId)
+            .FirstOrDefaultAsync(ctx.RequestAborted);
+        if (credOwner != userId)
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?error=totp_disable_passkey");
+
+        if (!await totp.DisableAfterTrustedVerificationAsync(userId, ctx.RequestAborted))
+            return PasskeyLoginJsonRedirect(ctx, "/Account/Security?error=totp_disable_passkey");
+
+        await usage.RecordPasskeyAuthAsync(userId, ctx.RequestAborted);
+
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ctx.RequestAborted);
+        await TrySendSecurityEmailAsync(
+            ctx,
+            user,
+            email => email.SendTotpDisabledNoticeAsync(user, LoginBrandingUrls.ClientIdFromContext(ctx), ctx.RequestAborted));
+
+        return PasskeyLoginJsonRedirect(ctx, "/Account/Security?totp_disabled=1");
     }
 
     private static async Task<IResult> PasskeyRegisterOptionsAsync(

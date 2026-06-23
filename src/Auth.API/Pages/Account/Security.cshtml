@@ -72,6 +72,17 @@
                         Deaktivér authenticator
                     </button>
                 </form>
+                @if (Model.Passkeys.Count > 0)
+                {
+                    <div class="auth-divider security-divider" role="separator"><span>eller</span></div>
+                    <p class="security-panel__text">
+                        Virker authenticator-appen ikke? Bekræft med en registreret passkey i stedet.
+                    </p>
+                    <button type="button" class="auth-btn auth-btn--passkey auth-btn--block" id="disable-totp-passkey-btn">
+                        @await Html.PartialAsync("_SecurityIcon", "passkey")
+                        Deaktivér med passkey
+                    </button>
+                }
             }
             else
             {
@@ -208,6 +219,16 @@
             "@(pathBase)/account/passkeys/register/complete",
             token,
             name).then(() => location.reload()).catch(() => alert("Passkey-registrering fejlede."));
+    });
+
+    document.getElementById("disable-totp-passkey-btn")?.addEventListener("click", () => {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        window.MercantecPasskeys.assertForMfa(
+            "@(pathBase)/account/mfa/totp/disable/passkey/options",
+            "@(pathBase)/account/mfa/totp/disable/passkey/complete",
+            token,
+            "@(pathBase)/Account/Security?totp_disabled=1")
+            .catch(() => alert("Passkey-bekræftelse fejlede — authenticator er ikke slået fra."));
     });
 
     document.getElementById("copy-totp-secret")?.addEventListener("click", async () => {

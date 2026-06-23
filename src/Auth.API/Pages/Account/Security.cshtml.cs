@@ -38,6 +38,7 @@ public class SecurityModel(
         {
             "totp_confirm" => "Kunne ikke bekræfte TOTP — tjek koden.",
             "totp_disable" => "Forkert kode — TOTP ikke slået fra.",
+            "totp_disable_passkey" => "Passkey-bekræftelse fejlede — authenticator er ikke slået fra.",
             "invalid_token" => "Ugyldig session.",
             _ => null,
         };

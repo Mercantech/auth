@@ -122,9 +122,23 @@ public class TotpMfaService(
         if (!await VerifyCodeAsync(userId, totpCode, cancellationToken))
             return false;
 
+        await RemoveTotpAsync(userId, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DisableAfterTrustedVerificationAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (!await IsEnabledAsync(userId, cancellationToken))
+            return false;
+
+        await RemoveTotpAsync(userId, cancellationToken);
+        return true;
+    }
+
+    private async Task RemoveTotpAsync(Guid userId, CancellationToken cancellationToken)
+    {
         await db.UserMfaRecoveryCodes.Where(c => c.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await db.UserTotpMfas.Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        return true;
     }
 
     public Task<bool> IsEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
