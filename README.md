@@ -38,6 +38,10 @@ docker compose -f docker/docker-compose.yml up --build -d
 - **OAuth demo-SPA:** `http://localhost:5173`
 - JWT-nøgler ligger i volumen `jwt_keys`. Microsoft OAuth i container: brug `docker/.env` — se `docker/.env.example`.
 
+## Dokploy (produktion)
+
+Se [docker/README.md](docker/README.md) — især hvis deploy fejler med **container name already in use** (`auth-authprod-zuyvik-api-1`). Build kan godt lykkes mens den gamle API-container stadig kører gammel kode.
+
 ## Ekstern login-test (HTML/JS, anden port)
 
 - [external-spa-demo/](external-spa-demo/) — statisk side på fx port **5173** + PKCE mod auth (inkl. Azure/Microsoft-noter).
