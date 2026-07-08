@@ -403,42 +403,93 @@
 
   const quizWrap = $("quiz-wrap");
   const quizScore = $("quiz-score");
-  const answered = new Array(quiz.length).fill(null);
+  const quizRestart = $("quiz-restart");
+  const letters = ["A", "B", "C", "D"];
+  let answered = [];
 
-  quiz.forEach((item, qi) => {
-    const box = document.createElement("div");
-    box.className = "quiz-item";
-    const h = document.createElement("p");
-    h.className = "quiz-q";
-    h.textContent = qi + 1 + ". " + item.q;
-    box.appendChild(h);
-    const feedback = document.createElement("p");
-    feedback.className = "quiz-feedback";
-    item.options.forEach((opt, oi) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "quiz-option";
-      btn.textContent = opt;
-      btn.addEventListener("click", () => {
-        if (answered[qi] !== null) return;
-        answered[qi] = oi;
-        const correct = oi === item.answer;
-        btn.classList.add(correct ? "quiz-correct" : "quiz-wrong");
-        if (!correct) {
-          const right = box.querySelectorAll(".quiz-option")[item.answer];
-          right.classList.add("quiz-correct");
-        }
-        for (const b of box.querySelectorAll(".quiz-option")) b.disabled = true;
-        feedback.innerHTML = (correct ? '<span class="demo-text-ok">Rigtigt!</span> ' : '<span class="demo-text-err">Ikke helt.</span> ') + item.why;
-        const done = answered.filter((a) => a !== null).length;
-        const score = answered.filter((a, i) => a === quiz[i].answer).length;
-        quizScore.textContent = done === quiz.length
-          ? "Færdig: " + score + " af " + quiz.length + " rigtige." + (score === quiz.length ? " Du er klar til at bygge integrationer!" : " Genlæs afsnittene ovenfor og prøv siden igen.")
-          : done + " af " + quiz.length + " besvaret.";
+  function updateScore() {
+    const done = answered.filter((a) => a !== null).length;
+    const score = answered.filter((a, i) => a === quiz[i].answer).length;
+    if (done === quiz.length) {
+      quizScore.textContent =
+        "Færdig: " + score + " af " + quiz.length + " rigtige" +
+        (score === quiz.length ? " — du er klar til at bygge integrationer!" : " — genlæs afsnittene og prøv igen.");
+      quizScore.classList.add(score === quiz.length ? "quiz-score-perfect" : "quiz-score-done");
+    } else {
+      quizScore.textContent = done + " af " + quiz.length + " besvaret";
+      quizScore.classList.remove("quiz-score-perfect", "quiz-score-done");
+    }
+  }
+
+  function buildQuiz() {
+    answered = new Array(quiz.length).fill(null);
+    quizWrap.innerHTML = "";
+    updateScore();
+
+    quiz.forEach((item, qi) => {
+      const box = document.createElement("div");
+      box.className = "quiz-item";
+
+      const label = document.createElement("span");
+      label.className = "quiz-item-label";
+      label.textContent = "Spørgsmål " + (qi + 1) + " af " + quiz.length;
+      box.appendChild(label);
+
+      const h = document.createElement("p");
+      h.className = "quiz-q";
+      h.textContent = item.q;
+      box.appendChild(h);
+
+      const feedback = document.createElement("div");
+      feedback.className = "quiz-feedback";
+      feedback.hidden = true;
+
+      item.options.forEach((opt, oi) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "quiz-option";
+
+        const letter = document.createElement("span");
+        letter.className = "quiz-letter";
+        letter.textContent = letters[oi] || "?";
+
+        const text = document.createElement("span");
+        text.className = "quiz-text";
+        text.textContent = opt;
+
+        btn.append(letter, text);
+        btn.addEventListener("click", () => {
+          if (answered[qi] !== null) return;
+          answered[qi] = oi;
+          const correct = oi === item.answer;
+          const options = box.querySelectorAll(".quiz-option");
+
+          btn.classList.add(correct ? "quiz-correct" : "quiz-wrong");
+          letter.textContent = correct ? "\u2713" : "\u2717";
+          if (!correct) {
+            const right = options[item.answer];
+            right.classList.add("quiz-correct");
+            right.querySelector(".quiz-letter").textContent = "\u2713";
+          }
+          for (const b of options) b.disabled = true;
+
+          feedback.hidden = false;
+          feedback.classList.add(correct ? "quiz-feedback-ok" : "quiz-feedback-err");
+          feedback.innerHTML =
+            "<strong>" + (correct ? "Rigtigt!" : "Ikke helt.") + "</strong> " + item.why;
+          updateScore();
+        });
+        box.appendChild(btn);
       });
-      box.appendChild(btn);
+
+      box.appendChild(feedback);
+      quizWrap.appendChild(box);
     });
-    box.appendChild(feedback);
-    quizWrap.appendChild(box);
+  }
+
+  quizRestart.addEventListener("click", () => {
+    buildQuiz();
+    document.getElementById("quiz").scrollIntoView({ behavior: "smooth" });
   });
+  buildQuiz();
 })();
