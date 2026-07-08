@@ -30,6 +30,7 @@ public class ClientLoginBrandingTests
         Assert.Null(LoginThemeCatalog.NormalizeStored("not-a-theme"));
         Assert.Equal("mercanlink", LoginThemeCatalog.NormalizeStored("mercanlink"));
         Assert.Equal("gf2learn", LoginThemeCatalog.NormalizeStored("gf2learn"));
+        Assert.Equal("uptimedaddy", LoginThemeCatalog.NormalizeStored("uptimedaddy"));
         Assert.Null(LoginThemeCatalog.NormalizeStored(""));
     }
 
@@ -48,6 +49,17 @@ public class ClientLoginBrandingTests
         Assert.Equal("gf2learn", theme.Id);
         Assert.Equal("GF2 Learn", theme.PageTitleSuffix);
         Assert.Contains("Grundforløb 2", theme.LeadText, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("uptimedaddy")]
+    [InlineData("uptime-daddy")]
+    public void ResolveForClient_maps_uptime_daddy_without_db_theme(string clientId)
+    {
+        var theme = LoginThemeCatalog.ResolveForClient(null, clientId);
+        Assert.Equal("uptimedaddy", theme.Id);
+        Assert.Equal("Uptime Daddy", theme.PageTitleSuffix);
+        Assert.Contains("oppetid", theme.LeadText, StringComparison.Ordinal);
     }
 
     [Fact]

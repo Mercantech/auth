@@ -27,4 +27,18 @@ public class EmailThemeCatalogTests
 
         Assert.Equal("https://auth.mercantec.tech/themes/mercanlink/logo.png", palette.LogoAbsoluteUrl);
     }
+
+    [Fact]
+    public void GetPalette_uptimedaddy_uses_dark_palette_without_logo()
+    {
+        var theme = LoginThemeCatalog.UptimeDaddy;
+        var palette = EmailThemeCatalog.GetPalette(theme, "https://auth.mercantec.tech");
+
+        Assert.Equal("#408a71", palette.Accent);
+        Assert.Equal("#0f1f1c", palette.CardBg);
+        Assert.Equal("#091413", palette.PageBg);
+        Assert.False(palette.CardHardShadow);
+        Assert.Null(palette.LogoAbsoluteUrl);
+        Assert.Equal("Uptime Daddy", palette.BrandTitle);
+    }
 }

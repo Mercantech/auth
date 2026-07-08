@@ -1,0 +1,333 @@
+/* Uptime Daddy — matcher UptimeDaddy-frontend (mørk teal + mint, mono-typografi) */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap");
+
+.auth-page[data-login-theme="uptimedaddy"] {
+    --auth-ink: #e8fff6;
+    --auth-muted: #8fb8a8;
+    --auth-card: #0f1f1c;
+    --auth-edge: #2f6d59;
+    --auth-accent: #408a71;
+    --auth-accent-hover: #4ea584;
+    --auth-warm: #b0e4cc;
+    --auth-input-bg: #0f1f1c;
+    --auth-input-border: #2f6d59;
+    --auth-code-bg: #0b1a17;
+    --auth-page-bg: #091413;
+    --auth-page-bg-accent: rgba(64, 138, 113, 0.12);
+    --auth-brand-mark-bg: linear-gradient(135deg, #408a71 0%, #4ea584 100%);
+    --auth-brand-mark-fg: #091413;
+    --auth-radius: 0.5rem;
+    --auth-radius-lg: 0.75rem;
+    --auth-shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    --auth-shadow-card: 0 12px 34px -10px rgba(0, 0, 0, 0.65);
+
+    font-family: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: var(--auth-ink);
+    background-color: var(--auth-page-bg);
+    background-image:
+        radial-gradient(ellipse 55% 45% at 100% 0%, rgba(78, 165, 132, 0.16), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 0% 100%, rgba(64, 138, 113, 0.14), transparent 50%),
+        linear-gradient(180deg, #091413 0%, #06100f 100%);
+}
+
+/* Flip alle layout-root variabler til mørkt, så kort/inputs/knapper arver korrekt */
+.auth-page[data-login-theme="uptimedaddy"] .auth-layout-root {
+    --auth-ink: #e8fff6;
+    --auth-muted: #8fb8a8;
+    --auth-card: #0f1f1c;
+    --auth-edge: #2f6d59;
+    --auth-accent: #408a71;
+    --auth-accent-hover: #4ea584;
+    --auth-warm: #b0e4cc;
+    --auth-input-bg: #0f1f1c;
+    --auth-input-border: #2f6d59;
+    --auth-code-bg: #0b1a17;
+}
+
+.auth-page[data-login-theme="uptimedaddy"]::before {
+    opacity: 0.05;
+}
+
+/* ——— Topbar ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar {
+    background: rgba(9, 20, 19, 0.9);
+    border-bottom: 1px solid #2f6d59;
+    backdrop-filter: blur(12px);
+    box-shadow: none;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__brand {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: #408a71;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__brand:hover {
+    color: #4ea584;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__mark {
+    border: 1px solid #2f6d59;
+    border-radius: var(--auth-radius);
+    box-shadow: var(--auth-shadow-soft);
+    background: var(--auth-brand-mark-bg);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__logo {
+    border-radius: var(--auth-radius);
+    box-shadow: var(--auth-shadow-soft);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__link {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8fb8a8;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-topbar__link:hover {
+    color: #4ea584;
+    border-bottom-color: #408a71;
+}
+
+/* ——— Kort ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-card {
+    border-radius: var(--auth-radius-lg);
+    border: 1px solid #2f6d59;
+    box-shadow: var(--auth-shadow-card);
+    background: #0f1f1c;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-brand__title,
+.auth-page[data-login-theme="uptimedaddy"] .auth-headline {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #b0e4cc;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-brand__subtitle,
+.auth-page[data-login-theme="uptimedaddy"] .auth-lead {
+    color: var(--auth-muted);
+    font-weight: 500;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-brand__mark {
+    border-radius: var(--auth-radius);
+    border: 1px solid #2f6d59;
+    box-shadow: var(--auth-shadow-soft);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-brand__mark--client {
+    background: #0b1a17;
+    border-color: #2f6d59;
+    padding: 0.35rem;
+}
+
+/* ——— Inputs ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-input {
+    border-radius: var(--auth-radius);
+    border-width: 1px;
+    background: #0f1f1c;
+    color: #e8fff6;
+    box-shadow: none;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-input::placeholder {
+    color: #7a9e94;
+    opacity: 1;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-input:focus {
+    border-color: #4ea584;
+    box-shadow: 0 0 0 1px #4ea584 inset;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-label {
+    color: #b0e4cc;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+}
+
+/* ——— Primær knap ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-submit {
+    border: 1px solid #4ea584;
+    border-radius: var(--auth-radius);
+    background: #408a71;
+    color: #061a13;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.9375rem;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-submit:hover {
+    background: #4ea584;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    transform: translateY(-1px);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-submit:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ——— Sekundære knapper ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn {
+    background: transparent;
+    color: #e8fff6;
+    border: 1px solid #2f6d59;
+    box-shadow: none;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn:hover {
+    background: #0f1f1c;
+    border-color: #408a71;
+    transform: none;
+    box-shadow: none;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn--primary {
+    background: #408a71;
+    color: #061a13;
+    border-color: #4ea584;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn--primary:hover {
+    background: #4ea584;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn--ghost {
+    background: transparent;
+    color: #b0e4cc;
+    border-color: #2f6d59;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-btn--ghost:hover {
+    border-color: #408a71;
+    background: rgba(64, 138, 113, 0.1);
+}
+
+/* ——— Handlinger / providere ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-action,
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider {
+    border-radius: var(--auth-radius);
+    border: 1px solid #2f6d59;
+    background: #0f1f1c;
+    color: #e8fff6;
+    box-shadow: none;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action:hover,
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider:hover {
+    border-color: #408a71;
+    box-shadow: var(--auth-shadow-soft);
+    transform: translateY(-1px);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action:active,
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider:active {
+    transform: translateY(0);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider__hint,
+.auth-page[data-login-theme="uptimedaddy"] .auth-action__hint {
+    color: var(--auth-muted);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action__icon {
+    background: #0b1a17;
+    border: 1px solid #2f6d59;
+    color: #4ea584;
+    border-radius: var(--auth-radius);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action--passkey {
+    border-color: rgba(78, 165, 132, 0.45);
+    background: linear-gradient(135deg, #10241f 0%, #0f1f1c 100%);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action--passkey:hover {
+    border-color: #4ea584;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-action--passkey .auth-action__icon {
+    background: rgba(78, 165, 132, 0.15);
+    border-color: rgba(78, 165, 132, 0.35);
+    color: #b0e4cc;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider__icon {
+    background: #0b1a17;
+    border: 1px solid #2f6d59;
+    border-radius: calc(var(--auth-radius) - 2px);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-provider__arrow,
+.auth-page[data-login-theme="uptimedaddy"] .auth-action__arrow {
+    color: #8fb8a8;
+}
+
+/* ——— Divider ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-divider::before,
+.auth-page[data-login-theme="uptimedaddy"] .auth-divider::after {
+    background: #2f6d59;
+    opacity: 1;
+    height: 1px;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-divider {
+    color: #8fb8a8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* ——— Alert ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-alert {
+    border-radius: var(--auth-radius);
+    border-width: 1px;
+    background: rgba(158, 43, 37, 0.18);
+    border-color: rgba(220, 90, 80, 0.5);
+    color: #ffd9d4;
+}
+
+/* ——— Footer-links i kort ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer-link {
+    color: var(--auth-muted);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer-link a {
+    color: #5ac17c;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer-link a:hover {
+    border-bottom-color: #b0e4cc;
+}
+
+/* ——— Side-footer (barn af auth-page) ——— */
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer {
+    border-top: 1px solid #2f6d59;
+    background: rgba(9, 20, 19, 0.9);
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer__attrib {
+    color: #8fb8a8;
+    font-size: 0.78rem;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer__attrib a {
+    color: #7ecfb0;
+    border-bottom-color: transparent;
+}
+
+.auth-page[data-login-theme="uptimedaddy"] .auth-footer__attrib a:hover {
+    color: #b0e4cc;
+    border-bottom-color: #408a71;
+}

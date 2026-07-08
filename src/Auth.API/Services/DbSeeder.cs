@@ -93,6 +93,7 @@ public static class DbSeeder
 
         await EnsureMercanlinkThemeAsync(db, ct);
         await EnsureGf2LearnThemeAsync(db, ct);
+        await EnsureUptimeDaddyThemeAsync(db, ct);
     }
 
     /// <summary>Sætter login-tema og login-metoder på Mercanlink OAuth-klienter hvis de findes.</summary>
@@ -145,6 +146,35 @@ public static class DbSeeder
             if (!string.Equals(client.AllowedLoginMethods, gf2Methods, StringComparison.OrdinalIgnoreCase))
             {
                 client.AllowedLoginMethods = gf2Methods;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Sætter login-tema og login-metoder på Uptime Daddy OAuth-klienten hvis den findes.</summary>
+    private static async Task EnsureUptimeDaddyThemeAsync(AuthDbContext db, CancellationToken ct)
+    {
+        var uptimeClientIds = new[] { "uptimedaddy", "uptime-daddy" };
+        var clients = await db.ClientApps
+            .Where(c => uptimeClientIds.Contains(c.ClientId))
+            .ToListAsync(ct);
+
+        var changed = false;
+        foreach (var client in clients)
+        {
+            if (!string.Equals(client.LoginThemeId, "uptimedaddy", StringComparison.OrdinalIgnoreCase))
+            {
+                client.LoginThemeId = "uptimedaddy";
+                changed = true;
+            }
+
+            var uptimeMethods = "passkey,password,google,microsoft,microsoft_edu";
+            if (!string.Equals(client.AllowedLoginMethods, uptimeMethods, StringComparison.OrdinalIgnoreCase))
+            {
+                client.AllowedLoginMethods = uptimeMethods;
                 changed = true;
             }
         }

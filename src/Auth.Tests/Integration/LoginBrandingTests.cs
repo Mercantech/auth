@@ -55,4 +55,26 @@ public class LoginBrandingTests(AuthIntegrationFixture fixture)
         Assert.Contains("GF2 Learn", html, StringComparison.Ordinal);
         Assert.Contains("Grundforløb 2 programmering", html, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Login_with_oauth_returnUrl_and_uptimedaddy_theme_renders_theme_markup()
+    {
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var app = await db.ClientApps.FirstOrDefaultAsync(c => c.ClientId == "demo");
+        if (app is not null)
+        {
+            app.LoginThemeId = "uptimedaddy";
+            await db.SaveChangesAsync();
+        }
+
+        var returnUrl = Uri.EscapeDataString("/oauth/authorize?client_id=demo&redirect_uri=http://localhost:5155/oauth/callback&response_type=code");
+        var res = await _client.GetAsync($"/Account/Login?ReturnUrl={returnUrl}&client_id=demo");
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("data-login-theme=\"uptimedaddy\"", html, StringComparison.Ordinal);
+        Assert.Contains("/themes/uptimedaddy.css", html, StringComparison.Ordinal);
+        Assert.Contains("Uptime Daddy", html, StringComparison.Ordinal);
+    }
 }

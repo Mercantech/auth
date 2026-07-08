@@ -14,6 +14,7 @@ public static class EmailThemeCatalog
         {
             "mercanlink" => Mercanlink(theme, baseUrl),
             "gf2learn" => Gf2Learn(theme, baseUrl),
+            "uptimedaddy" => UptimeDaddy(theme, baseUrl),
             _ => Mercantec(theme, baseUrl),
         };
     }
@@ -98,6 +99,27 @@ public static class EmailThemeCatalog
             BrandMarkFg: "#ffffff",
             FontFamily: "'Plus Jakarta Sans', Segoe UI, Helvetica, Arial, sans-serif",
             TitleFontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            CardRadius: "12px",
+            ButtonRadius: "8px",
+            ButtonUppercase: false,
+            CardHardShadow: false);
+
+    private static EmailThemePalette UptimeDaddy(LoginTheme theme, string baseUrl) =>
+        new(
+            ThemeId: theme.Id,
+            BrandTitle: theme.TopbarTitle,
+            LogoAbsoluteUrl: theme.LogoUrl is not null ? $"{baseUrl}{theme.LogoUrl}" : null,
+            Ink: "#e8fff6",
+            Muted: "#8fb8a8",
+            CardBg: "#0f1f1c",
+            Edge: "#2f6d59",
+            Accent: "#408a71",
+            AccentHover: "#4ea584",
+            PageBg: "#091413",
+            BrandMarkBg: "#408a71",
+            BrandMarkFg: "#091413",
+            FontFamily: "'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace",
+            TitleFontFamily: "'JetBrains Mono', ui-monospace, monospace",
             CardRadius: "12px",
             ButtonRadius: "8px",
             ButtonUppercase: false,
