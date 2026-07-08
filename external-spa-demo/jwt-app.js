@@ -50,7 +50,11 @@ if (!token) {
   try {
     const { header, payload } = decodeJwtParts(token);
     elHeader.textContent = JSON.stringify(header, null, 2);
-    elPayload.textContent = JSON.stringify(payload, null, 2);
+    const displayPayload =
+      typeof mercantecRedactJwtPayloadForDisplay === "function"
+        ? mercantecRedactJwtPayloadForDisplay(payload)
+        : payload;
+    elPayload.textContent = JSON.stringify(displayPayload, null, 2);
     elDecode.textContent = "Payload og header er dekodet (uden at stole på signatur).";
   } catch (e) {
     elDecode.textContent = "Kunne ikke dekode: " + e.message;

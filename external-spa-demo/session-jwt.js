@@ -55,3 +55,25 @@ function mercantecLoginMethodDa(method) {
   };
   return m[method] || method;
 }
+
+/**
+ * Maskerer e-mail til visning — kun domænet vises (fx **@mercantec.dk).
+ * Bruges i demo-SPA så lokale dele af adresser ikke lækkes på skærmdeling.
+ */
+function mercantecMaskEmail(email) {
+  if (email == null || email === "") return "—";
+  const s = String(email).trim();
+  const at = s.lastIndexOf("@");
+  if (at <= 0 || at >= s.length - 1) return "**";
+  return "**@" + s.slice(at + 1);
+}
+
+/** Kopi af JWT-payload med e-mail-felter maskeret til sikker visning. */
+function mercantecRedactJwtPayloadForDisplay(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const copy = Array.isArray(payload) ? [...payload] : { ...payload };
+  if (copy.email != null && copy.email !== "") {
+    copy.email = mercantecMaskEmail(copy.email);
+  }
+  return copy;
+}

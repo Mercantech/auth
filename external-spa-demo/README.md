@@ -51,7 +51,7 @@ npx --yes serve . -l 5173
 | `appsettings-env.js` | Ren logik til flatten + escaping (bruges af siden ovenfor) |
 | `demo-theme.css` | Fælles visuelt tema for demo-SPA’en (varm “protokol”-stil, Epilogue + Newsreader) |
 | `logout.js` | `mercantecLogout()` — rydder `sessionStorage` og sender browser til `GET /signout` på auth-host med sikker `returnUrl` tilbage til SPA’en |
-| `session-jwt.js` | Hjælpere til at læse JWT-payload i browseren (kun visning): navn, e-mail, `login_method`, roller, `sub`, udløb |
+| `session-jwt.js` | Hjælpere til at læse JWT-payload i browseren (kun visning): navn, e-mail (maskeret som `**@domæne`), `login_method`, roller, `sub`, udløb |
 
 ### Log ud (SPA ↔ cookie på auth-host)
 

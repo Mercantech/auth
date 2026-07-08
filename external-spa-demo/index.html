@@ -38,7 +38,7 @@
         <p class="status-warn" id="token-expired-hint" hidden>Advarsel: JWT ser ud til at være udløbet — API-kald kan fejle. Log ind igen for et nyt token.</p>
         <ul class="user-facts" id="user-facts">
           <li><strong>Navn:</strong> <span id="u-name">—</span></li>
-          <li><strong>E-mail:</strong> <span id="u-email">—</span></li>
+          <li><strong>E-mail:</strong> <span id="u-email" class="demo-sensitive">—</span></li>
           <li><strong>Logget ind med:</strong> <span id="u-method">—</span></li>
           <li><strong>Roller:</strong> <span id="u-roles">—</span></li>
           <li><strong>Bruger-ID (sub):</strong> <code id="u-sub">—</code></li>
@@ -82,7 +82,10 @@
         elUser.hidden = false;
 
         const name = payload.name || payload.preferred_username || "—";
-        const email = payload.email != null && payload.email !== "" ? payload.email : "—";
+        const email =
+          payload.email != null && payload.email !== ""
+            ? mercantecMaskEmail(payload.email)
+            : "—";
         const method = mercantecLoginMethodDa(payload.login_method);
         const roles = mercantecRolesFromPayload(payload);
         const rolesText = roles.length ? roles.join(", ") : "Ingen (kun basis-bruger)";

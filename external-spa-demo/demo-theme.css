@@ -802,6 +802,11 @@ body.demo .docs-glossary td:first-child {
   white-space: nowrap;
 }
 
+body.demo .demo-sensitive {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
 /* MAGS — undervisningskontekst */
 body.demo .demo-platform-note {
   margin: 2rem 0 0;

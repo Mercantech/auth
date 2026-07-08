@@ -141,7 +141,9 @@ function fillTable(data) {
         : "—";
     const mails =
       row.linkedEmails && row.linkedEmails.length
-        ? row.linkedEmails.map((e) => e.normalizedEmail + " (" + e.kind + ")").join(", ")
+        ? row.linkedEmails
+            .map((e) => mercantecMaskEmail(e.normalizedEmail) + " (" + e.kind + ")")
+            .join(", ")
         : "—";
     const local = row.hasLocalLogin ? "Ja" : "Nej";
     const st = row.isDisabled
@@ -166,11 +168,11 @@ function fillTable(data) {
       '">' +
       escapeHtml(String(id).slice(0, 8)) +
       "…</code></td>" +
-      "<td>" +
-      escapeHtml(row.email ?? "—") +
+      "<td class=\"demo-sensitive\">" +
+      escapeHtml(mercantecMaskEmail(row.email ?? "—")) +
       "</td><td>" +
       escapeHtml(providers) +
-      "</td><td>" +
+      "</td><td class=\"demo-sensitive\">" +
       escapeHtml(mails) +
       "</td><td>" +
       local +

@@ -117,6 +117,7 @@ flowchart TD
       <h2>Header</h2>
       <pre id="header-pre">—</pre>
       <h2>Payload (claims)</h2>
+      <p class="muted"><small><code>email</code> vises maskeret (<code>**@domæne</code>) — lokale dele skjules i demo.</small></p>
       <pre id="payload-pre">—</pre>
       <p><small>Nedenfor: signatur tjekkes med biblioteket <strong>jose</strong> mod <code>GET /.well-known/jwks.json</code> — samme princip som i produktion.</small></p>
     </div>
@@ -150,6 +151,7 @@ flowchart TD
     });
   </script>
   <script src="shared-config.js"></script>
+  <script src="session-jwt.js"></script>
   <script src="logout.js"></script>
   <script>
     document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
