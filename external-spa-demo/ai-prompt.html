@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-prompt — integrér mod Mercantec Auth</title>
+  <link rel="stylesheet" href="demo-theme.css" />
+</head>
+<body class="demo">
+  <div class="demo-wrap demo-wrap--wide">
+    <nav>
+      <a href="index.html">Forside</a>
+      <a href="docs.html">Docs</a>
+      <a href="ai-prompt.html"><strong>AI-prompt</strong></a>
+      <a href="jwt.html">JWT</a>
+      <a href="users.html">Brugere</a>
+      <a href="callback.html">Token</a>
+      <a href="appsettings-to-env.html">appsettings → .env</a>
+      <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+    </nav>
+
+    <h1>Byg en integration med AI</h1>
+    <p class="lead">
+      Kopiér prompten herunder ind i din AI-assistent (Cursor, ChatGPT, Claude, Copilot …) — den forklarer
+      <strong>præcis</strong> hvordan man integrerer mod Mercantec Auth: OAuth2 + PKCE, token-udveksling,
+      JWT-validering mod JWKS og logout. Værdierne er hentet fra denne demos konfiguration, så de passer til miljøet.
+    </p>
+
+    <div class="teach">
+      <strong>Sådan bruger du den:</strong> Vælg dit scenarie, tryk <em>Kopiér prompt</em>, og indsæt den som første
+      besked i en ny AI-samtale sammen med en kort beskrivelse af dit projekt (sprog, framework, callback-URL).
+      AI'en kan selv hente det maskinlæsbare manifest som autoritativ kilde.
+    </div>
+
+    <div class="card">
+      <h2>1. Vælg scenarie</h2>
+      <p class="muted">Prompten tilpasses til hvad du skal bygge.</p>
+      <div id="scenario-picker" class="demo-toolbar"></div>
+
+      <div class="divider"></div>
+
+      <h2>2. Kopiér prompten</h2>
+      <div class="demo-toolbar">
+        <button type="button" class="btn" id="btn-copy">Kopiér prompt</button>
+        <span class="demo-meta">Hele teksten nedenfor kommer med.</span>
+      </div>
+      <pre id="prompt-pre" class="prompt-pre">(indlæses …)</pre>
+    </div>
+
+    <div class="card">
+      <h2>Bag om prompten: det maskinlæsbare manifest</h2>
+      <p>
+        Auth-serveren udstiller et <strong>integrations-manifest</strong> — en JSON-fil skrevet til både udviklere
+        og AI-agenter med endpoints, PKCE-regler, JWT-claims og en checklist for nye platforme:
+      </p>
+      <p><code id="manifest-url">…</code></p>
+      <div class="demo-toolbar">
+        <button type="button" class="btn btn-secondary" id="btn-manifest">Hent manifestet live</button>
+        <span class="demo-meta" id="manifest-status"></span>
+      </div>
+      <pre id="manifest-pre" hidden></pre>
+    </div>
+
+    <p><small>Vil du forstå teknologien i stedet for bare at kopiere? Se den visuelle <a href="docs.html">docs-side</a> og <a href="jwt.html">JWT-siden</a>.</small></p>
+
+    <p class="demo-platform-note" role="note">
+      Demo ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
+  </div>
+
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+  </script>
+  <script src="ai-prompt.js"></script>
+</body>
+</html>

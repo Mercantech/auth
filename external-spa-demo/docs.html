@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Docs — teknologien bag Mercantec Auth (undervisning)</title>
+  <link rel="stylesheet" href="demo-theme.css" />
+</head>
+<body class="demo">
+  <div class="demo-wrap demo-wrap--wide">
+    <nav>
+      <a href="index.html">Forside</a>
+      <a href="docs.html"><strong>Docs</strong></a>
+      <a href="ai-prompt.html">AI-prompt</a>
+      <a href="jwt.html">JWT</a>
+      <a href="users.html">Brugere</a>
+      <a href="callback.html">Token</a>
+      <a href="appsettings-to-env.html">appsettings → .env</a>
+      <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+    </nav>
+
+    <h1>Teknologien bag platformen</h1>
+    <p class="lead">
+      Én side, hele historien: hvorfor central login, hvordan OAuth 2.0 + PKCE virker, hvad OIDC lægger ovenpå,
+      og hvordan tokens lever og dør. Skrevet til undervisning — følg diagrammerne oppefra og ned.
+    </p>
+
+    <div class="docs-toc" id="toc">
+      <span class="docs-toc-label">Indhold</span>
+      <a href="#hvorfor">1. Hvorfor?</a>
+      <a href="#oauth">2. OAuth 2.0 + PKCE</a>
+      <a href="#oidc">3. OIDC</a>
+      <a href="#tokens">4. Token-livscyklus</a>
+      <a href="#jwt">5. JWT &amp; JWKS</a>
+      <a href="#session">6. Session vs. tokens</a>
+      <a href="#mfa">7. MFA &amp; passkeys</a>
+      <a href="#ordliste">8. Ordliste</a>
+    </div>
+
+    <h2 id="hvorfor">1. Hvorfor central auth?</h2>
+    <p>
+      Uden en central auth-server skal <em>hver</em> app selv opbevare passwords, selv bygge “glemt adgangskode”,
+      selv håndtere Google/Microsoft-login — og brugeren får én konto pr. app. Med en central server logger
+      brugeren ind <strong>ét</strong> sted, og alle apps får det samme stabile bruger-ID.
+    </p>
+    <div class="docs-compare">
+      <div class="docs-compare-col docs-compare-bad">
+        <strong>Uden central auth</strong>
+        <ul class="tight">
+          <li>Password-database i hver app (flere angrebsflader)</li>
+          <li>Forskelligt bruger-ID pr. app — svært at koble data</li>
+          <li>Login-kode duplikeres og rådner</li>
+        </ul>
+      </div>
+      <div class="docs-compare-col docs-compare-good">
+        <strong>Med Mercantec Auth</strong>
+        <ul class="tight">
+          <li>Én identitet: samme <code>sub</code> (bruger-GUID) i alle apps</li>
+          <li>Apps ser aldrig passwords — kun signerede tokens</li>
+          <li>MFA, passkeys og account-linking løses ét sted</li>
+        </ul>
+      </div>
+    </div>
+    <div class="teach">
+      <strong>Kernen:</strong> Din app skal aldrig <em>autentificere</em> brugeren selv — den skal bare kunne
+      <em>bevise</em> at auth-serveren har gjort det. Beviset er en signeret JWT.
+    </div>
+
+    <h2 id="oauth">2. OAuth 2.0: authorization code + PKCE</h2>
+    <p>
+      OAuth 2.0 er en protokol for <strong>delegeret adgang</strong>: appen får et token på brugerens vegne uden
+      nogensinde at se brugerens password. Denne platform bruger kun det sikreste browser-flow:
+      <strong>authorization code + PKCE (S256)</strong>. Fire parter er i spil:
+    </p>
+    <div class="diagram-wrap">
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as Bruger (browser)
+  participant SPA as Din app (SPA)
+  participant AS as Mercantec Auth
+  participant API as Dit API
+
+  SPA->>SPA: Generér code_verifier + state
+  SPA->>SPA: code_challenge = SHA256(code_verifier)
+  SPA->>AS: GET /oauth/authorize (client_id, redirect_uri, state, code_challenge, S256)
+  AS->>U: Login-side (password, passkey, Google, Microsoft …)
+  U->>AS: Logger ind (evt. + MFA)
+  AS->>SPA: Redirect til redirect_uri med code + state
+  SPA->>SPA: Tjek at state matcher
+  SPA->>AS: POST /oauth/token (code, code_verifier, client_id)
+  AS->>AS: SHA256(code_verifier) == code_challenge?
+  AS->>SPA: access_token (JWT) + refresh_token
+  SPA->>API: GET /data med Authorization Bearer access_token
+  API->>API: Validér JWT mod JWKS (iss, aud, exp, signatur)
+  API->>SPA: 200 OK — data
+</div>
+    </div>
+    <h3>Hvorfor PKCE i stedet for client_secret?</h3>
+    <p>
+      En browser-app kan ikke holde på en hemmelighed — alt i JavaScript kan læses af brugeren (og angribere).
+      PKCE (Proof Key for Code Exchange) erstatter den faste hemmelighed med en <strong>engangs-hemmelighed pr. login</strong>:
+    </p>
+    <ul class="tight">
+      <li><code>code_verifier</code>: tilfældig streng, genereres i browseren, forlader den aldrig før token-kaldet.</li>
+      <li><code>code_challenge</code> = BASE64URL(SHA256(verifier)): sendes åbent i authorize-kaldet — kan ikke regnes baglæns.</li>
+      <li>Stjæler nogen din <code>code</code> undervejs (fx via logs eller redirect), kan de <em>ikke</em> bytte den til tokens uden verifieren.</li>
+    </ul>
+    <div class="teach">
+      <strong>state-parameteren</strong> løser et andet problem: CSRF. Appen genererer en tilfældig værdi før login og
+      afviser callbacks hvor den ikke matcher — så en angriber ikke kan “plante” sin egen kode i dit callback.
+    </div>
+
+    <h2 id="oidc">3. OIDC — identitet ovenpå OAuth</h2>
+    <p>
+      OAuth 2.0 handler om <strong>autorisation</strong> (“må denne app kalde API'et?”). Det siger strengt taget intet om
+      <strong>hvem</strong> brugeren er. OpenID Connect (OIDC) er et tyndt identitetslag ovenpå OAuth der standardiserer netop det:
+    </p>
+    <div class="diagram-wrap">
+<div class="mermaid">
+flowchart TB
+  subgraph oidcLayer ["OIDC — identitetslag"]
+    IDT["id_token: signeret JWT om HVEM brugeren er"]
+    DISC["Discovery: /.well-known/openid-configuration"]
+    AMR["amr-claim: HVORDAN blev der logget ind (pwd, otp, webauthn)"]
+  end
+  subgraph oauthLayer ["OAuth 2.0 — autorisationslag"]
+    AZ["/oauth/authorize med PKCE"]
+    TK["/oauth/token: access_token + refresh_token"]
+    BR["Authorization: Bearer mod API'er"]
+  end
+  IDT -.bygger på.-> AZ
+  DISC -.beskriver.-> TK
+</div>
+    </div>
+    <ul class="tight">
+      <li><strong>Aktivering:</strong> tilføj <code>scope=openid</code> i authorize-kaldet → token-svaret indeholder også et <code>id_token</code>.</li>
+      <li><strong>id_token vs. access_token:</strong> id_token er til <em>din app</em> (“hvem loggede ind, hvordan og hvornår”) og skal aldrig sendes til API'er. Access token er til <em>API'et</em>.</li>
+      <li><strong><code>amr</code></strong> (Authentication Methods References) i id_token fortæller login-styrken: <code>pwd</code> (adgangskode), <code>otp</code> (TOTP/recovery-kode), <code>webauthn</code> (passkey). Flere værdier = MFA gennemført.</li>
+      <li><strong>Discovery:</strong> <code id="oidc-discovery-url">/.well-known/openid-configuration</code> — maskinlæsbar beskrivelse af serverens endpoints, så biblioteker kan konfigurere sig selv.</li>
+    </ul>
+    <div class="teach">
+      <strong>Huskeregel:</strong> OAuth = <em>nøglekort</em> til API'et. OIDC = <em>ID-kort</em> med billede.
+      Samme skab (auth-serveren) udsteder begge dele i samme flow.
+    </div>
+
+    <h2 id="tokens">4. Token-flow og livscyklus</h2>
+    <p>
+      Efter login har din app to (evt. tre) tokens med vidt forskellige roller og levetider:
+    </p>
+    <div class="docs-token-grid">
+      <div class="docs-token docs-token-access">
+        <strong>Access token</strong>
+        <span class="pill">JWT · RS256</span>
+        <ul class="tight">
+          <li>Kort levetid (minutter)</li>
+          <li>Sendes som <code>Authorization: Bearer</code> på hvert API-kald</li>
+          <li>Valideres statisk mod JWKS — intet database-opslag</li>
+        </ul>
+      </div>
+      <div class="docs-token docs-token-refresh">
+        <strong>Refresh token</strong>
+        <span class="pill">Opakt · roterende</span>
+        <ul class="tight">
+          <li>Lang levetid (dage)</li>
+          <li>Bruges KUN mod <code>/oauth/token</code> for at få nyt access token</li>
+          <li>Roterer: hvert refresh-svar giver et nyt — gem det, glem det gamle</li>
+        </ul>
+      </div>
+      <div class="docs-token docs-token-id">
+        <strong>id_token (ved openid)</strong>
+        <span class="pill">JWT · OIDC</span>
+        <ul class="tight">
+          <li>Identitetsbevis til din app — ikke til API'er</li>
+          <li>Indeholder <code>amr</code> (login-metode/MFA)</li>
+          <li>Læses én gang efter login</li>
+        </ul>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+<div class="mermaid">
+stateDiagram-v2
+  [*] --> LoggetUd
+  LoggetUd --> Login : Bruger klikker Log ind
+  Login --> AktivToken : /oauth/token udsteder access + refresh
+  AktivToken --> AktivToken : API-kald med Bearer JWT
+  AktivToken --> Udloebet : exp naas (minutter)
+  Udloebet --> AktivToken : POST /oauth/token grant_type=refresh_token (nyt roterende refresh)
+  Udloebet --> LoggetUd : Refresh token udloebet eller afvist
+  AktivToken --> LoggetUd : Logout rydder tokens + GET /signout
+</div>
+    </div>
+    <div class="teach">
+      <strong>Hvorfor to tokens?</strong> Korte access tokens begrænser skaden hvis et token lækkes — det dør af sig selv
+      efter få minutter. Det langlivede refresh token rammer aldrig dine API'er og kan tilbagekaldes centralt
+      (fx ved merge af brugere eller mistanke om misbrug tvinges genlogin).
+    </div>
+
+    <h2 id="jwt">5. JWT, RS256 og JWKS — kort version</h2>
+    <p>
+      Access token er en <strong>JWT</strong>: tre Base64URL-dele (<span class="pill">header</span> ·
+      <span class="pill">payload</span> · <span class="pill">signatur</span>). Indholdet kan alle læse — men signaturen
+      er lavet med auth-serverens <strong>private RSA-nøgle</strong>, og alle kan verificere den med den
+      <strong>offentlige nøgle</strong> fra <code id="jwks-url">/.well-known/jwks.json</code>.
+    </p>
+    <ul class="tight">
+      <li>Verificér signaturen (RS256, vælg nøgle via <code>kid</code>).</li>
+      <li>Tjek <code>iss</code> (udsteder), <code>aud</code> (målgruppe) og <code>exp</code> (udløb).</li>
+      <li>Først derefter: stol på <code>sub</code>, <code>role</code>, <code>email</code> osv.</li>
+    </ul>
+    <p>
+      Hele den historie — med live dekodning og verifikation af <em>dit eget</em> token — får du på
+      <a href="jwt.html">JWT-siden</a>.
+    </p>
+
+    <h2 id="session">6. Session-cookie vs. tokens</h2>
+    <p>
+      To slags “logget ind” lever side om side, og det forvirrer ofte:
+    </p>
+    <div class="diagram-wrap">
+<div class="mermaid">
+flowchart LR
+  subgraph authHost ["Auth-hostens domæne"]
+    COOKIE["Session-cookie (mercantec_auth)"]
+  end
+  subgraph spaHost ["Din apps domæne"]
+    TOKENS["Tokens i sessionStorage"]
+  end
+  COOKIE -->|"Naeste /oauth/authorize: login-UI springes over"| TOKENS
+  TOKENS -->|"Logout: ryd storage OG kald GET /signout"| COOKIE
+</div>
+    </div>
+    <ul class="tight">
+      <li><strong>Session-cookien</strong> bor på auth-domænet. Den gør at næste <code>/oauth/authorize</code> udsteder en kode <em>uden</em> at vise login-siden — det er derfor “log ind” nogle gange bare blinker forbi.</li>
+      <li><strong>Tokens</strong> bor i din app. At slette dem logger dig kun ud <em>lokalt</em> — cookien lever videre.</li>
+      <li><strong>Rigtig logout</strong> = ryd lokale tokens <em>og</em> naviger til <code>/signout?returnUrl=…</code> så cookien også slettes. Ellers bliver du bare logget ind igen automatisk.</li>
+    </ul>
+
+    <h2 id="mfa">7. MFA og passkeys</h2>
+    <p>
+      Brugere kan (valgfrit) beskytte kontoen med <strong>TOTP</strong> (authenticator-app) eller
+      <strong>passkeys</strong> (WebAuthn — Face ID, Windows Hello, hardware-nøgler). Auth-serveren håndterer det hele;
+      din app ser kun resultatet i <code>amr</code>-claimen.
+    </p>
+    <div class="diagram-wrap">
+<div class="mermaid">
+flowchart TD
+  START["Primær login"] --> METODE{"Hvilken metode?"}
+  METODE -->|"Passkey (WebAuthn)"| FULD["Fuld session — MFA springes over (passkey ER stærk faktor)"]
+  METODE -->|"Password eller OAuth-udbyder"| HARMFA{"Har brugeren TOTP eller passkey?"}
+  HARMFA -->|Nej| FULD
+  HARMFA -->|Ja| PENDING["mfa_pending-session (ca. 10 min)"]
+  PENDING --> STEP["/Account/Mfa: TOTP-kode eller passkey-bekræftelse"]
+  STEP --> FULD
+  FULD --> OAUTH["/oauth/authorize udsteder code — kun ved FULD session"]
+</div>
+    </div>
+    <div class="teach">
+      <strong>Pointen for integratorer:</strong> Du skal ikke bygge MFA selv. En <code>mfa_pending</code>-session kan
+      <em>ikke</em> gennemføre OAuth-flowet, så når din app modtager en kode, er brugeren garanteret fuldt verificeret.
+      Vil du vide <em>hvor</em> stærkt der blev logget ind, så bed om <code>openid</code>-scope og læs <code>amr</code>.
+    </div>
+
+    <h2 id="ordliste">8. Ordliste</h2>
+    <table class="docs-glossary">
+      <thead>
+        <tr><th>Begreb</th><th>Betydning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>issuer (iss)</code></td><td>Hvem udstedte tokenet — skal matche en forventet streng præcist.</td></tr>
+        <tr><td><code>audience (aud)</code></td><td>Hvem tokenet er beregnet til. Dit API afviser tokens med forkert audience.</td></tr>
+        <tr><td><code>claim</code></td><td>Ét felt i JWT-payloaden (fx <code>sub</code>, <code>email</code>, <code>role</code>).</td></tr>
+        <tr><td><code>sub</code></td><td>Subject: brugerens stabile GUID. Brug den — aldrig e-mail — som nøgle i din database.</td></tr>
+        <tr><td><code>scope</code></td><td>Hvad appen beder om lov til. <code>openid</code> aktiverer OIDC/id_token.</td></tr>
+        <tr><td><code>grant</code></td><td>Måden man får tokens på. Her: <code>authorization_code</code> og <code>refresh_token</code>.</td></tr>
+        <tr><td><code>bearer</code></td><td>“Ihændehaver”: den der har tokenet, har adgangen. Derfor korte levetider + HTTPS.</td></tr>
+        <tr><td><code>PKCE</code></td><td>Proof Key for Code Exchange — engangs-hemmelighed der sikrer code-flowet uden client_secret.</td></tr>
+        <tr><td><code>JWKS</code></td><td>JSON Web Key Set: serverens offentlige nøgler til at verificere JWT-signaturer.</td></tr>
+        <tr><td><code>kid</code></td><td>Key ID i JWT-headeren — peger på den rigtige nøgle i JWKS ved nøglerotation.</td></tr>
+        <tr><td><code>amr</code></td><td>Authentication Methods References: <code>pwd</code>, <code>otp</code>, <code>webauthn</code> — hvordan brugeren loggede ind.</td></tr>
+        <tr><td><code>redirect_uri</code></td><td>Din callback-URL. Whitelistes på serveren med eksakt match — ellers afvises flowet.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="card">
+      <h2>Videre herfra</h2>
+      <ul class="tight">
+        <li><a href="index.html">Prøv login-flowet live</a> — se hvert trin i praksis.</li>
+        <li><a href="jwt.html">Dekodér og verificér dit eget JWT</a> mod JWKS.</li>
+        <li><a href="ai-prompt.html">Kopiér AI-prompten</a> og lad en AI bygge integrationen for dig.</li>
+        <li>Maskinlæsbart manifest: <code id="manifest-url">/.well-known/mercantec-auth.json</code></li>
+      </ul>
+    </div>
+
+    <p class="demo-platform-note" role="note">
+      Demo ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "base",
+      securityLevel: "loose",
+      themeVariables: {
+        primaryColor: "#2a3d52",
+        primaryTextColor: "#e5e1d8",
+        primaryBorderColor: "#a63d2d",
+        secondaryColor: "#2a4a40",
+        tertiaryColor: "#1a1917",
+        lineColor: "#8a8278",
+        background: "#1a1917",
+        mainBkg: "#2c2a26",
+        nodeBorder: "#a63d2d",
+        clusterBkg: "#242220",
+        titleColor: "#e5e1d8",
+        edgeLabelBackground: "#2c2a26",
+        actorBkg: "#2c2a26",
+        actorBorder: "#a63d2d",
+        actorTextColor: "#e5e1d8",
+        signalColor: "#8a8278",
+        signalTextColor: "#e5e1d8",
+        labelBoxBkgColor: "#242220",
+        labelBoxBorderColor: "#a63d2d",
+        labelTextColor: "#e5e1d8",
+        loopTextColor: "#e5e1d8",
+        noteBkgColor: "#2a4a40",
+        noteTextColor: "#e5e1d8",
+        sequenceNumberColor: "#1a1917",
+      },
+      flowchart: { curve: "basis", padding: 14, nodeSpacing: 28, rankSpacing: 42 },
+      sequence: { actorMargin: 40, messageMargin: 32, mirrorActors: false },
+    });
+  </script>
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+
+    (function () {
+      const base = window.__MERCANTEC_AUTH__.authBaseUrl.replace(/\/+$/, "");
+      document.getElementById("oidc-discovery-url").textContent = base + "/.well-known/openid-configuration";
+      document.getElementById("jwks-url").textContent = base + "/.well-known/jwks.json";
+      document.getElementById("manifest-url").textContent = base + "/.well-known/mercantec-auth.json";
+    })();
+  </script>
+</body>
+</html>

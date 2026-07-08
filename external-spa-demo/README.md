@@ -41,6 +41,9 @@ npx --yes serve . -l 5173
 | Fil | Formål |
 |-----|--------|
 | `index.html` | Start PKCE-login |
+| `docs.html` | **Visuel undervisningsside**: hvorfor central auth, OAuth2 + PKCE (sekvensdiagram), OIDC, token-livscyklus, session vs. tokens, MFA/passkeys og ordliste — med Mermaid-diagrammer |
+| `ai-prompt.html` | **Kopierbar AI-prompt**: vælg scenarie (SPA / backend / fuld stack) og kopiér en færdig prompt der lærer en AI at integrere korrekt mod platformen; kan også hente integrations-manifestet live |
+| `ai-prompt.js` | Genererer prompten dynamisk ud fra `shared-config.js` (authBaseUrl, clientId, issuer, audience) |
 | `callback.html` | Modtager `code`, kalder `/oauth/token`, gemmer tokens i `sessionStorage` |
 | `jwt.html` | Viser JWT header/payload + **RS256-verifikation** mod `/.well-known/jwks.json` (via [jose](https://github.com/panva/jose) fra CDN) |
 | `users.html` | Admin-brugere: liste, **sammenlæg** og **slet** via `GET /api/admin/users-directory`, `POST …/merge`, `DELETE …/{id}` med Bearer og **Admin**-rolle |

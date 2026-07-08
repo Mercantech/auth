@@ -638,6 +638,170 @@ body.demo ::selection {
   color: var(--demo-ink);
 }
 
+/* AI-prompt-side */
+body.demo .prompt-pre {
+  max-height: 30rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+body.demo .scenario-btn {
+  margin-top: 0;
+  margin-right: 0;
+}
+
+body.demo .scenario-btn.scenario-active {
+  background: var(--demo-forest);
+  color: #fff;
+}
+
+body.demo .scenario-btn.scenario-active:hover {
+  background: var(--demo-forest);
+}
+
+body.demo .btn-copied {
+  background: var(--demo-ok);
+}
+
+body.demo .btn-copied:hover {
+  background: var(--demo-ok);
+}
+
+/* Docs-side */
+body.demo .docs-toc {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  padding: 0.6rem 0.85rem;
+  margin: 1.25rem 0 0.5rem;
+  background: var(--demo-card);
+  border: 2px solid var(--demo-card-shadow);
+  border-radius: var(--demo-radius);
+  box-shadow: 4px 4px 0 rgba(20, 18, 16, 0.12);
+}
+
+body.demo .docs-toc-label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--demo-muted);
+}
+
+body.demo .docs-toc a {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.74rem;
+  text-decoration: none;
+  color: var(--demo-ink);
+  border-bottom: 2px solid transparent;
+}
+
+body.demo .docs-toc a:hover {
+  color: var(--demo-accent);
+  border-bottom-color: var(--demo-accent);
+}
+
+body.demo .docs-compare {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin: 1rem 0;
+}
+
+@media (min-width: 760px) {
+  body.demo .docs-compare {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+body.demo .docs-compare-col {
+  border: 2px solid var(--demo-card-shadow);
+  border-radius: var(--demo-radius);
+  padding: 0.9rem 1.05rem;
+  background: var(--demo-card);
+  box-shadow: 4px 4px 0 rgba(20, 18, 16, 0.1);
+}
+
+body.demo .docs-compare-col > strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+body.demo .docs-compare-bad {
+  border-left: 6px solid var(--demo-err);
+}
+
+body.demo .docs-compare-bad > strong {
+  color: var(--demo-err);
+}
+
+body.demo .docs-compare-good {
+  border-left: 6px solid var(--demo-ok);
+}
+
+body.demo .docs-compare-good > strong {
+  color: var(--demo-ok);
+}
+
+body.demo .docs-token-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin: 1rem 0;
+}
+
+@media (min-width: 860px) {
+  body.demo .docs-token-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+body.demo .docs-token {
+  border: 2px solid var(--demo-card-shadow);
+  border-radius: var(--demo-radius);
+  padding: 0.9rem 1rem;
+  background: var(--demo-card);
+  box-shadow: 4px 4px 0 rgba(20, 18, 16, 0.1);
+}
+
+body.demo .docs-token > strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.35rem;
+}
+
+body.demo .docs-token .pill {
+  margin-bottom: 0.55rem;
+}
+
+body.demo .docs-token-access {
+  border-top: 6px solid #2a4a66;
+}
+
+body.demo .docs-token-refresh {
+  border-top: 6px solid var(--demo-forest);
+}
+
+body.demo .docs-token-id {
+  border-top: 6px solid var(--demo-warn);
+}
+
+body.demo .docs-glossary td:first-child {
+  white-space: nowrap;
+}
+
 /* MAGS — undervisningskontekst */
 body.demo .demo-platform-note {
   margin: 2rem 0 0;
