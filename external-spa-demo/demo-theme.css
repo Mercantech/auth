@@ -33,6 +33,7 @@
 
 html {
   font-size: 17px;
+  scroll-behavior: smooth;
 }
 
 body.demo {
@@ -707,6 +708,30 @@ body.demo .docs-toc a:hover {
   border-bottom-color: var(--demo-accent);
 }
 
+body.demo .docs-toc a.active {
+  color: var(--demo-accent);
+  border-bottom-color: var(--demo-accent);
+}
+
+/* Kapitel-overskrifter på docs-siden: store, med markeret skillelinje,
+   og plads til den sticky indholdsfortegnelse ved anker-navigation */
+body.demo .docs-toc ~ h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 3.25rem;
+  padding-top: 1.4rem;
+  border-top: 3px solid var(--demo-card-shadow);
+  scroll-margin-top: 6.5rem;
+}
+
+body.demo .docs-toc ~ h2::before {
+  content: "§";
+  color: var(--demo-accent);
+  margin-right: 0.45rem;
+  font-weight: 800;
+}
+
 body.demo .docs-compare {
   display: grid;
   gap: 1rem;
@@ -834,6 +859,22 @@ body.demo .docs-demo-badge {
   margin-bottom: 0.35rem;
 }
 
+body.demo .docs-demo--live {
+  border-left-color: var(--demo-forest);
+}
+
+body.demo .docs-demo--live .docs-demo-badge {
+  background: var(--demo-forest);
+}
+
+body.demo .docs-demo--sim {
+  border-left-color: #2a4a66;
+}
+
+body.demo .docs-demo--sim .docs-demo-badge {
+  background: #2a4a66;
+}
+
 body.demo .docs-demo-grid {
   display: grid;
   gap: 0.85rem;
@@ -868,6 +909,9 @@ body.demo .docs-out {
   font-size: 0.78rem;
   word-break: break-all;
   min-height: 2.1rem;
+  background: var(--demo-pre-bg);
+  color: var(--demo-pre-fg);
+  border: 2px solid var(--demo-card-shadow);
 }
 
 body.demo .docs-mini-btn {

@@ -281,7 +281,7 @@ stateDiagram-v2
       (fx ved merge af brugere eller mistanke om misbrug tvinges genlogin).
     </div>
 
-    <div class="docs-demo">
+    <div class="docs-demo docs-demo--live">
       <span class="docs-demo-badge">Live</span>
       <h3>Dit token lige nu — og prøv et rigtigt refresh</h3>
       <p id="live-token-status">Tjekker session …</p>
@@ -336,7 +336,7 @@ stateDiagram-v2
       </div>
     </div>
 
-    <div class="docs-demo">
+    <div class="docs-demo docs-demo--live">
       <span class="docs-demo-badge">Live</span>
       <h3>Hackerværksted: manipulér din egen payload</h3>
       <p class="muted">
@@ -408,7 +408,7 @@ flowchart TD
       og hvordan protokollen lukker dem.
     </p>
 
-    <div class="docs-demo">
+    <div class="docs-demo docs-demo--sim">
       <span class="docs-demo-badge">Simulator</span>
       <h3>CSRF på callbacken — derfor findes <code>state</code></h3>
       <p class="muted">
@@ -553,6 +553,30 @@ flowchart TD
       document.getElementById("oidc-discovery-url").textContent = base + "/.well-known/openid-configuration";
       document.getElementById("jwks-url").textContent = base + "/.well-known/jwks.json";
       document.getElementById("manifest-url").textContent = base + "/.well-known/mercantec-auth.json";
+    })();
+
+    // Markér aktivt afsnit i den sticky indholdsfortegnelse
+    (function () {
+      const tocLinks = [...document.querySelectorAll("#toc a[href^='#']")];
+      const sections = tocLinks
+        .map((a) => document.getElementById(a.getAttribute("href").slice(1)))
+        .filter(Boolean);
+      if (!("IntersectionObserver" in window) || !sections.length) return;
+
+      function setActive(id) {
+        for (const a of tocLinks) a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+      }
+
+      const visible = new Map();
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) visible.set(e.target.id, e.isIntersecting);
+          const current = sections.find((s) => visible.get(s.id));
+          if (current) setActive(current.id);
+        },
+        { rootMargin: "-15% 0px -70% 0px" },
+      );
+      for (const s of sections) io.observe(s);
     })();
   </script>
   <script src="docs-demos.js"></script>
