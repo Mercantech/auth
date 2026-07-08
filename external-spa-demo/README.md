@@ -41,7 +41,8 @@ npx --yes serve . -l 5173
 | Fil | Formål |
 |-----|--------|
 | `index.html` | Start PKCE-login |
-| `docs.html` | **Visuel undervisningsside**: hvorfor central auth, OAuth2 + PKCE (sekvensdiagram), OIDC, token-livscyklus, session vs. tokens, MFA/passkeys og ordliste — med Mermaid-diagrammer |
+| `docs.html` | **Visuel undervisningsside**: hvorfor central auth, OAuth2 + PKCE (sekvensdiagram), OIDC, scopes/klienttyper, token-livscyklus, session vs. tokens, MFA/passkeys, angreb & forsvar, ordliste og quiz — med Mermaid-diagrammer og **interaktive demoer** (PKCE-legeplads, authorize-URL-bygger, live token-nedtælling + ægte refresh, Base64URL-koder, JWT-tamper-værksted, CSRF-simulator, redirect_uri-tester) |
+| `docs-demos.js` | Logikken bag de interaktive demoer på docs-siden (genbruger `pkce.js` og `session-jwt.js`; JWT-verifikation via jose fra CDN) |
 | `ai-prompt.html` | **Kopierbar AI-prompt**: vælg scenarie (SPA / backend / fuld stack) og kopiér en færdig prompt der lærer en AI at integrere korrekt mod platformen; kan også hente integrations-manifestet live |
 | `ai-prompt.js` | Genererer prompten dynamisk ud fra `shared-config.js` (authBaseUrl, clientId, issuer, audience) |
 | `callback.html` | Modtager `code`, kalder `/oauth/token`, gemmer tokens i `sessionStorage` |

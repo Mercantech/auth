@@ -30,11 +30,14 @@
       <a href="#hvorfor">1. Hvorfor?</a>
       <a href="#oauth">2. OAuth 2.0 + PKCE</a>
       <a href="#oidc">3. OIDC</a>
-      <a href="#tokens">4. Token-livscyklus</a>
-      <a href="#jwt">5. JWT &amp; JWKS</a>
-      <a href="#session">6. Session vs. tokens</a>
-      <a href="#mfa">7. MFA &amp; passkeys</a>
-      <a href="#ordliste">8. Ordliste</a>
+      <a href="#scopes">4. Scopes &amp; klienter</a>
+      <a href="#tokens">5. Token-livscyklus</a>
+      <a href="#jwt">6. JWT &amp; JWKS</a>
+      <a href="#session">7. Session vs. tokens</a>
+      <a href="#mfa">8. MFA &amp; passkeys</a>
+      <a href="#angreb">9. Angreb &amp; forsvar</a>
+      <a href="#ordliste">10. Ordliste</a>
+      <a href="#quiz">11. Quiz</a>
     </div>
 
     <h2 id="hvorfor">1. Hvorfor central auth?</h2>
@@ -109,6 +112,53 @@ sequenceDiagram
     <div class="teach">
       <strong>state-parameteren</strong> løser et andet problem: CSRF. Appen genererer en tilfældig værdi før login og
       afviser callbacks hvor den ikke matcher — så en angriber ikke kan “plante” sin egen kode i dit callback.
+      Prøv angrebet selv i <a href="#angreb">afsnit 9</a>.
+    </div>
+
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Prøv selv</span>
+      <h3>PKCE-legeplads: verifier → challenge (envejs)</h3>
+      <p class="muted">
+        Skriv i verifier-feltet og se challengen ændre sig med det samme — det er ægte SHA-256 i din browser
+        (samme kode som login-knappen på forsiden bruger). Prøv at ændre ét enkelt tegn.
+      </p>
+      <div class="demo-field">
+        <label for="pkce-verifier-input">code_verifier (hemmeligheden — bliver i browseren)</label>
+        <input type="text" id="pkce-verifier-input" class="docs-input" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="demo-toolbar">
+        <button type="button" class="btn btn-secondary" id="pkce-generate">Generér tilfældig verifier</button>
+      </div>
+      <div class="demo-field">
+        <label>code_challenge = BASE64URL(SHA256(verifier)) — må gerne ses af alle</label>
+        <code class="docs-out" id="pkce-challenge-out">—</code>
+      </div>
+      <p class="muted"><small>Bemærk: challengen ligner volapyk uanset input, og en lille ændring i verifieren giver en helt anden challenge. Der findes ingen vej tilbage fra challenge til verifier — det er hele pointen.</small></p>
+    </div>
+
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Prøv selv</span>
+      <h3>Byg dit eget authorize-kald</h3>
+      <p class="muted">
+        Sådan ser den URL ud som din app sender brugeren til. Redigér felterne og se URL'en opdatere sig —
+        challengen kommer live fra legepladsen ovenfor.
+      </p>
+      <div class="docs-demo-grid">
+        <div class="demo-field">
+          <label for="az-client">client_id</label>
+          <input type="text" id="az-client" class="docs-input" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="demo-field">
+          <label for="az-redirect">redirect_uri</label>
+          <input type="text" id="az-redirect" class="docs-input" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="demo-field">
+          <label for="az-state">state <button type="button" class="docs-mini-btn" id="az-new-state">ny tilfældig</button></label>
+          <input type="text" id="az-state" class="docs-input" spellcheck="false" autocomplete="off" />
+        </div>
+      </div>
+      <pre class="docs-url-pre" id="az-url-out">—</pre>
+      <p class="muted"><small>Farverne viser de enkelte parametre. <code>response_type=code</code> og <code>code_challenge_method=S256</code> er faste for denne server.</small></p>
     </div>
 
     <h2 id="oidc">3. OIDC — identitet ovenpå OAuth</h2>
@@ -144,7 +194,42 @@ flowchart TB
       Samme skab (auth-serveren) udsteder begge dele i samme flow.
     </div>
 
-    <h2 id="tokens">4. Token-flow og livscyklus</h2>
+    <h2 id="scopes">4. Scopes og klient-typer</h2>
+    <p>
+      To begreber der ofte springes over, men som afgør <em>hvad</em> et token kan, og <em>hvordan</em> en app skal opføre sig:
+    </p>
+    <h3>Scopes — hvad beder appen om lov til?</h3>
+    <p>
+      <code>scope</code> i authorize-kaldet er en mellemrums-separeret liste af “tilladelser” appen ønsker.
+      Auth-serveren afgør hvad den vil udstede — appen kan aldrig give sig selv mere adgang ved bare at bede pænt:
+    </p>
+    <ul class="tight">
+      <li><code>openid</code> — aktiverer OIDC: token-svaret indeholder et <code>id_token</code> (med <code>amr</code>).</li>
+      <li><code>profile</code> / <code>email</code> — klassiske OIDC-scopes for navn og e-mail i id_token.</li>
+      <li><code>offline_access</code> — konventionen for “giv mig et refresh token” (denne server udsteder refresh tokens til registrerede klienter som del af flowet).</li>
+    </ul>
+    <div class="teach">
+      <strong>Scope ≠ rolle.</strong> Scope er hvad <em>appen</em> må på brugerens vegne (aftalt ved login).
+      Rolle (<code>role</code>-claim) er hvad <em>brugeren</em> er i systemet (fx Admin). Et API tjekker typisk begge dele.
+    </div>
+    <h3>Offentlige vs. fortrolige klienter</h3>
+    <table>
+      <thead>
+        <tr><th></th><th>Offentlig klient (public)</th><th>Fortrolig klient (confidential)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Hvem</strong></td><td>SPA i browseren, mobil-app, desktop-app</td><td>Backend/server-side webapp</td></tr>
+        <tr><td><strong>Kan holde på en hemmelighed?</strong></td><td>Nej — al kode kan læses af brugeren</td><td>Ja — koden kører på en server du kontrollerer</td></tr>
+        <tr><td><strong>Bevis ved token-kald</strong></td><td>PKCE <code>code_verifier</code> (engangs)</td><td><code>client_secret</code> (fast, BCrypt-hashet i databasen) — gerne + PKCE</td></tr>
+        <tr><td><strong>I denne platform</strong></td><td><code>IsPublic=true</code>, <code>RequirePkce=true</code></td><td><code>client_secret</code> sendes i token-kaldets form body</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">
+      <small>Demo-SPA'en her er en offentlig klient (<code>client_id=demo</code>). Registrering af nye klienter sker i
+      databasen (<code>ClientApps</code> + redirect-URI-whitelist) — se <a href="ai-prompt.html">AI-prompt-siden</a> for hele checklisten.</small>
+    </p>
+
+    <h2 id="tokens">5. Token-flow og livscyklus</h2>
     <p>
       Efter login har din app to (evt. tre) tokens med vidt forskellige roller og levetider:
     </p>
@@ -196,7 +281,22 @@ stateDiagram-v2
       (fx ved merge af brugere eller mistanke om misbrug tvinges genlogin).
     </div>
 
-    <h2 id="jwt">5. JWT, RS256 og JWKS — kort version</h2>
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Live</span>
+      <h3>Dit token lige nu — og prøv et rigtigt refresh</h3>
+      <p id="live-token-status">Tjekker session …</p>
+      <div class="docs-token-bar" id="live-token-bar" hidden>
+        <div class="docs-token-bar-fill" id="live-token-bar-fill"></div>
+      </div>
+      <div class="demo-toolbar">
+        <button type="button" class="btn" id="live-refresh-btn">Kør refresh-flowet nu</button>
+        <span class="demo-meta">POST /oauth/token · grant_type=refresh_token</span>
+      </div>
+      <p id="live-refresh-out" class="muted"></p>
+      <p class="muted"><small>Knappen laver et ægte kald: dit access token udskiftes, og refresh tokenet roterer — se state-diagrammet ovenfor ske i virkeligheden.</small></p>
+    </div>
+
+    <h2 id="jwt">6. JWT, RS256 og JWKS — kort version</h2>
     <p>
       Access token er en <strong>JWT</strong>: tre Base64URL-dele (<span class="pill">header</span> ·
       <span class="pill">payload</span> · <span class="pill">signatur</span>). Indholdet kan alle læse — men signaturen
@@ -213,7 +313,48 @@ stateDiagram-v2
       <a href="jwt.html">JWT-siden</a>.
     </p>
 
-    <h2 id="session">6. Session-cookie vs. tokens</h2>
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Prøv selv</span>
+      <h3>Base64URL er kodning — ikke kryptering</h3>
+      <p class="muted">
+        Skriv hvad som helst og se det “forvandlet” til Base64URL — og straks dekodet igen.
+        Alle kan gøre det samme med en JWT-payload. Der er ingen hemmelighed involveret.
+      </p>
+      <div class="demo-field">
+        <label for="b64-input">Din tekst (fx en payload)</label>
+        <input type="text" id="b64-input" class="docs-input" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="docs-demo-grid">
+        <div class="demo-field">
+          <label>Base64URL-kodet (sådan ser det ud i en JWT)</label>
+          <code class="docs-out" id="b64-out">—</code>
+        </div>
+        <div class="demo-field">
+          <label>… og dekodet igen (uden nøgle, uden magi)</label>
+          <code class="docs-out" id="b64-back">—</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Live</span>
+      <h3>Hackerværksted: manipulér din egen payload</h3>
+      <p class="muted">
+        Payload kan læses og ændres af alle — men signaturen passer kun på den <em>originale</em>. Redigér claims herunder
+        (giv dig fx selv <code>"role": "Admin"</code>) og se hvad JWKS-verifikationen siger. E-mail vises maskeret.
+      </p>
+      <div class="demo-field">
+        <label for="tamper-payload">Payload (redigérbar JSON)</label>
+        <textarea id="tamper-payload" spellcheck="false" rows="10"></textarea>
+      </div>
+      <div class="demo-toolbar">
+        <button type="button" class="btn" id="tamper-verify-btn">Verificér mod JWKS</button>
+        <button type="button" class="btn btn-secondary" id="tamper-reset-btn">Nulstil til original</button>
+      </div>
+      <p id="tamper-out" class="muted"></p>
+    </div>
+
+    <h2 id="session">7. Session-cookie vs. tokens</h2>
     <p>
       To slags “logget ind” lever side om side, og det forvirrer ofte:
     </p>
@@ -236,7 +377,7 @@ flowchart LR
       <li><strong>Rigtig logout</strong> = ryd lokale tokens <em>og</em> naviger til <code>/signout?returnUrl=…</code> så cookien også slettes. Ellers bliver du bare logget ind igen automatisk.</li>
     </ul>
 
-    <h2 id="mfa">7. MFA og passkeys</h2>
+    <h2 id="mfa">8. MFA og passkeys</h2>
     <p>
       Brugere kan (valgfrit) beskytte kontoen med <strong>TOTP</strong> (authenticator-app) eller
       <strong>passkeys</strong> (WebAuthn — Face ID, Windows Hello, hardware-nøgler). Auth-serveren håndterer det hele;
@@ -261,7 +402,64 @@ flowchart TD
       Vil du vide <em>hvor</em> stærkt der blev logget ind, så bed om <code>openid</code>-scope og læs <code>amr</code>.
     </div>
 
-    <h2 id="ordliste">8. Ordliste</h2>
+    <h2 id="angreb">9. Angreb og forsvar — prøv dem selv</h2>
+    <p>
+      Hver regel i OAuth findes fordi nogen har udnyttet at den manglede. Her er de tre klassikere —
+      og hvordan protokollen lukker dem.
+    </p>
+
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Simulator</span>
+      <h3>CSRF på callbacken — derfor findes <code>state</code></h3>
+      <p class="muted">
+        Før login gemmer appen en tilfældig <code>state</code>. Callbacks uden det rigtige stempel afvises —
+        også selvom koden i dem er helt ægte (bare udstedt til angriberens session).
+      </p>
+      <p>Gemt i “sessionStorage”: <code id="csrf-expected">…</code></p>
+      <div class="demo-toolbar">
+        <button type="button" class="btn btn-secondary" id="csrf-good">Simulér ægte callback</button>
+        <button type="button" class="btn btn-secondary" id="csrf-bad">Simulér angriberens callback</button>
+        <button type="button" class="docs-mini-btn" id="csrf-new">ny state</button>
+      </div>
+      <p id="csrf-out" class="muted">Tryk på en af knapperne.</p>
+    </div>
+
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Prøv selv</span>
+      <h3>redirect_uri: hvorfor eksakt match?</h3>
+      <p class="muted">
+        Authorization-koden leveres via redirect — så den der kontrollerer redirect-målet, får koden.
+        Whitelist for denne demo-klient: <code id="ru-whitelist">…</code>
+      </p>
+      <div class="demo-field">
+        <label for="ru-input">Prøv en redirect_uri (ret fx skema, port, sti eller tilføj en slash)</label>
+        <input type="text" id="ru-input" class="docs-input" spellcheck="false" autocomplete="off" />
+      </div>
+      <p id="ru-out" class="muted">—</p>
+    </div>
+
+    <div class="docs-compare">
+      <div class="docs-compare-col docs-compare-bad">
+        <strong>Typiske fejl</strong>
+        <ul class="tight">
+          <li>Refresh tokens i <code>localStorage</code> — overlever lukket browser og kan læses ved XSS</li>
+          <li>JWT “valideret” ved kun at dekode payloaden (uden signatur/iss/aud/exp)</li>
+          <li>Tokens i URL'er eller logget i klartekst</li>
+          <li>Prefix-match på redirect_uri (“starter med vores domæne …”)</li>
+        </ul>
+      </div>
+      <div class="docs-compare-col docs-compare-good">
+        <strong>Forsvar i denne platform</strong>
+        <ul class="tight">
+          <li>PKCE S256 påkrævet for offentlige klienter — stjålne koder er værdiløse</li>
+          <li>Eksakt redirect-URI-whitelist + CORS-whitelist (<code>Cors:SpaOrigins</code>)</li>
+          <li>Korte access tokens + roterende refresh tokens (tilbagekaldes centralt)</li>
+          <li>RS256/JWKS: API'er kan verificere uden delte hemmeligheder</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 id="ordliste">10. Ordliste</h2>
     <table class="docs-glossary">
       <thead>
         <tr><th>Begreb</th><th>Betydning</th></tr>
@@ -279,8 +477,17 @@ flowchart TD
         <tr><td><code>kid</code></td><td>Key ID i JWT-headeren — peger på den rigtige nøgle i JWKS ved nøglerotation.</td></tr>
         <tr><td><code>amr</code></td><td>Authentication Methods References: <code>pwd</code>, <code>otp</code>, <code>webauthn</code> — hvordan brugeren loggede ind.</td></tr>
         <tr><td><code>redirect_uri</code></td><td>Din callback-URL. Whitelistes på serveren med eksakt match — ellers afvises flowet.</td></tr>
+        <tr><td><code>public client</code></td><td>App der ikke kan holde på en hemmelighed (SPA, mobil). Beviser sig med PKCE i stedet for client_secret.</td></tr>
+        <tr><td><code>confidential client</code></td><td>Server-side app med <code>client_secret</code>. Hemmeligheden bor på serveren — aldrig i browseren.</td></tr>
+        <tr><td><code>CSRF</code></td><td>Cross-Site Request Forgery: fremmed side udløser handlinger i din session. I OAuth stoppes det af <code>state</code>.</td></tr>
+        <tr><td><code>XSS</code></td><td>Cross-Site Scripting: fremmed JavaScript på din side — kan læse localStorage/sessionStorage. Derfor korte tokens og forsigtig lagring.</td></tr>
       </tbody>
     </table>
+
+    <h2 id="quiz">11. Quiz — test dig selv</h2>
+    <p class="muted">Seks spørgsmål, ét svar pr. spørgsmål, forklaring med det samme. Genindlæs siden for at prøve igen.</p>
+    <div id="quiz-wrap"></div>
+    <p class="demo-meta" id="quiz-score">0 af 6 besvaret.</p>
 
     <div class="card">
       <h2>Videre herfra</h2>
@@ -335,7 +542,9 @@ flowchart TD
     });
   </script>
   <script src="shared-config.js"></script>
+  <script src="session-jwt.js"></script>
   <script src="logout.js"></script>
+  <script src="pkce.js"></script>
   <script>
     document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
 
@@ -346,5 +555,6 @@ flowchart TD
       document.getElementById("manifest-url").textContent = base + "/.well-known/mercantec-auth.json";
     })();
   </script>
+  <script src="docs-demos.js"></script>
 </body>
 </html>
