@@ -35,7 +35,7 @@ public static class LoginThemeCatalog
         Id: "uptimedaddy",
         DisplayName: "Uptime Daddy",
         Stylesheet: "/themes/uptimedaddy.css",
-        LogoUrl: null,
+        LogoUrl: "/themes/uptimedaddy/logo.png",
         PageTitleSuffix: "Uptime Daddy",
         TopbarTitle: "Uptime Daddy",
         LeadText: "Overvågning af oppetid — log ind for at fortsætte til dashboardet");
