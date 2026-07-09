@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Docs — teknologien bag Mercantec Auth (undervisning)</title>
-  <link rel="stylesheet" href="demo-theme.css" />
+  <link rel="stylesheet" href="demo-theme.css?v=2" />
+  <link rel="stylesheet" href="docs-quiz.css?v=1" />
 </head>
 <body class="demo">
   <div class="demo-wrap demo-wrap--wide">
@@ -544,10 +545,10 @@ flowchart TD
       sequence: { actorMargin: 40, messageMargin: 32, mirrorActors: false },
     });
   </script>
-  <script src="shared-config.js"></script>
-  <script src="session-jwt.js"></script>
-  <script src="logout.js"></script>
-  <script src="pkce.js"></script>
+  <script src="shared-config.js?v=2"></script>
+  <script src="session-jwt.js?v=2"></script>
+  <script src="logout.js?v=2"></script>
+  <script src="pkce.js?v=2"></script>
   <script>
     document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
 
@@ -582,6 +583,7 @@ flowchart TD
       for (const s of sections) io.observe(s);
     })();
   </script>
-  <script src="docs-demos.js"></script>
+  <script src="docs-demos.js?v=2"></script>
+  <script src="docs-quiz.js?v=1"></script>
 </body>
 </html>
