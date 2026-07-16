@@ -73,9 +73,9 @@
                                             @(c.IsPublic ? "Public" : "Fortrolig")
                                         </span>
                                         <span class="merc-badge merc-badge--count">@c.RedirectUris.Count URI</span>
-                                        @if (GetCreatedUserCount(c.ClientId) > 0)
+                                        @if (GetLinkedUserCount(c.ClientId) > 0)
                                         {
-                                            <span class="merc-badge merc-badge--count">@GetCreatedUserCount(c.ClientId) brugere</span>
+                                            <span class="merc-badge merc-badge--count">@GetLinkedUserCount(c.ClientId) brugere</span>
                                         }
                                     </span>
                                 </button>
@@ -194,8 +194,8 @@
                                 <span class="merc-tabs__count">@_selected.RedirectUris.Count</span>
                             </button>
                             <button type="button" role="tab" class="merc-tabs__btn @(_activeTab == ClientTab.Users ? "merc-tabs__btn--active" : null)" aria-selected="@(_activeTab == ClientTab.Users)" @onclick="() => _activeTab = ClientTab.Users">
-                                Oprettede brugere
-                                <span class="merc-tabs__count">@_createdUsers.Count</span>
+                                Brugere
+                                <span class="merc-tabs__count">@_linkedUsers.Count</span>
                             </button>
                         </div>
 
@@ -324,9 +324,61 @@
                         }
                         else if (_activeTab == ClientTab.Users)
                         {
+                            <h3 class="merc-panel__h3">Tilknyttede brugere</h3>
                             <p class="merc-hint merc-hint--block">
-                                Brugere der oprettede deres Mercantec-konto via denne klient (e-mail/adgangskode eller første login med Google/Microsoft under OAuth-flow).
-                                Ældre konti uden registreret oprindelse vises ikke.
+                                Brugere der har brugt denne app via OAuth (authorize/token/refresh) — samme data som «OAuth-klienter» på
+                                <a href="/Admin/Users">Brugere</a>.
+                            </p>
+
+                            @if (_linkedUsers.Count == 0)
+                            {
+                                <p class="merc-clients__uri-empty">Ingen brugere har brugt denne klient endnu.</p>
+                            }
+                            else
+                            {
+                                <div class="merc-clients__users-table-wrap">
+                                    <table class="table table-sm merc-clients__users-table">
+                                        <thead>
+                                        <tr>
+                                            <th>Navn</th>
+                                            <th>E-mail</th>
+                                            <th>Først set</th>
+                                            <th>Sidst set</th>
+                                            <th>Authorize</th>
+                                            <th>Token</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach (var u in _linkedUsers)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <span>@u.DisplayName</span>
+                                                    <code class="merc-clients__user-id" title="@u.Id.ToString()">@ShortUserId(u.Id)</code>
+                                                </td>
+                                                <td>@(u.Email ?? "—")</td>
+                                                <td>@FormatLocal(u.FirstSeenAtUtc)</td>
+                                                <td>@FormatLocal(u.LastSeenAtUtc)</td>
+                                                <td>@u.AuthorizeCount</td>
+                                                <td>@u.TokenExchangeCount</td>
+                                                <td>
+                                                    @if (u.CreatedViaThisClient)
+                                                    {
+                                                        <span class="merc-badge merc-badge--ok">Oprettet her</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+
+                            <div class="merc-panel__divider"></div>
+                            <h3 class="merc-panel__h3">Oprettet via denne klient (@_createdUsers.Count)</h3>
+                            <p class="merc-hint merc-hint--block">
+                                Konti der blev oprettet under OAuth-flow for denne klient. Ældre konti uden spor vises ikke.
                             </p>
 
                             @if (_createdUsers.Count == 0)
@@ -361,9 +413,6 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <p class="merc-hint">
-                                    Se alle brugere under <a href="/Admin/Users">Brugere (admin)</a>.
-                                </p>
                             }
                         }
                         else
@@ -461,7 +510,8 @@
     private ClientLoginMethodsPolicy _globalLoginMethods = null!;
     private string? _rotatedSecretPlain;
     private List<CreatedUserRow> _createdUsers = [];
-    private Dictionary<string, int> _createdUserCounts = new(StringComparer.OrdinalIgnoreCase);
+    private List<LinkedUserRow> _linkedUsers = [];
+    private Dictionary<string, int> _linkedUserCounts = new(StringComparer.OrdinalIgnoreCase);
 
     private sealed record CreatedUserRow(
         Guid Id,
@@ -469,6 +519,16 @@
         string? Email,
         DateTime CreatedAt,
         DateTime LastLoginAt);
+
+    private sealed record LinkedUserRow(
+        Guid Id,
+        string DisplayName,
+        string? Email,
+        DateTime FirstSeenAtUtc,
+        DateTime LastSeenAtUtc,
+        int AuthorizeCount,
+        int TokenExchangeCount,
+        bool CreatedViaThisClient);
 
     private bool _newIsPublic => _newClientKind == ClientKind.Spa;
     private bool _newRequirePkce => _newClientKind == ClientKind.Spa;
@@ -574,20 +634,20 @@
             .OrderBy(c => c.Name)
             .ToListAsync();
 
-        _createdUserCounts = await Db.Users
+        _linkedUserCounts = await Db.UserClientUsages
             .AsNoTracking()
-            .Where(u => u.CreatedViaClientId != null)
-            .GroupBy(u => u.CreatedViaClientId!)
+            .GroupBy(u => u.ClientId)
             .Select(g => new { ClientId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ClientId, x => x.Count, StringComparer.OrdinalIgnoreCase);
 
         _selected = null;
         _createdUsers = [];
+        _linkedUsers = [];
         if (!string.IsNullOrWhiteSpace(_selectedClientId) && Guid.TryParse(_selectedClientId, out var id))
         {
             _selected = _clients.FirstOrDefault(c => c.Id == id);
             if (_selected is not null)
-                await LoadCreatedUsersAsync(_selected.ClientId);
+                await LoadClientUsersAsync(_selected.ClientId);
         }
 
         if (_selected is not null)
@@ -605,7 +665,7 @@
         }
     }
 
-    private async Task LoadCreatedUsersAsync(string clientId)
+    private async Task LoadClientUsersAsync(string clientId)
     {
         _createdUsers = await Db.Users
             .AsNoTracking()
@@ -618,10 +678,29 @@
                 u.CreatedAt,
                 u.LastLoginAt))
             .ToListAsync();
+
+        _linkedUsers = await Db.UserClientUsages
+            .AsNoTracking()
+            .Where(u => u.ClientId == clientId)
+            .Join(
+                Db.Users.AsNoTracking(),
+                usage => usage.UserId,
+                user => user.Id,
+                (usage, user) => new LinkedUserRow(
+                    user.Id,
+                    user.DisplayName,
+                    user.Email,
+                    usage.FirstSeenAtUtc,
+                    usage.LastSeenAtUtc,
+                    usage.AuthorizeCount,
+                    usage.TokenExchangeCount,
+                    user.CreatedViaClientId == clientId))
+            .OrderByDescending(u => u.LastSeenAtUtc)
+            .ToListAsync();
     }
 
-    private int GetCreatedUserCount(string clientId) =>
-        _createdUserCounts.TryGetValue(clientId, out var count) ? count : 0;
+    private int GetLinkedUserCount(string clientId) =>
+        _linkedUserCounts.TryGetValue(clientId, out var count) ? count : 0;
 
     private static string ShortUserId(Guid id) => id.ToString()[..8];
 
