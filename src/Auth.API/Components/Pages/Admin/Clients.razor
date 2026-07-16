@@ -194,6 +194,14 @@
                         @if (_activeTab == ClientTab.Settings)
                         {
                             <div class="merc-form-grid merc-form-grid--2">
+                                <div class="merc-field">
+                                    <label class="merc-label" for="editName">App-navn</label>
+                                    <input id="editName" class="merc-input" @bind="_editName" />
+                                </div>
+                                <div class="merc-field">
+                                    <label class="merc-label" for="editClientId">Client ID</label>
+                                    <input id="editClientId" class="merc-input" @bind="_editClientId" />
+                                </div>
                                 <label class="merc-check">
                                     <input type="checkbox" @bind="_editIsActive" />
                                     <span>Aktiv</span>
@@ -281,6 +289,9 @@
                             <div class="merc-panel__actions">
                                 <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveClientSettingsAsync" disabled="@_saving">
                                     @(_saving ? "Gemmer…" : "Gem indstillinger")
+                                </button>
+                                <button type="button" class="merc-btn merc-btn--danger" @onclick="DeleteClientAsync" disabled="@_saving">
+                                    @(_saving ? "Sletter…" : "Slet klient")
                                 </button>
                             </div>
 
@@ -388,6 +399,8 @@
     private bool _editIsActive;
     private bool _editIsPublic;
     private bool _editRequirePkce;
+    private string _editName = "";
+    private string _editClientId = "";
     private string _editAllowedScopes = "";
     private string _editLoginThemeId = "";
     private bool _editUseAllLoginMethods = true;
@@ -506,6 +519,8 @@
 
         if (_selected is not null)
         {
+            _editName = _selected.Name;
+            _editClientId = _selected.ClientId;
             _editIsActive = _selected.IsActive;
             _editIsPublic = _selected.IsPublic;
             _editRequirePkce = _selected.RequirePkce;
@@ -665,6 +680,31 @@
             if (tracked is null)
                 return;
 
+            var name = (_editName ?? "").Trim();
+            var clientId = (_editClientId ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name) || name.Length > 120)
+            {
+                SetStatus("Udfyld et app-navn (max 120 tegn).", true);
+                return;
+            }
+
+            if (!IsValidClientId(clientId))
+            {
+                SetStatus("Ugyldigt client_id (brug a-z, 0-9, -, _, . og 2–64 tegn).", true);
+                return;
+            }
+
+            var existingWithClientId = await Db.ClientApps
+                .AsNoTracking()
+                .AnyAsync(c => c.Id != tracked.Id && c.ClientId == clientId);
+            if (existingWithClientId)
+            {
+                SetStatus("client_id findes allerede — vælg et andet.", true);
+                return;
+            }
+
+            tracked.Name = name;
+            tracked.ClientId = clientId;
             tracked.IsActive = _editIsActive;
             tracked.IsPublic = _editIsPublic;
             tracked.RequirePkce = _editRequirePkce;
@@ -695,6 +735,44 @@
 
             await Db.SaveChangesAsync();
             SetStatus("Indstillinger gemt.", false);
+            await ReloadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteClientAsync()
+    {
+        SetStatus("", false);
+        _rotatedSecretPlain = null;
+        if (_selected is null)
+            return;
+
+        var ok = await Js.InvokeAsync<bool>(
+            "confirm",
+            $"Vil du slette klienten '{_selected.Name}' ({_selected.ClientId})? Dette kan ikke fortrydes.");
+        if (!ok)
+            return;
+
+        _saving = true;
+        try
+        {
+            var tracked = await Db.ClientApps
+                .Include(c => c.RedirectUris)
+                .FirstOrDefaultAsync(c => c.Id == _selected.Id);
+            if (tracked is null)
+                return;
+
+            Db.ClientApps.Remove(tracked);
+            await Db.SaveChangesAsync();
+
+            _selectedClientId = null;
+            _selected = null;
+            _newRedirectUri = "";
+            _showCreate = false;
+            SetStatus("Klient slettet.", false);
             await ReloadAsync();
         }
         finally

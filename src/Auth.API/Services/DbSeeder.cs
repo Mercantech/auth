@@ -54,7 +54,61 @@ public static class DbSeeder
             await db.SaveChangesAsync(ct);
         }
 
+        await EnsureMercantecHubRedirectsAsync(db, ct);
         await EnsureDemoSpaTestRedirectsAsync(db, env, ct);
+    }
+
+    /// <summary>
+    /// Sikrer korrekte OAuth redirect-URI'er for mercantec.tech (uden intern port 4040).
+    /// </summary>
+    private static async Task EnsureMercantecHubRedirectsAsync(AuthDbContext db, CancellationToken ct)
+    {
+        var clientIds = new[] { "demo", "mercantec-tech", "mercantec" };
+        var clients = await db.ClientApps
+            .Include(c => c.RedirectUris)
+            .Where(c => clientIds.Contains(c.ClientId))
+            .ToListAsync(ct);
+
+        if (clients.Count == 0)
+            return;
+
+        var required = new[]
+        {
+            "https://mercantec.tech/auth/callback",
+            "http://localhost:4321/auth/callback",
+            "http://127.0.0.1:4321/auth/callback",
+        };
+
+        var changed = false;
+        foreach (var client in clients)
+        {
+            foreach (var uri in client.RedirectUris.ToList())
+            {
+                if (uri.Uri.Contains("mercantec.tech:4040", StringComparison.OrdinalIgnoreCase) ||
+                    uri.Uri.Contains("mercantec.tech:4040/", StringComparison.OrdinalIgnoreCase))
+                {
+                    db.ClientAppRedirectUris.Remove(uri);
+                    changed = true;
+                }
+            }
+
+            foreach (var u in required)
+            {
+                if (client.RedirectUris.Any(r => string.Equals(r.Uri, u, StringComparison.Ordinal)))
+                    continue;
+
+                db.ClientAppRedirectUris.Add(new ClientAppRedirectUri
+                {
+                    Id = Guid.NewGuid(),
+                    ClientAppId = client.Id,
+                    Uri = u,
+                });
+                changed = true;
+            }
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(ct);
     }
 
     /// <summary>Tilføjer ekstra localhost-URI'er til demo-klient (fx statisk HTML-test på port 5173).</summary>
