@@ -682,20 +682,16 @@
         _linkedUsers = await Db.UserClientUsages
             .AsNoTracking()
             .Where(u => u.ClientId == clientId)
-            .Join(
-                Db.Users.AsNoTracking(),
-                usage => usage.UserId,
-                user => user.Id,
-                (usage, user) => new LinkedUserRow(
-                    user.Id,
-                    user.DisplayName,
-                    user.Email,
-                    usage.FirstSeenAtUtc,
-                    usage.LastSeenAtUtc,
-                    usage.AuthorizeCount,
-                    usage.TokenExchangeCount,
-                    user.CreatedViaClientId == clientId))
             .OrderByDescending(u => u.LastSeenAtUtc)
+            .Select(u => new LinkedUserRow(
+                u.User.Id,
+                u.User.DisplayName,
+                u.User.Email,
+                u.FirstSeenAtUtc,
+                u.LastSeenAtUtc,
+                u.AuthorizeCount,
+                u.TokenExchangeCount,
+                u.User.CreatedViaClientId == clientId))
             .ToListAsync();
     }
 
