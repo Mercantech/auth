@@ -1001,6 +1001,28 @@ footer.merc-shell__footer a:active {
   box-shadow: none;
 }
 
+.merc-clients__users-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0 1rem;
+}
+
+.merc-clients__users-table {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.merc-clients__users-table th,
+.merc-clients__users-table td {
+  vertical-align: top;
+}
+
+.merc-clients__user-id {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
 /* Paneler, formularer, badges */
 .merc-panel {
   background: var(--merc-card);

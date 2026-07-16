@@ -335,6 +335,7 @@ public static class AccountEndpointExtensions
                 displayName,
                 email,
                 password,
+                LoginBrandingUrls.ClientIdFromContext(ctx),
                 ctx.RequestAborted);
 
             var adminEmail = bootstrap.Value.AdminEmail;
@@ -365,7 +366,10 @@ public static class AccountEndpointExtensions
             }
 
             await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
-                .RecordPasswordSignupAsync(user.Id, ctx.RequestAborted);
+                .RecordPasswordSignupAsync(
+                    user.Id,
+                    LoginBrandingUrls.ClientIdFromContext(ctx),
+                    ctx.RequestAborted);
 
             return Results.Redirect(LoginBrandingUrls.ConfirmEmailSent(
                 returnUrl,

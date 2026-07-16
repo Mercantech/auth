@@ -66,6 +66,7 @@ public class LocalAccountService(AuthDbContext db, TimeProvider time) : ILocalAc
         string displayName,
         string email,
         string password,
+        string? createdViaClientId = null,
         CancellationToken cancellationToken = default)
     {
         var norm = EmailNormalizer.Normalize(email)
@@ -81,6 +82,7 @@ public class LocalAccountService(AuthDbContext db, TimeProvider time) : ILocalAc
             CreatedAt = now,
             LastLoginAt = now,
             LastLoginMethod = MercantecAuthClaims.LoginMethodValues.Password,
+            CreatedViaClientId = string.IsNullOrWhiteSpace(createdViaClientId) ? null : createdViaClientId.Trim(),
         };
         db.Users.Add(user);
         db.LocalLogins.Add(new LocalLogin

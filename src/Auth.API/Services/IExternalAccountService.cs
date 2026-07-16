@@ -9,6 +9,7 @@ public interface IExternalAccountService
         ClaimsPrincipal externalPrincipal,
         string provider,
         UserEmailKind emailKind,
+        string? createdViaClientId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Tilføj ekstern udbyder-identitet til den angivne bruger (authentificeret account-link flow).</summary>

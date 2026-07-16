@@ -35,11 +35,11 @@ public class AuthUsageTracker(AuthDbContext db, TimeProvider time) : IAuthUsageT
             null,
             cancellationToken);
 
-    public Task RecordPasswordSignupAsync(Guid userId, CancellationToken cancellationToken = default) =>
+    public Task RecordPasswordSignupAsync(Guid userId, string? clientId = null, CancellationToken cancellationToken = default) =>
         RecordAsync(
             AuthUsageEventTypes.PasswordSignup,
             userId,
-            null,
+            clientId,
             null,
             MercantecAuthClaims.LoginMethodValues.Password,
             null,

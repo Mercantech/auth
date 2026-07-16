@@ -12,6 +12,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
         ClaimsPrincipal externalPrincipal,
         string provider,
         UserEmailKind emailKind,
+        string? createdViaClientId = null,
         CancellationToken cancellationToken = default)
     {
         var providerUserId = externalPrincipal.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -76,6 +77,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
                 EmailConfirmed = !string.IsNullOrEmpty(email),
                 CreatedAt = now,
                 LastLoginAt = now,
+                CreatedViaClientId = NormalizeCreatedViaClientId(createdViaClientId),
             };
             db.Users.Add(user);
             var userRole = await db.Roles.FirstAsync(r => r.Name == "User", cancellationToken);
@@ -230,4 +232,7 @@ public class ExternalAccountService(AuthDbContext db, TimeProvider time) : IExte
             });
         }
     }
+
+    private static string? NormalizeCreatedViaClientId(string? clientId) =>
+        string.IsNullOrWhiteSpace(clientId) ? null : clientId.Trim();
 }

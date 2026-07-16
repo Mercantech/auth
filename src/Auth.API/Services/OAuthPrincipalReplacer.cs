@@ -50,10 +50,17 @@ public static class OAuthPrincipalReplacer
         }
         else
         {
+            var createdViaClientId = LoginBrandingUrls.ClientIdFromReturnUrlOrCookie(
+                ctx.Properties?.RedirectUri,
+                ctx.HttpContext);
+            if (string.IsNullOrWhiteSpace(createdViaClientId))
+                createdViaClientId = LoginBrandingUrls.ClientIdFromContext(ctx.HttpContext);
+
             userId = await sync.FindOrLinkUserAsync(
                 principal,
                 providerKey,
                 emailKind,
+                string.IsNullOrWhiteSpace(createdViaClientId) ? null : createdViaClientId,
                 ctx.HttpContext.RequestAborted);
         }
 

@@ -24,6 +24,11 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<User>(e =>
+        {
+            e.HasIndex(x => x.CreatedViaClientId);
+        });
+
         modelBuilder.Entity<UserRole>(e =>
         {
             e.HasKey(x => new { x.UserId, x.RoleId });

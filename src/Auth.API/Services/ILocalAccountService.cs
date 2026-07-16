@@ -22,5 +22,6 @@ public interface ILocalAccountService
         string displayName,
         string email,
         string password,
+        string? createdViaClientId = null,
         CancellationToken cancellationToken = default);
 }
