@@ -78,6 +78,75 @@ public class DokployAccessRequestServiceTests
     }
 
     [Fact]
+    public async Task Approve_partial_only_merges_selected_projects_and_caps()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "partial@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-p",
+            LinkedEmail = "partial@example.com",
+            IsProvisioned = true,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("assignPermissions"))
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") };
+            if (req.RequestUri.AbsolutePath.Contains("user.all"))
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"id":"dok-p","email":"partial@example.com"}]"""),
+                };
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        var api = CreateApi(handler);
+        var acl = new DokployAclSyncService(
+            db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAclSyncService>.Instance);
+        var provision = new DokployProvisionService(
+            db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
+        var svc = new DokployAccessRequestService(
+            db, provision, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAccessRequestService>.Instance);
+
+        var submit = await svc.SubmitAsync(
+            user.Id,
+            [("keep", "Keep"), ("drop", "Drop")],
+            new DokployCapabilityFlags { CanAccessToDocker = true, CanAccessToAPI = true },
+            null,
+            null);
+        Assert.True(submit.Ok, submit.Error);
+
+        var approve = await svc.ApproveAsync(
+            submit.Request!.Id,
+            Guid.NewGuid(),
+            "kun Keep + Docker",
+            approvedProjectIds: ["keep"],
+            approvedCapabilities: new DokployCapabilityFlags { CanAccessToDocker = true, CanAccessToAPI = false });
+        Assert.True(approve.Ok, approve.Error);
+
+        var grants = await db.DokployProjectGrants.Where(g => g.UserId == user.Id).Select(g => g.DokployProjectId).ToListAsync();
+        Assert.Contains("keep", grants);
+        Assert.DoesNotContain("drop", grants);
+
+        var link = await db.DokployUserLinks.SingleAsync(l => l.UserId == user.Id);
+        Assert.True(link.CanAccessToDocker);
+        Assert.False(link.CanAccessToAPI);
+
+        var stored = await db.DokployAccessRequests
+            .Include(r => r.Projects)
+            .SingleAsync();
+        Assert.Equal(DokployAccessRequestStatus.Approved, stored.Status);
+        Assert.Single(stored.Projects);
+        Assert.Equal("keep", stored.Projects.Single().DokployProjectId);
+        Assert.True(stored.CanAccessToDocker);
+        Assert.False(stored.CanAccessToAPI);
+        Assert.StartsWith("Delvist godkendt.", stored.ReviewNote);
+    }
+
+    [Fact]
     public async Task Submit_rejects_second_pending()
     {
         await using var db = CreateDb();

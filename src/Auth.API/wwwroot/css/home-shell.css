@@ -1901,6 +1901,18 @@ footer.merc-shell__footer a:active {
   background: var(--merc-accent-soft, rgba(42, 77, 92, 0.06));
 }
 
+.merc-dokploy__approve-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.merc-dokploy__approve-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .merc-dokploy__request-form {
   display: flex;
   flex-direction: column;

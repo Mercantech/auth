@@ -141,6 +141,8 @@ public sealed class DokployAccessRequestService(
         Guid requestId,
         Guid adminUserId,
         string? reviewNote,
+        IReadOnlyList<string>? approvedProjectIds = null,
+        DokployCapabilityFlags? approvedCapabilities = null,
         CancellationToken cancellationToken = default)
     {
         var request = await db.DokployAccessRequests
@@ -151,6 +153,24 @@ public sealed class DokployAccessRequestService(
         if (request.Status != DokployAccessRequestStatus.Pending)
             return new DokployAccessRequestResult(false, "Anmodningen er allerede behandlet.");
 
+        var requestedProjectIds = request.Projects
+            .Select(p => p.DokployProjectId)
+            .ToHashSet(StringComparer.Ordinal);
+        var selectedProjectIds = approvedProjectIds is null
+            ? requestedProjectIds
+            : approvedProjectIds
+                .Where(id => !string.IsNullOrWhiteSpace(id) && requestedProjectIds.Contains(id))
+                .ToHashSet(StringComparer.Ordinal);
+
+        var selectedCaps = ClampCapabilities(CapabilitiesFromRequest(request), approvedCapabilities);
+
+        if (selectedProjectIds.Count == 0 && !HasAnyCapability(selectedCaps))
+        {
+            return new DokployAccessRequestResult(
+                false,
+                "Vælg mindst ét projekt eller én rettighed at godkende — ellers afvis anmodningen.");
+        }
+
         var existingGrants = await db.DokployProjectGrants
             .Where(g => g.UserId == request.UserId)
             .ToListAsync(cancellationToken);
@@ -158,12 +178,15 @@ public sealed class DokployAccessRequestService(
         var merged = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var g in existingGrants)
             merged[g.DokployProjectId] = g.ProjectName;
-        foreach (var p in request.Projects)
+        foreach (var p in request.Projects.Where(p => selectedProjectIds.Contains(p.DokployProjectId)))
             merged[p.DokployProjectId] = p.ProjectName ?? merged.GetValueOrDefault(p.DokployProjectId);
 
         var link = await db.DokployUserLinks.FirstOrDefaultAsync(l => l.UserId == request.UserId, cancellationToken);
         var caps = link is null ? new DokployCapabilityFlags() : DokployCapabilityFlags.FromLink(link);
-        OrCapabilities(caps, request);
+        OrCapabilities(caps, selectedCaps);
+
+        var wasPartial = selectedProjectIds.Count < requestedProjectIds.Count
+            || !CapabilitiesEqual(CapabilitiesFromRequest(request), selectedCaps);
 
         try
         {
@@ -179,10 +202,31 @@ public sealed class DokployAccessRequestService(
             return new DokployAccessRequestResult(false, ex.Message);
         }
 
+        // Gem kun det godkendte i anmodningen (historik = det der faktisk blev givet).
+        var removedProjects = request.Projects
+            .Where(p => !selectedProjectIds.Contains(p.DokployProjectId))
+            .ToList();
+        if (removedProjects.Count > 0)
+            db.DokployAccessRequestProjects.RemoveRange(removedProjects);
+
+        ApplyCapabilitiesToRequest(request, selectedCaps);
+
         request.Status = DokployAccessRequestStatus.Approved;
         request.ReviewedByUserId = adminUserId;
         request.ReviewedAtUtc = time.GetUtcNow().UtcDateTime;
-        request.ReviewNote = Truncate(reviewNote, 1000);
+        var note = Truncate(reviewNote, 1000);
+        if (wasPartial)
+        {
+            var prefix = "Delvist godkendt.";
+            request.ReviewNote = string.IsNullOrWhiteSpace(note) ? prefix : $"{prefix} {note}";
+            if (request.ReviewNote.Length > 1000)
+                request.ReviewNote = request.ReviewNote[..1000];
+        }
+        else
+        {
+            request.ReviewNote = note;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return new DokployAccessRequestResult(true, Request: request);
     }
@@ -209,19 +253,91 @@ public sealed class DokployAccessRequestService(
     }
 
     private static void OrCapabilities(DokployCapabilityFlags target, DokployAccessRequest request)
+        => OrCapabilities(target, CapabilitiesFromRequest(request));
+
+    private static void OrCapabilities(DokployCapabilityFlags target, DokployCapabilityFlags source)
     {
-        target.CanCreateProjects |= request.CanCreateProjects;
-        target.CanCreateServices |= request.CanCreateServices;
-        target.CanDeleteProjects |= request.CanDeleteProjects;
-        target.CanDeleteServices |= request.CanDeleteServices;
-        target.CanAccessToDocker |= request.CanAccessToDocker;
-        target.CanAccessToTraefikFiles |= request.CanAccessToTraefikFiles;
-        target.CanAccessToAPI |= request.CanAccessToAPI;
-        target.CanAccessToSSHKeys |= request.CanAccessToSSHKeys;
-        target.CanAccessToGitProviders |= request.CanAccessToGitProviders;
-        target.CanDeleteEnvironments |= request.CanDeleteEnvironments;
-        target.CanCreateEnvironments |= request.CanCreateEnvironments;
+        target.CanCreateProjects |= source.CanCreateProjects;
+        target.CanCreateServices |= source.CanCreateServices;
+        target.CanDeleteProjects |= source.CanDeleteProjects;
+        target.CanDeleteServices |= source.CanDeleteServices;
+        target.CanAccessToDocker |= source.CanAccessToDocker;
+        target.CanAccessToTraefikFiles |= source.CanAccessToTraefikFiles;
+        target.CanAccessToAPI |= source.CanAccessToAPI;
+        target.CanAccessToSSHKeys |= source.CanAccessToSSHKeys;
+        target.CanAccessToGitProviders |= source.CanAccessToGitProviders;
+        target.CanDeleteEnvironments |= source.CanDeleteEnvironments;
+        target.CanCreateEnvironments |= source.CanCreateEnvironments;
     }
+
+    private static DokployCapabilityFlags CapabilitiesFromRequest(DokployAccessRequest request) => new()
+    {
+        CanCreateProjects = request.CanCreateProjects,
+        CanCreateServices = request.CanCreateServices,
+        CanDeleteProjects = request.CanDeleteProjects,
+        CanDeleteServices = request.CanDeleteServices,
+        CanAccessToDocker = request.CanAccessToDocker,
+        CanAccessToTraefikFiles = request.CanAccessToTraefikFiles,
+        CanAccessToAPI = request.CanAccessToAPI,
+        CanAccessToSSHKeys = request.CanAccessToSSHKeys,
+        CanAccessToGitProviders = request.CanAccessToGitProviders,
+        CanDeleteEnvironments = request.CanDeleteEnvironments,
+        CanCreateEnvironments = request.CanCreateEnvironments,
+    };
+
+    /// <summary>
+    /// Kun rettigheder der både er anmodet og valgt af admin.
+    /// </summary>
+    private static DokployCapabilityFlags ClampCapabilities(
+        DokployCapabilityFlags requested,
+        DokployCapabilityFlags? selected)
+    {
+        if (selected is null)
+            return requested;
+
+        return new DokployCapabilityFlags
+        {
+            CanCreateProjects = requested.CanCreateProjects && selected.CanCreateProjects,
+            CanCreateServices = requested.CanCreateServices && selected.CanCreateServices,
+            CanDeleteProjects = requested.CanDeleteProjects && selected.CanDeleteProjects,
+            CanDeleteServices = requested.CanDeleteServices && selected.CanDeleteServices,
+            CanAccessToDocker = requested.CanAccessToDocker && selected.CanAccessToDocker,
+            CanAccessToTraefikFiles = requested.CanAccessToTraefikFiles && selected.CanAccessToTraefikFiles,
+            CanAccessToAPI = requested.CanAccessToAPI && selected.CanAccessToAPI,
+            CanAccessToSSHKeys = requested.CanAccessToSSHKeys && selected.CanAccessToSSHKeys,
+            CanAccessToGitProviders = requested.CanAccessToGitProviders && selected.CanAccessToGitProviders,
+            CanDeleteEnvironments = requested.CanDeleteEnvironments && selected.CanDeleteEnvironments,
+            CanCreateEnvironments = requested.CanCreateEnvironments && selected.CanCreateEnvironments,
+        };
+    }
+
+    private static void ApplyCapabilitiesToRequest(DokployAccessRequest request, DokployCapabilityFlags caps)
+    {
+        request.CanCreateProjects = caps.CanCreateProjects;
+        request.CanCreateServices = caps.CanCreateServices;
+        request.CanDeleteProjects = caps.CanDeleteProjects;
+        request.CanDeleteServices = caps.CanDeleteServices;
+        request.CanAccessToDocker = caps.CanAccessToDocker;
+        request.CanAccessToTraefikFiles = caps.CanAccessToTraefikFiles;
+        request.CanAccessToAPI = caps.CanAccessToAPI;
+        request.CanAccessToSSHKeys = caps.CanAccessToSSHKeys;
+        request.CanAccessToGitProviders = caps.CanAccessToGitProviders;
+        request.CanDeleteEnvironments = caps.CanDeleteEnvironments;
+        request.CanCreateEnvironments = caps.CanCreateEnvironments;
+    }
+
+    private static bool CapabilitiesEqual(DokployCapabilityFlags a, DokployCapabilityFlags b)
+        => a.CanCreateProjects == b.CanCreateProjects
+           && a.CanCreateServices == b.CanCreateServices
+           && a.CanDeleteProjects == b.CanDeleteProjects
+           && a.CanDeleteServices == b.CanDeleteServices
+           && a.CanAccessToDocker == b.CanAccessToDocker
+           && a.CanAccessToTraefikFiles == b.CanAccessToTraefikFiles
+           && a.CanAccessToAPI == b.CanAccessToAPI
+           && a.CanAccessToSSHKeys == b.CanAccessToSSHKeys
+           && a.CanAccessToGitProviders == b.CanAccessToGitProviders
+           && a.CanDeleteEnvironments == b.CanDeleteEnvironments
+           && a.CanCreateEnvironments == b.CanCreateEnvironments;
 
     private static bool HasAnyCapability(DokployCapabilityFlags c)
         => c.CanCreateProjects || c.CanCreateServices || c.CanDeleteProjects || c.CanDeleteServices

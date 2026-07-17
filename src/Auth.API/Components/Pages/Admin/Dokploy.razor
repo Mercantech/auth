@@ -85,6 +85,7 @@
             <div class="merc-dokploy__pending-list">
                 @foreach (var req in _pending)
                 {
+                    var draft = GetOrCreateDraft(req);
                     <article class="merc-dokploy__pending-card">
                         <div class="merc-dokploy__card-top">
                             <div>
@@ -93,15 +94,51 @@
                                 <p class="merc-hint">Sendt @req.CreatedAtUtc.ToLocalTime().ToString("g")</p>
                             </div>
                         </div>
-                        <p class="merc-dokploy__history-body">
-                            <strong>Projekter:</strong>
-                            @(req.Projects.Count == 0
-                                ? "—"
-                                : string.Join(", ", req.Projects.Select(p => p.ProjectName ?? "Projekt")))
+
+                        <p class="merc-hint merc-hint--block">
+                            Fjern flueben for det, der ikke skal godkendes. Resten godkendes.
                         </p>
-                        <p class="merc-dokploy__history-body">
-                            <strong>Rettigheder:</strong> @DescribeCaps(req)
-                        </p>
+
+                        @if (req.Projects.Count > 0)
+                        {
+                            <div class="merc-dokploy__approve-block">
+                                <p class="merc-dokploy__field-label">Projekter</p>
+                                <div class="merc-dokploy__approve-checks">
+                                    @foreach (var p in req.Projects.OrderBy(x => x.ProjectName))
+                                    {
+                                        var pid = p.DokployProjectId;
+                                        <label class="merc-check merc-dokploy__cap">
+                                            <input type="checkbox"
+                                                   checked="@draft.ProjectIds.Contains(pid)"
+                                                   @onchange="e => ToggleDraftProject(draft, pid, (bool)(e.Value ?? false))" />
+                                            <span>@(string.IsNullOrWhiteSpace(p.ProjectName) ? "Projekt" : p.ProjectName)</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @{
+                            var requestedCaps = RequestedCapabilityDefs(req).ToList();
+                        }
+                        @if (requestedCaps.Count > 0)
+                        {
+                            <div class="merc-dokploy__approve-block">
+                                <p class="merc-dokploy__field-label">Rettigheder</p>
+                                <div class="merc-dokploy__approve-checks merc-dokploy__caps-grid">
+                                    @foreach (var cap in requestedCaps)
+                                    {
+                                        <label class="merc-check merc-dokploy__cap">
+                                            <input type="checkbox"
+                                                   checked="@GetDraftCap(draft, cap.Key)"
+                                                   @onchange="e => SetDraftCap(draft, cap.Key, (bool)(e.Value ?? false))" />
+                                            <span>@cap.Label</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+
                         @if (!string.IsNullOrWhiteSpace(req.Message))
                         {
                             <p class="merc-hint">“@req.Message”</p>
@@ -115,7 +152,7 @@
                             </button>
                             <button type="button" class="merc-btn merc-btn--primary" disabled="@_busy"
                                     @onclick="() => ApproveAsync(req.Id)">
-                                Godkend
+                                Godkend valgte
                             </button>
                         </div>
                     </article>
@@ -280,6 +317,7 @@
     private List<UserRow>? _rows;
     private List<DokployAccessRequest>? _pending;
     private Dictionary<Guid, string> _reviewNotes = new();
+    private Dictionary<Guid, ApprovalDraft> _approvalDrafts = new();
     private Guid _adminUserId;
     private List<ProjectOption>? _projects;
     private DokployAclSyncResult? _lastResult;
@@ -299,8 +337,14 @@
     private async Task LoadAsync()
     {
         _pending = (await AccessRequests.ListPendingAsync()).ToList();
+        var pendingIds = _pending.Select(p => p.Id).ToHashSet();
+        foreach (var stale in _approvalDrafts.Keys.Where(id => !pendingIds.Contains(id)).ToList())
+            _approvalDrafts.Remove(stale);
         foreach (var p in _pending)
+        {
             _reviewNotes.TryAdd(p.Id, "");
+            _ = GetOrCreateDraft(p);
+        }
 
         _projects = [];
         if (_enabled)
@@ -365,14 +409,117 @@
         try
         {
             _reviewNotes.TryGetValue(requestId, out var note);
-            var result = await AccessRequests.ApproveAsync(requestId, _adminUserId, note);
-            _status = result.Ok ? "Anmodning godkendt — permissions pushet." : result.Error;
+            _approvalDrafts.TryGetValue(requestId, out var draft);
+            var result = await AccessRequests.ApproveAsync(
+                requestId,
+                _adminUserId,
+                note,
+                draft?.ProjectIds.ToList(),
+                draft?.Caps);
+            _status = result.Ok
+                ? (result.Request?.ReviewNote?.StartsWith("Delvist", StringComparison.Ordinal) == true
+                    ? "Anmodning delvist godkendt — permissions pushet."
+                    : "Anmodning godkendt — permissions pushet.")
+                : result.Error;
             _statusIsError = !result.Ok;
             await LoadAsync();
         }
         finally
         {
             _busy = false;
+        }
+    }
+
+    private ApprovalDraft GetOrCreateDraft(DokployAccessRequest req)
+    {
+        if (_approvalDrafts.TryGetValue(req.Id, out var existing))
+            return existing;
+
+        var draft = new ApprovalDraft
+        {
+            ProjectIds = req.Projects.Select(p => p.DokployProjectId).ToHashSet(StringComparer.Ordinal),
+            Caps = CapabilitiesFromRequest(req),
+        };
+        _approvalDrafts[req.Id] = draft;
+        return draft;
+    }
+
+    private static void ToggleDraftProject(ApprovalDraft draft, string projectId, bool on)
+    {
+        if (on) draft.ProjectIds.Add(projectId);
+        else draft.ProjectIds.Remove(projectId);
+    }
+
+    private static bool GetDraftCap(ApprovalDraft draft, string key) => key switch
+    {
+        "CanCreateProjects" => draft.Caps.CanCreateProjects,
+        "CanCreateServices" => draft.Caps.CanCreateServices,
+        "CanDeleteProjects" => draft.Caps.CanDeleteProjects,
+        "CanDeleteServices" => draft.Caps.CanDeleteServices,
+        "CanAccessToDocker" => draft.Caps.CanAccessToDocker,
+        "CanAccessToTraefikFiles" => draft.Caps.CanAccessToTraefikFiles,
+        "CanAccessToAPI" => draft.Caps.CanAccessToAPI,
+        "CanAccessToSSHKeys" => draft.Caps.CanAccessToSSHKeys,
+        "CanAccessToGitProviders" => draft.Caps.CanAccessToGitProviders,
+        "CanDeleteEnvironments" => draft.Caps.CanDeleteEnvironments,
+        "CanCreateEnvironments" => draft.Caps.CanCreateEnvironments,
+        _ => false,
+    };
+
+    private static void SetDraftCap(ApprovalDraft draft, string key, bool value)
+    {
+        switch (key)
+        {
+            case "CanCreateProjects": draft.Caps.CanCreateProjects = value; break;
+            case "CanCreateServices": draft.Caps.CanCreateServices = value; break;
+            case "CanDeleteProjects": draft.Caps.CanDeleteProjects = value; break;
+            case "CanDeleteServices": draft.Caps.CanDeleteServices = value; break;
+            case "CanAccessToDocker": draft.Caps.CanAccessToDocker = value; break;
+            case "CanAccessToTraefikFiles": draft.Caps.CanAccessToTraefikFiles = value; break;
+            case "CanAccessToAPI": draft.Caps.CanAccessToAPI = value; break;
+            case "CanAccessToSSHKeys": draft.Caps.CanAccessToSSHKeys = value; break;
+            case "CanAccessToGitProviders": draft.Caps.CanAccessToGitProviders = value; break;
+            case "CanDeleteEnvironments": draft.Caps.CanDeleteEnvironments = value; break;
+            case "CanCreateEnvironments": draft.Caps.CanCreateEnvironments = value; break;
+        }
+    }
+
+    private static DokployCapabilityFlags CapabilitiesFromRequest(DokployAccessRequest r) => new()
+    {
+        CanCreateProjects = r.CanCreateProjects,
+        CanCreateServices = r.CanCreateServices,
+        CanDeleteProjects = r.CanDeleteProjects,
+        CanDeleteServices = r.CanDeleteServices,
+        CanAccessToDocker = r.CanAccessToDocker,
+        CanAccessToTraefikFiles = r.CanAccessToTraefikFiles,
+        CanAccessToAPI = r.CanAccessToAPI,
+        CanAccessToSSHKeys = r.CanAccessToSSHKeys,
+        CanAccessToGitProviders = r.CanAccessToGitProviders,
+        CanDeleteEnvironments = r.CanDeleteEnvironments,
+        CanCreateEnvironments = r.CanCreateEnvironments,
+    };
+
+    private static IEnumerable<(string Key, string Label)> RequestedCapabilityDefs(DokployAccessRequest r)
+    {
+        foreach (var cap in CapabilityDefs)
+        {
+            var on = cap.Key switch
+            {
+                "CanCreateProjects" => r.CanCreateProjects,
+                "CanCreateServices" => r.CanCreateServices,
+                "CanDeleteProjects" => r.CanDeleteProjects,
+                "CanDeleteServices" => r.CanDeleteServices,
+                "CanAccessToDocker" => r.CanAccessToDocker,
+                "CanAccessToTraefikFiles" => r.CanAccessToTraefikFiles,
+                "CanAccessToAPI" => r.CanAccessToAPI,
+                "CanAccessToSSHKeys" => r.CanAccessToSSHKeys,
+                "CanAccessToGitProviders" => r.CanAccessToGitProviders,
+                "CanDeleteEnvironments" => r.CanDeleteEnvironments,
+                "CanCreateEnvironments" => r.CanCreateEnvironments,
+                _ => false,
+            };
+            if (on)
+                yield return cap;
         }
     }
 
@@ -395,19 +542,14 @@
 
     private static string DescribeCaps(DokployAccessRequest r)
     {
-        var parts = new List<string>();
-        if (r.CanCreateProjects) parts.Add("Opret projekter");
-        if (r.CanDeleteProjects) parts.Add("Slet projekter");
-        if (r.CanCreateServices) parts.Add("Opret services");
-        if (r.CanDeleteServices) parts.Add("Slet services");
-        if (r.CanCreateEnvironments) parts.Add("Opret env");
-        if (r.CanDeleteEnvironments) parts.Add("Slet env");
-        if (r.CanAccessToDocker) parts.Add("Docker");
-        if (r.CanAccessToTraefikFiles) parts.Add("Traefik");
-        if (r.CanAccessToAPI) parts.Add("API");
-        if (r.CanAccessToSSHKeys) parts.Add("SSH");
-        if (r.CanAccessToGitProviders) parts.Add("Git");
+        var parts = RequestedCapabilityDefs(r).Select(c => c.Label).ToList();
         return parts.Count == 0 ? "—" : string.Join(", ", parts);
+    }
+
+    private sealed class ApprovalDraft
+    {
+        public HashSet<string> ProjectIds { get; init; } = new(StringComparer.Ordinal);
+        public DokployCapabilityFlags Caps { get; init; } = new();
     }
 
     private static readonly (string Key, string Label)[] CapabilityDefs =

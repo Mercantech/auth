@@ -28,6 +28,8 @@ public interface IDokployAccessRequestService
         Guid requestId,
         Guid adminUserId,
         string? reviewNote,
+        IReadOnlyList<string>? approvedProjectIds = null,
+        DokployCapabilityFlags? approvedCapabilities = null,
         CancellationToken cancellationToken = default);
 
     Task<DokployAccessRequestResult> RejectAsync(
