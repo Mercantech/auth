@@ -53,6 +53,8 @@ body::before {
 }
 
 .merc-shell__header {
+  position: relative;
+  z-index: 100;
   border-bottom: 3px solid var(--merc-card-edge);
   background: rgba(247, 244, 237, 0.82);
   backdrop-filter: blur(8px);
@@ -164,7 +166,7 @@ body::before {
   position: absolute;
   top: calc(100% + 0.45rem);
   left: 0;
-  z-index: 40;
+  z-index: 200;
   min-width: 10.5rem;
   display: flex;
   flex-direction: column;
