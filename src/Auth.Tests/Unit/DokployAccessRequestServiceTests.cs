@@ -49,7 +49,7 @@ public class DokployAccessRequestServiceTests
         var acl = new DokployAclSyncService(
             db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAclSyncService>.Instance);
         var provision = new DokployProvisionService(
-            db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
+            db, api, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
         var svc = new DokployAccessRequestService(
             db, provision, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAccessRequestService>.Instance);
 
@@ -107,7 +107,7 @@ public class DokployAccessRequestServiceTests
         var acl = new DokployAclSyncService(
             db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAclSyncService>.Instance);
         var provision = new DokployProvisionService(
-            db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
+            db, api, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
         var svc = new DokployAccessRequestService(
             db, provision, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAccessRequestService>.Instance);
 
@@ -168,7 +168,7 @@ public class DokployAccessRequestServiceTests
         var acl = new DokployAclSyncService(
             db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAclSyncService>.Instance);
         var provision = new DokployProvisionService(
-            db, api, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
+            db, api, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployProvisionService>.Instance);
         var svc = new DokployAccessRequestService(
             db, provision, acl, Options.Create(EnabledOpts()), TimeProvider.System, NullLogger<DokployAccessRequestService>.Instance);
 

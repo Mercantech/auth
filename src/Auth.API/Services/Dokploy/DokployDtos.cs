@@ -232,3 +232,9 @@ public sealed class DokployInviteMemberRequest
     [JsonPropertyName("role")]
     public required string Role { get; set; }
 }
+
+public sealed class DokployRemoveUserRequest
+{
+    [JsonPropertyName("userId")]
+    public required string UserId { get; set; }
+}

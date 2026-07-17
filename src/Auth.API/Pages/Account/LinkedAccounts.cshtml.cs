@@ -40,6 +40,7 @@ public class LinkedAccountsModel(
     public bool ShowDokployCreatedOk { get; private set; }
     public bool ShowDokployLinkedOk { get; private set; }
     public bool ShowDokployAlreadyOk { get; private set; }
+    public bool ShowDokployPasswordResetOk { get; private set; }
 
     public bool DokploySectionVisible { get; private set; }
     public bool DokployIsProvisioned { get; private set; }
@@ -72,7 +73,7 @@ public class LinkedAccountsModel(
             "dokploy_email" => "Din Auth-konto mangler en e-mail. Tilføj e-mail via login/adgangskode, før Dokploy kan oprettes.",
             "dokploy_disabled" => "Dokploy-integration er ikke aktiveret på serveren.",
             "dokploy_password" => "Dokploy-adgangskoder matcher ikke, eller opfylder ikke krav (mindst 8 tegn).",
-            "dokploy_failed" => "Kunne ikke oprette Dokploy-bruger. Prøv igen senere, eller kontakt en admin.",
+            "dokploy_failed" => "Kunne ikke opdatere Dokploy-konto. Prøv igen senere, eller kontakt en admin.",
             _ => null,
         };
 
@@ -81,6 +82,7 @@ public class LinkedAccountsModel(
         ShowDokployCreatedOk = string.Equals(dokploy, "created", StringComparison.Ordinal);
         ShowDokployLinkedOk = string.Equals(dokploy, "linked", StringComparison.Ordinal);
         ShowDokployAlreadyOk = string.Equals(dokploy, "already", StringComparison.Ordinal);
+        ShowDokployPasswordResetOk = string.Equals(dokploy, "password_reset", StringComparison.Ordinal);
 
         var dokployOpts = dokployOptions.Value;
         DokploySectionVisible = dokployOpts.Enabled && !string.IsNullOrWhiteSpace(dokployOpts.ApiKey);

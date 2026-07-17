@@ -42,6 +42,10 @@ public static class AccountEndpointExtensions
             .RequireAuthorization(MfaPolicies.FullSession)
             .DisableAntiforgery();
 
+        app.MapPost("/account/dokploy/reset-password", HandleDokployResetPasswordAsync)
+            .RequireAuthorization(MfaPolicies.FullSession)
+            .DisableAntiforgery();
+
         app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, IClientLoginBrandingService branding, string? returnUrl) =>
             {
                 await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -518,6 +522,51 @@ public static class AccountEndpointExtensions
             DokployProvisionStatus.AlreadyProvisioned => "dokploy=already",
             DokployProvisionStatus.LinkedExisting => "dokploy=linked",
             DokployProvisionStatus.Created => "dokploy=created",
+            DokployProvisionStatus.MissingEmail => "error=dokploy_email",
+            DokployProvisionStatus.Disabled => "error=dokploy_disabled",
+            DokployProvisionStatus.InvalidPassword => "error=dokploy_password",
+            _ => "error=dokploy_failed",
+        };
+
+        return RedirectWithQuery(returnUrl, q);
+    }
+
+    private static async Task<IResult> HandleDokployResetPasswordAsync(
+        HttpContext ctx,
+        IAntiforgery antiforgery,
+        IDokployProvisionService provision)
+    {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(ctx);
+        }
+        catch
+        {
+            return Results.Redirect("/Account/LinkedAccounts?error=invalid_token");
+        }
+
+        var form = await ctx.Request.ReadFormAsync();
+        var returnUrl = string.IsNullOrWhiteSpace(form["returnUrl"].ToString())
+            ? "/Account/LinkedAccounts"
+            : form["returnUrl"].ToString();
+        if (!returnUrl.StartsWith("/Account/", StringComparison.Ordinal))
+            returnUrl = "/Account/LinkedAccounts";
+
+        if (!Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return Results.Redirect("/Account/Login");
+
+        var password = form["password"].ToString();
+        var confirm = form["passwordConfirm"].ToString();
+        if (!string.Equals(password, confirm, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(password)
+            || password.Length < 8
+            || password.Length > 100)
+            return RedirectWithQuery(returnUrl, "error=dokploy_password");
+
+        var result = await provision.ResetPasswordAsync(userId, password, ctx.RequestAborted);
+        var q = result.Status switch
+        {
+            DokployProvisionStatus.PasswordReset => "dokploy=password_reset",
             DokployProvisionStatus.MissingEmail => "error=dokploy_email",
             DokployProvisionStatus.Disabled => "error=dokploy_disabled",
             DokployProvisionStatus.InvalidPassword => "error=dokploy_password",

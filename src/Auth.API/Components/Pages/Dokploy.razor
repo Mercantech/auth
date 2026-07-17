@@ -24,9 +24,6 @@
                 <h1 class="merc-dokploy__title">
                     <img class="merc-dokploy__logo" src="/brand/dokploy-logo.png" alt="Dokploy" width="200" height="170" />
                 </h1>
-                <p class="merc-users__lead">
-                    Anmod om deploy-adgang og rettigheder. En admin skal godkende, før projekter og permissions træder i kraft.
-                </p>
             </div>
         </div>
         @if (_uiUrl is not null)
@@ -44,7 +41,7 @@
 
     @if (!_enabled)
     {
-        <p class="merc-hint merc-hint--block">Dokploy-integration er ikke aktiveret.</p>
+        <p class="merc-hint merc-hint--block">Dokploy er ikke aktiveret.</p>
     }
     else if (_loading)
     {
@@ -55,23 +52,13 @@
         <section class="merc-panel" aria-labelledby="status-heading">
             <h2 id="status-heading" class="merc-users__panel-title">Din status</h2>
             <p class="merc-hint merc-hint--block">
-                Dokploy-konto:
+                Konto:
                 <strong>@(_hasAccount ? "ja" : "nej")</strong>
                 @if (_currentProjects.Count > 0)
                 {
-                    <text> · Nuværende projekter: @string.Join(", ", _currentProjects)</text>
-                }
-                else if (_hasAccount)
-                {
-                    <text> · Ingen projekter endnu</text>
+                    <text> · Projekter: @string.Join(", ", _currentProjects)</text>
                 }
             </p>
-            @if (_hasAccount && !_hasPending)
-            {
-                <p class="merc-hint merc-hint--block">
-                    Formularen er forudfyldt med din nuværende adgang fra Dokploy — tilføj eller fjern efter behov.
-                </p>
-            }
         </section>
 
         <section class="merc-panel merc-dokploy__request-form" aria-labelledby="request-heading">
@@ -80,7 +67,7 @@
             @if (_hasPending)
             {
                 <p class="merc-hint merc-hint--block">
-                    Du har allerede en afventende anmodning. Annullér den nedenfor, hvis du vil sende en ny.
+                    Du har allerede en afventende anmodning. Annullér den nedenfor for at sende en ny.
                 </p>
             }
             else
@@ -88,11 +75,7 @@
                 @if (!_hasAccount)
                 {
                     <div class="merc-dokploy__account-fields">
-                        <p class="merc-hint merc-hint--block">
-                            Du har endnu ikke en Dokploy-konto. Angiv en adgangskode — kontoen oprettes med det samme,
-                            mens projektadgang og rettigheder afventer admin-godkendelse.
-                        </p>
-                        <label class="merc-dokploy__field-label" for="dokploy-req-password">Dokploy-adgangskode</label>
+                        <label class="merc-dokploy__field-label" for="dokploy-req-password">Adgangskode til deploy (min. 8 tegn)</label>
                         <input id="dokploy-req-password" class="merc-input" type="password" @bind="_password" autocomplete="new-password" minlength="8" />
                         <label class="merc-dokploy__field-label" for="dokploy-req-password2">Gentag adgangskode</label>
                         <input id="dokploy-req-password2" class="merc-input" type="password" @bind="_passwordConfirm" autocomplete="new-password" minlength="8" />
@@ -166,11 +149,10 @@
                     </div>
                 </div>
 
-                <label class="merc-dokploy__field-label" for="dokploy-req-msg">Besked til admin (valgfri)</label>
+                <label class="merc-dokploy__field-label" for="dokploy-req-msg">Besked (valgfri)</label>
                 <textarea id="dokploy-req-msg" class="merc-input merc-dokploy__textarea" rows="3" @bind="_message" maxlength="1000"></textarea>
 
                 <div class="merc-dokploy__card-actions">
-                    <span class="merc-hint">Anmodningen synlig for admins under Admin · Dokploy</span>
                     <button type="button" class="merc-btn merc-btn--primary" disabled="@_busy" @onclick="SubmitAsync">
                         @(_busy ? "Sender…" : "Send anmodning")
                     </button>
@@ -203,7 +185,7 @@
                             }
                             @if (!string.IsNullOrWhiteSpace(h.ReviewNote))
                             {
-                                <p class="merc-hint">Admin: @h.ReviewNote</p>
+                                <p class="merc-hint">@h.ReviewNote</p>
                             }
                             @if (h.Status == DokployAccessRequestStatus.Pending)
                             {
@@ -418,7 +400,7 @@
                 return;
             }
 
-            _status = "Anmodning sendt. En admin skal godkende den.";
+            _status = "Anmodning sendt.";
             _statusIsError = false;
             _message = "";
             _password = "";

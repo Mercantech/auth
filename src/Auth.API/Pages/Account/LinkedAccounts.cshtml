@@ -31,22 +31,28 @@
     @if (Model.ShowDokployCreatedOk)
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
-            Dokploy-bruger er oprettet. Log ind på
-            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">@Model.DokployUiUrl</a>
-            med din e-mail og den Dokploy-adgangskode, du lige valgte.
+            Deploy-konto oprettet.
+            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
         </div>
     }
     @if (Model.ShowDokployLinkedOk)
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
-            Din Auth-konto er nu linket til en eksisterende Dokploy-bruger.
+            Linket til eksisterende deploy-konto.
             <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
         </div>
     }
     @if (Model.ShowDokployAlreadyOk)
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
-            Du har allerede en Dokploy-bruger.
+            Du har allerede en deploy-konto.
+            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
+        </div>
+    }
+    @if (Model.ShowDokployPasswordResetOk)
+    {
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
+            Deploy-adgangskode er nulstillet.
             <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
         </div>
     }
@@ -77,37 +83,43 @@
     {
         <section class="linked-section linked-section--bordered" aria-labelledby="dokploy-heading">
             <h2 id="dokploy-heading" class="linked-section__heading">Dokploy (deploy)</h2>
-            <p class="linked-section__lede">
-                Dokploy har ikke selv-registrering. Her opretter Auth en Dokploy-bruger med e-mail + adgangskode
-                (samme e-mail som din Auth-konto). Login til deploy sker stadig på Dokploy — ikke via Auth SSO.
-            </p>
             @if (Model.DokployIsProvisioned)
             {
-                <p class="linked-section__muted">
-                    Status: <strong>aktiv</strong>
-                </p>
                 <p>
                     <a class="auth-btn auth-btn--primary" href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
                 </p>
+                <form class="linked-password-form" method="post" action="@(Request.PathBase)/account/dokploy/reset-password">
+                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
+                    <label class="auth-label" for="dokploy-reset-password">Ny adgangskode til deploy (min. 8 tegn)</label>
+                    <input id="dokploy-reset-password" name="password" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                    <label class="auth-label" for="dokploy-reset-password-confirm">Gentag adgangskode</label>
+                    <input id="dokploy-reset-password-confirm" name="passwordConfirm" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                    <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Nulstil adgangskode</button>
+                </form>
+                @if (!string.IsNullOrWhiteSpace(Model.DokployLastError))
+                {
+                    <p class="linked-section__muted" style="margin-top:0.75rem">@Model.DokployLastError</p>
+                }
             }
             else if (string.IsNullOrWhiteSpace(Model.UserEmail) && string.IsNullOrWhiteSpace(Model.SuggestedPasswordEmail))
             {
-                <p class="linked-section__muted">Du mangler en e-mail på din Auth-konto, før Dokploy-brugeren kan oprettes.</p>
+                <p class="linked-section__muted">Tilføj en e-mail på din konto for at oprette deploy-adgang.</p>
             }
             else
             {
                 <form class="linked-password-form" method="post" action="@(Request.PathBase)/account/dokploy/provision">
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
                     <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
-                    <label class="auth-label" for="dokploy-password">Dokploy-adgangskode (min. 8 tegn)</label>
+                    <label class="auth-label" for="dokploy-password">Adgangskode til deploy (min. 8 tegn)</label>
                     <input id="dokploy-password" name="password" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
-                    <label class="auth-label" for="dokploy-password-confirm">Gentag Dokploy-adgangskode</label>
+                    <label class="auth-label" for="dokploy-password-confirm">Gentag adgangskode</label>
                     <input id="dokploy-password-confirm" name="passwordConfirm" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
-                    <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Opret Dokploy-bruger</button>
+                    <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Opret konto</button>
                 </form>
                 @if (!string.IsNullOrWhiteSpace(Model.DokployLastError))
                 {
-                    <p class="linked-section__muted" style="margin-top:0.75rem">Sidste forsøg: @Model.DokployLastError</p>
+                    <p class="linked-section__muted" style="margin-top:0.75rem">@Model.DokployLastError</p>
                 }
             }
         </section>

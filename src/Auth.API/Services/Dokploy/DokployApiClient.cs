@@ -63,6 +63,9 @@ public sealed class DokployApiClient(
         CancellationToken cancellationToken = default)
         => PostJsonAsync("user.assignPermissions", request, cancellationToken);
 
+    public Task RemoveUserAsync(string dokployUserId, CancellationToken cancellationToken = default)
+        => PostJsonAsync("user.remove", new DokployRemoveUserRequest { UserId = dokployUserId }, cancellationToken);
+
     public async Task<IReadOnlyList<DokployProjectDto>> ListProjectsForPermissionsAsync(
         CancellationToken cancellationToken = default)
     {

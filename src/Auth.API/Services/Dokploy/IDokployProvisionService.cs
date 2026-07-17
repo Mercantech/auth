@@ -11,6 +11,7 @@ public enum DokployProvisionStatus
     AlreadyProvisioned,
     LinkedExisting,
     Created,
+    PasswordReset,
     Failed,
 }
 
@@ -37,5 +38,13 @@ public interface IDokployProvisionService
     Task<DokployProvisionResult> ProvisionAsync(
         Guid userId,
         string password,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nulstiller Dokploy-adgangskode (slet + genopret bruger, genanvender Auth-ACL).
+    /// </summary>
+    Task<DokployProvisionResult> ResetPasswordAsync(
+        Guid userId,
+        string newPassword,
         CancellationToken cancellationToken = default);
 }

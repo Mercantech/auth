@@ -23,10 +23,6 @@
                 <h1 class="merc-dokploy__title">
                     <img class="merc-dokploy__logo" src="/brand/dokploy-logo.png" alt="Dokploy" width="200" height="170" />
                 </h1>
-                <p class="merc-users__lead">
-                    Godkend adgangsanmodninger, og styr projekter + rettigheder for brugere med Dokploy-konto.
-                    Kun projektnavne vises — ikke IDs.
-                </p>
             </div>
         </div>
         <div class="merc-dokploy__header-actions">
@@ -44,25 +40,21 @@
         </div>
     }
 
-    <section class="merc-panel" aria-labelledby="dokploy-status">
-        <h2 id="dokploy-status" class="merc-users__panel-title">Status</h2>
+    @if (!_enabled)
+    {
+        <p class="merc-hint merc-hint--block">Dokploy er ikke aktiveret.</p>
+    }
+    else if (_lastResult is not null)
+    {
         <p class="merc-hint merc-hint--block">
-            Enabled: <strong>@(_enabled ? "ja" : "nej")</strong>
-            · Interval: <strong>@_interval min</strong>
-            @if (_lastResult is not null)
+            Sidste sync: @_lastResult.Pushed pushet, @_lastResult.Pulled hentet
+            @if (_lastResult.Errors > 0)
             {
-                <text>
-                    · Sidste sync: linked=@_lastResult.LinkedUsers, pushed=@_lastResult.Pushed,
-                    pulled=@_lastResult.Pulled, errors=@_lastResult.Errors
-                    (@_lastResult.RanAtUtc.LocalDateTime.ToString("g"))
-                </text>
+                <text>, @_lastResult.Errors fejl</text>
             }
+            (@_lastResult.RanAtUtc.LocalDateTime.ToString("g"))
         </p>
-        @if (!_enabled)
-        {
-            <p class="merc-hint merc-hint--block">Sæt <code>Dokploy__Enabled=true</code> og <code>Dokploy__ApiKey</code> for at aktivere.</p>
-        }
-    </section>
+    }
 
     <section class="merc-panel" aria-labelledby="pending-heading">
         <h2 id="pending-heading" class="merc-users__panel-title">
@@ -94,10 +86,6 @@
                                 <p class="merc-hint">Sendt @req.CreatedAtUtc.ToLocalTime().ToString("g")</p>
                             </div>
                         </div>
-
-                        <p class="merc-hint merc-hint--block">
-                            Fjern flueben for det, der ikke skal godkendes. Resten godkendes.
-                        </p>
 
                         @if (req.Projects.Count > 0)
                         {
@@ -183,7 +171,6 @@
                             <p class="merc-dokploy__email">@(r.Email ?? "—")</p>
                         </div>
                         <div class="merc-dokploy__badges">
-                            <span class="merc-badge merc-badge--public">Dokploy-konto</span>
                             @if (r.AclDirty)
                             {
                                 <span class="merc-badge">ikke synket</span>
@@ -270,7 +257,7 @@
                     }
 
                     <div class="merc-dokploy__caps">
-                        <p class="merc-dokploy__field-label">Rettigheder i Dokploy</p>
+                        <p class="merc-dokploy__field-label">Rettigheder</p>
                         <div class="merc-dokploy__caps-grid">
                             @foreach (var cap in CapabilityDefs)
                             {
@@ -284,24 +271,14 @@
                         </div>
                     </div>
 
-                    <div class="merc-dokploy__card-actions">
-                        <span class="merc-hint">
-                            @if (r.AclSyncedAtUtc is not null)
-                            {
-                                <text>Synket @r.AclSyncedAtUtc.Value.ToLocalTime().ToString("g")</text>
-                            }
-                            else
-                            {
-                                <text>Ikke synket endnu</text>
-                            }
-                        </span>
-                        <button type="button"
-                                class="merc-btn merc-btn--primary"
-                                disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
-                                @onclick="() => SaveAsync(r)">
-                            Gem permissions
-                        </button>
-                    </div>
+                        <div class="merc-dokploy__card-actions">
+                            <button type="button"
+                                    class="merc-btn merc-btn--primary"
+                                    disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
+                                    @onclick="() => SaveAsync(r)">
+                                Gem
+                            </button>
+                        </div>
                 </article>
             }
         </div>
@@ -310,7 +287,6 @@
 
 @code {
     private bool _enabled;
-    private int _interval;
     private bool _busy;
     private string? _status;
     private bool _statusIsError;
@@ -328,7 +304,6 @@
     {
         var opts = DokployOptions.Value;
         _enabled = opts.Enabled && !string.IsNullOrWhiteSpace(opts.ApiKey);
-        _interval = Math.Max(1, opts.AclSyncIntervalMinutes);
         var auth = await AuthState.GetAuthenticationStateAsync();
         Guid.TryParse(auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out _adminUserId);
         await LoadAsync();
@@ -393,7 +368,6 @@
                 Email = u.Email,
                 LastError = u.Link.LastError,
                 AclDirty = u.Link.AclDirty,
-                AclSyncedAtUtc = u.Link.AclSyncedAtUtc,
                 SelectedProjectIds = u.Grants.Select(g => g.DokployProjectId).ToHashSet(StringComparer.Ordinal),
                 GrantNames = u.Grants
                     .Where(g => !string.IsNullOrWhiteSpace(g.ProjectName))
@@ -418,8 +392,8 @@
                 draft?.Caps);
             _status = result.Ok
                 ? (result.Request?.ReviewNote?.StartsWith("Delvist", StringComparison.Ordinal) == true
-                    ? "Anmodning delvist godkendt — permissions pushet."
-                    : "Anmodning godkendt — permissions pushet.")
+                    ? "Delvist godkendt."
+                    : "Godkendt.")
                 : result.Error;
             _statusIsError = !result.Ok;
             await LoadAsync();
@@ -530,7 +504,7 @@
         {
             _reviewNotes.TryGetValue(requestId, out var note);
             var result = await AccessRequests.RejectAsync(requestId, _adminUserId, note);
-            _status = result.Ok ? "Anmodning afvist." : result.Error;
+            _status = result.Ok ? "Afvist." : result.Error;
             _statusIsError = !result.Ok;
             await LoadAsync();
         }
@@ -681,7 +655,7 @@
                 .Select(id => (id, nameById.GetValueOrDefault(id) ?? row.GrantNames.GetValueOrDefault(id)))
                 .ToList();
             await AclSync.SavePermissionsAndPushAsync(row.Id, projects, row.Caps);
-            _status = $"Permissions gemt for {row.DisplayName}.";
+            _status = $"Gemt for {row.DisplayName}.";
             _statusIsError = false;
             _openDropdownUserId = null;
             await LoadAsync();
@@ -729,7 +703,6 @@
         public string? Email { get; init; }
         public string? LastError { get; init; }
         public bool AclDirty { get; init; }
-        public DateTime? AclSyncedAtUtc { get; init; }
         public HashSet<string> SelectedProjectIds { get; init; } = new(StringComparer.Ordinal);
         public Dictionary<string, string> GrantNames { get; init; } = new(StringComparer.Ordinal);
         public DokployCapabilityFlags Caps { get; init; } = new();

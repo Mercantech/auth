@@ -23,12 +23,7 @@ public class DokployProvisionAndAclTests
             Content = new StringContent("[]", Encoding.UTF8, "application/json"),
         });
         var api = CreateApi(handler, enabled: true);
-        var svc = new DokployProvisionService(
-            db,
-            api,
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, api);
 
         await svc.TryProvisionIfRequestedAsync(user, wantDokploy: false, dokployPassword: null);
 
@@ -49,12 +44,7 @@ public class DokployProvisionAndAclTests
                 "application/json"),
         });
         var api = CreateApi(handler, enabled: true);
-        var svc = new DokployProvisionService(
-            db,
-            api,
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k", MemberRole = "member" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, api);
 
         await svc.TryProvisionIfRequestedAsync(user, wantDokploy: true, dokployPassword: "password1");
 
@@ -92,12 +82,7 @@ public class DokployProvisionAndAclTests
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
-        var svc = new DokployProvisionService(
-            db,
-            CreateApi(handler, enabled: true),
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k", MemberRole = "member" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, CreateApi(handler, enabled: true));
 
         var result = await svc.ProvisionAsync(user.Id, "secretpass");
 
@@ -306,12 +291,7 @@ public class DokployProvisionAndAclTests
         {
             Content = new StringContent("[]", Encoding.UTF8, "application/json"),
         });
-        var svc = new DokployProvisionService(
-            db,
-            CreateApi(handler, enabled: true),
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, CreateApi(handler, enabled: true));
 
         var result = await svc.ProvisionAsync(user.Id, "password1");
 
@@ -329,12 +309,7 @@ public class DokployProvisionAndAclTests
         {
             Content = new StringContent("[]", Encoding.UTF8, "application/json"),
         });
-        var svc = new DokployProvisionService(
-            db,
-            CreateApi(handler, enabled: true),
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, CreateApi(handler, enabled: true));
 
         var result = await svc.ProvisionAsync(user.Id, "password1");
 
@@ -351,17 +326,87 @@ public class DokployProvisionAndAclTests
         {
             Content = new StringContent("[]", Encoding.UTF8, "application/json"),
         });
-        var svc = new DokployProvisionService(
-            db,
-            CreateApi(handler, enabled: true),
-            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
-            TimeProvider.System,
-            NullLogger<DokployProvisionService>.Instance);
+        var svc = CreateProvision(db, CreateApi(handler, enabled: true));
 
         var result = await svc.ProvisionAsync(user.Id, "short");
 
         Assert.Equal(DokployProvisionStatus.InvalidPassword, result.Status);
         Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_removes_recreates_and_reapplies_acl()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "reset@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-old",
+            LinkedEmail = "reset@example.com",
+            IsProvisioned = true,
+            CanAccessToDocker = true,
+            CanCreateProjects = true,
+        });
+        db.DokployProjectGrants.Add(new DokployProjectGrant
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            DokployProjectId = "proj-1",
+            ProjectName = "Demo",
+            GrantedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var listCalls = 0;
+        var handler = new RecordingHandler(req =>
+        {
+            var path = req.RequestUri!.AbsolutePath;
+            if (path.Contains("user.all"))
+            {
+                listCalls++;
+                var body = listCalls switch
+                {
+                    1 => """[{"id":"dok-old","email":"reset@example.com"}]""",
+                    2 => """[{"id":"dok-new","email":"reset@example.com"}]""",
+                    _ => """[{"id":"dok-new","email":"reset@example.com"}]""",
+                };
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (path.Contains("user.remove")
+                || path.Contains("user.createUserWithCredentials")
+                || path.Contains("user.assignPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+
+            if (path.Contains("project.allForPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """[{"projectId":"proj-1","name":"Demo","environments":[{"environmentId":"env-1","name":"production","compose":[{"composeId":"svc-1","name":"App"}]}]}]"""),
+                };
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var svc = CreateProvision(db, CreateApi(handler, enabled: true));
+        var result = await svc.ResetPasswordAsync(user.Id, "newpassword1");
+
+        Assert.Equal(DokployProvisionStatus.PasswordReset, result.Status);
+        Assert.Equal("dok-new", result.DokployUserId);
+        Assert.Contains(handler.Requests, r => r.RequestUri!.AbsolutePath.Contains("user.remove"));
+        Assert.Contains(handler.Requests, r => r.RequestUri!.AbsolutePath.Contains("createUserWithCredentials"));
+        Assert.Contains(handler.Requests, r => r.RequestUri!.AbsolutePath.Contains("assignPermissions"));
+
+        var link = await db.DokployUserLinks.SingleAsync(l => l.UserId == user.Id);
+        Assert.Equal("dok-new", link.DokployUserId);
+        Assert.True(link.IsProvisioned);
+        Assert.True(link.CanAccessToDocker);
+        Assert.True(link.CanCreateProjects);
+        Assert.Null(link.LastError);
     }
 
     [Fact]
@@ -467,6 +512,24 @@ public class DokployProvisionAndAclTests
         Assert.Equal("proj-1", doc.RootElement.GetProperty("accessedProjects")[0].GetString());
         Assert.Equal("env-1", doc.RootElement.GetProperty("accessedEnvironments")[0].GetString());
         Assert.Equal("svc-1", doc.RootElement.GetProperty("accessedServices")[0].GetString());
+    }
+
+    private static DokployProvisionService CreateProvision(AuthDbContext db, IDokployApiClient api)
+    {
+        var options = Options.Create(new DokployOptions { Enabled = true, ApiKey = "k", MemberRole = "member" });
+        var acl = new DokployAclSyncService(
+            db,
+            api,
+            options,
+            TimeProvider.System,
+            NullLogger<DokployAclSyncService>.Instance);
+        return new DokployProvisionService(
+            db,
+            api,
+            acl,
+            options,
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
     }
 
     private static DokployApiClient CreateApi(RecordingHandler handler, bool enabled)

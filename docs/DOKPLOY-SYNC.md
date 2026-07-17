@@ -18,8 +18,10 @@ Alle kald bruger header **`x-api-key`** (ikke Bearer).
 
 1. **Ved signup** (`/Account/Register`): checkbox **Opret også konto på deploy** — Auth opretter Dokploy-bruger med **samme e-mail + adgangskode**
 2. **Self-service** (`/Account/LinkedAccounts`): vælg en Dokploy-adgangskode → **Opret Dokploy-bruger**
+3. **Nulstil adgangskode** (`/Account/LinkedAccounts` når konto findes): `user.remove` + `user.createUserWithCredentials`, derefter gen-push af Auth-ACL
 
 Kun `POST /user.createUserWithCredentials` (ingen invite). Password gemmes ikke i Auth — kun i Dokploy.
+Dokploy har ingen admin-set-password for andre brugere, derfor slettes/genoprettes brugeren ved nulstilling.
 
 Projektadgang styres stadig af admin (`/Admin/Dokploy`) eller i Dokploy UI.
 ## Adgangsanmodninger

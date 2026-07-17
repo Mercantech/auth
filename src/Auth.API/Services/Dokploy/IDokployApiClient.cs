@@ -15,6 +15,9 @@ public interface IDokployApiClient
     Task AssignPermissionsAsync(
         DokployAssignPermissionsRequest request,
         CancellationToken cancellationToken = default);
+
+    Task RemoveUserAsync(string dokployUserId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DokployProjectDto>> ListProjectsForPermissionsAsync(
         CancellationToken cancellationToken = default);
 }
