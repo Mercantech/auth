@@ -17,7 +17,10 @@
                                 <a href="/Admin/Users" role="menuitem">Brugere</a>
                                 <a href="/Admin/Clients" role="menuitem">Klienter</a>
                                 <a href="/Admin/Usage" role="menuitem">Brug</a>
-                                <a href="/Admin/Dokploy" role="menuitem">Dokploy</a>
+                                <a href="/Admin/Dokploy" role="menuitem" class="merc-shell__dokploy-link">
+                                    <img class="merc-shell__dokploy-icon" src="/brand/dokploy-logo.svg" alt="" width="14" height="14" />
+                                    Dokploy
+                                </a>
                             </div>
                         </details>
                     </Authorized>
@@ -26,7 +29,10 @@
             <div class="merc-shell__links merc-shell__links--end">
                 <AuthorizeView>
                     <Authorized>
-                        <a href="/dokploy">Dokploy</a>
+                        <a class="merc-shell__dokploy-link" href="/dokploy">
+                            <img class="merc-shell__dokploy-icon" src="/brand/dokploy-logo.svg" alt="" width="14" height="14" />
+                            Dokploy
+                        </a>
                         <a href="/Account/LinkedAccounts">Tilknyttede login</a>
                         <a href="/signout">Log ud</a>
                     </Authorized>
