@@ -27,6 +27,9 @@ Projektadgang styres stadig af admin (`/Admin/Dokploy`) eller i Dokploy UI.
 - Brugere: [`/dokploy`](/dokploy) — vælg projekter + rettigheder, send anmodning (opretter Dokploy-konto med password hvis mangler)
 - Admin: [`/Admin/Dokploy`](/Admin/Dokploy) — **Godkend** / **Afvis** afventende anmodninger
 - Ved godkendelse: projekter merges (union), `can*`-flags OR’es ind, derefter `assignPermissions`
+  (`id` = Better Auth **userId**, ikke organisation-member-id)
+- To-vejs ACL-pull læser rettigheder fra `user.all` (member-rækken). `user.getPermissions` bruges **ikke** — den returnerer kun API-nøglens egen session.
+
 ## Login
 
 - Apps: Auth (OIDC) som hidtil

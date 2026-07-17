@@ -109,14 +109,18 @@ public class DokployProvisionAndAclTests
     }
 
     [Fact]
-    public void ParseUsers_reads_nested_user_email()
+    public void ParseUsers_prefers_nested_user_id_over_member_id()
     {
         using var doc = JsonDocument.Parse(
-            """[{"id":"m1","role":"member","user":{"id":"u1","email":"nested@example.com"}}]""");
+            """[{"id":"m1","role":"member","userId":"u1","user":{"id":"u1","email":"nested@example.com"},"accessedProjects":["p1"],"canAccessToDocker":true}]""");
         var users = DokployApiClient.ParseUsers(doc.RootElement);
         Assert.Single(users);
-        Assert.Equal("m1", users[0].Id);
+        Assert.Equal("u1", users[0].Id);
+        Assert.Equal("u1", users[0].ResolvedUserId);
+        Assert.Equal("m1", users[0].MemberId);
         Assert.Equal("nested@example.com", users[0].Email);
+        Assert.Equal(["p1"], users[0].AccessedProjects);
+        Assert.True(users[0].CanAccessToDocker);
     }
 
     [Fact]
@@ -195,12 +199,6 @@ public class DokployProvisionAndAclTests
         var handler = new RecordingHandler(req =>
         {
             var path = req.RequestUri!.AbsolutePath;
-            if (path.Contains("user.getPermissions"))
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(
-                        """{"id":"dok-pull","accessedProjects":["p-remote"],"canAccessToAPI":true,"canCreateServices":true}"""),
-                };
             if (path.Contains("project.allForPermissions"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -209,7 +207,8 @@ public class DokployProvisionAndAclTests
             if (path.Contains("user.all"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent("""[{"id":"dok-pull","email":"pull@example.com"}]"""),
+                    Content = new StringContent(
+                        """[{"id":"mem-pull","userId":"dok-pull","email":"pull@example.com","accessedProjects":["p-remote"],"canAccessToAPI":true,"canCreateServices":true}]"""),
                 };
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
         });

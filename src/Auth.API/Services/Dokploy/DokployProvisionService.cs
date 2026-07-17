@@ -146,7 +146,7 @@ public sealed class DokployProvisionService(
         => users.FirstOrDefault(u => EmailNormalizer.Normalize(u.Email) == normalizedEmail);
 
     private static string? ResolveUserId(DokployUserDto? user)
-        => string.IsNullOrWhiteSpace(user?.Id) ? user?.UserId : user.Id;
+        => user?.ResolvedUserId;
 
     private async Task<string?> ResolveEmailAsync(User user, CancellationToken cancellationToken)
     {

@@ -38,12 +38,10 @@ public sealed class DokployAclSyncService(
         {
             try
             {
+                // Opdater altid til Better Auth user id (ikke member.id) via e-mail-match.
+                await ResolveDokployUserIdAsync(link, cancellationToken);
                 if (string.IsNullOrWhiteSpace(link.DokployUserId))
-                {
-                    await ResolveDokployUserIdAsync(link, cancellationToken);
-                    if (string.IsNullOrWhiteSpace(link.DokployUserId))
-                        continue;
-                }
+                    continue;
 
                 if (link.AclDirty)
                 {
@@ -141,7 +139,7 @@ public sealed class DokployAclSyncService(
         }
 
         var byEmail = dokployUsers
-            .Select(u => (Norm: EmailNormalizer.Normalize(u.Email), Id: u.Id ?? u.UserId))
+            .Select(u => (Norm: EmailNormalizer.Normalize(u.Email), Id: u.ResolvedUserId))
             .Where(x => x.Norm is not null && !string.IsNullOrWhiteSpace(x.Id))
             .GroupBy(x => x.Norm!, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Id!, StringComparer.Ordinal);
@@ -187,8 +185,11 @@ public sealed class DokployAclSyncService(
         var match = users.FirstOrDefault(u =>
             EmailNormalizer.Normalize(u.Email) == link.LinkedEmail
             || EmailNormalizer.Normalize(u.Email) == EmailNormalizer.Normalize(link.User?.Email));
-        var id = match?.Id ?? match?.UserId;
+        var id = match?.ResolvedUserId;
         if (string.IsNullOrWhiteSpace(id))
+            return;
+
+        if (string.Equals(link.DokployUserId, id, StringComparison.Ordinal))
             return;
 
         link.DokployUserId = id;
@@ -200,10 +201,20 @@ public sealed class DokployAclSyncService(
 
     private async Task PushPermissionsAsync(DokployUserLink link, CancellationToken cancellationToken)
     {
+        await ResolveDokployUserIdAsync(link, cancellationToken);
+        if (string.IsNullOrWhiteSpace(link.DokployUserId))
+            throw new InvalidOperationException("Dokploy-bruger-id mangler — kan ikke pushe ACL.");
+
         var projectIds = await db.DokployProjectGrants
             .Where(g => g.UserId == link.UserId)
             .Select(g => g.DokployProjectId)
             .ToListAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Dokploy assignPermissions for Auth-bruger {UserId} → Dokploy userId={DokployUserId}, projects={ProjectCount}",
+            link.UserId,
+            link.DokployUserId,
+            projectIds.Count);
 
         await api.AssignPermissionsAsync(
             new DokployAssignPermissionsRequest
@@ -265,17 +276,17 @@ public sealed class DokployAclSyncService(
 
         if (perms is not null)
         {
-            link.CanCreateProjects = perms.CanCreateProjects;
-            link.CanCreateServices = perms.CanCreateServices;
-            link.CanDeleteProjects = perms.CanDeleteProjects;
-            link.CanDeleteServices = perms.CanDeleteServices;
-            link.CanAccessToDocker = perms.CanAccessToDocker;
-            link.CanAccessToTraefikFiles = perms.CanAccessToTraefikFiles;
-            link.CanAccessToAPI = perms.CanAccessToAPI;
-            link.CanAccessToSSHKeys = perms.CanAccessToSSHKeys;
-            link.CanAccessToGitProviders = perms.CanAccessToGitProviders;
-            link.CanDeleteEnvironments = perms.CanDeleteEnvironments;
-            link.CanCreateEnvironments = perms.CanCreateEnvironments;
+            link.CanCreateProjects = perms.CanCreateProjects ?? false;
+            link.CanCreateServices = perms.CanCreateServices ?? false;
+            link.CanDeleteProjects = perms.CanDeleteProjects ?? false;
+            link.CanDeleteServices = perms.CanDeleteServices ?? false;
+            link.CanAccessToDocker = perms.CanAccessToDocker ?? false;
+            link.CanAccessToTraefikFiles = perms.CanAccessToTraefikFiles ?? false;
+            link.CanAccessToAPI = perms.CanAccessToAPI ?? false;
+            link.CanAccessToSSHKeys = perms.CanAccessToSSHKeys ?? false;
+            link.CanAccessToGitProviders = perms.CanAccessToGitProviders ?? false;
+            link.CanDeleteEnvironments = perms.CanDeleteEnvironments ?? false;
+            link.CanCreateEnvironments = perms.CanCreateEnvironments ?? false;
         }
 
         link.AclDirty = false;

@@ -41,17 +41,21 @@ public sealed class DokployApiClient(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Henter ACL via <c>user.all</c> (permissions ligger på member-rækken).
+    /// <c>user.getPermissions</c> returnerer kun API-nøglens egen session og må ikke bruges til andre brugere.
+    /// </summary>
     public async Task<DokployPermissionsDto?> GetPermissionsAsync(
         string dokployUserId,
         CancellationToken cancellationToken = default)
     {
-        using var doc = await GetJsonAsync(
-            $"user.getPermissions?userId={Uri.EscapeDataString(dokployUserId)}",
-            cancellationToken);
-        var element = UnwrapObject(doc.RootElement);
-        return element.ValueKind is JsonValueKind.Object
-            ? element.Deserialize<DokployPermissionsDto>(JsonOptions)
-            : null;
+        var users = await ListUsersAsync(cancellationToken);
+        var match = users.FirstOrDefault(u =>
+            string.Equals(u.ResolvedUserId, dokployUserId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.Id, dokployUserId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.UserId, dokployUserId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(u.MemberId, dokployUserId, StringComparison.OrdinalIgnoreCase));
+        return match?.ToPermissions();
     }
 
     public Task AssignPermissionsAsync(
@@ -126,7 +130,8 @@ public sealed class DokployApiClient(
     }
 
     /// <summary>
-    /// Dokploy returnerer ofte medlemmer med nestet <c>user.email</c> / <c>user.id</c>.
+    /// Dokploy <c>user.all</c> returnerer medlemmer med nestet <c>user</c>.
+    /// <c>assignPermissions.id</c> skal være <c>user.id</c> / <c>userId</c>, ikke member <c>id</c>.
     /// </summary>
     internal static IReadOnlyList<DokployUserDto> ParseUsers(JsonElement root)
     {
@@ -140,25 +145,73 @@ public sealed class DokployApiClient(
             if (el.ValueKind is not JsonValueKind.Object)
                 continue;
 
-            var id = GetString(el, "id")
-                ?? GetString(el, "userId")
+            var memberId = GetString(el, "id");
+            var authUserId = GetString(el, "userId")
                 ?? GetNestedString(el, "user", "id");
             var email = GetString(el, "email")
                 ?? GetNestedString(el, "user", "email")
                 ?? GetString(el, "memberEmail");
+            var hasNestedUser = TryGetPropertyIgnoreCase(el, "user", out var userEl)
+                && userEl.ValueKind is JsonValueKind.Object;
 
-            if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(email))
+            // assignPermissions matcher member.userId — aldrig member.id når nestet user findes.
+            var resolvedId = authUserId ?? (hasNestedUser ? null : memberId);
+
+            if (string.IsNullOrWhiteSpace(resolvedId) && string.IsNullOrWhiteSpace(email))
                 continue;
 
             list.Add(new DokployUserDto
             {
-                Id = id,
-                UserId = GetString(el, "userId") ?? GetNestedString(el, "user", "id"),
+                Id = resolvedId,
+                UserId = authUserId ?? resolvedId,
+                MemberId = memberId,
                 Email = email,
+                AccessedProjects = GetStringArray(el, "accessedProjects"),
+                CanCreateProjects = GetBool(el, "canCreateProjects"),
+                CanCreateServices = GetBool(el, "canCreateServices"),
+                CanCreateEnvironments = GetBool(el, "canCreateEnvironments"),
+                CanDeleteProjects = GetBool(el, "canDeleteProjects"),
+                CanDeleteServices = GetBool(el, "canDeleteServices"),
+                CanDeleteEnvironments = GetBool(el, "canDeleteEnvironments"),
+                CanAccessToDocker = GetBool(el, "canAccessToDocker"),
+                CanAccessToAPI = GetBool(el, "canAccessToAPI"),
+                CanAccessToSSHKeys = GetBool(el, "canAccessToSSHKeys"),
+                CanAccessToGitProviders = GetBool(el, "canAccessToGitProviders"),
+                CanAccessToTraefikFiles = GetBool(el, "canAccessToTraefikFiles"),
             });
         }
 
         return list;
+    }
+
+    private static List<string>? GetStringArray(JsonElement el, string name)
+    {
+        if (!TryGetPropertyIgnoreCase(el, name, out var prop) || prop.ValueKind is not JsonValueKind.Array)
+            return null;
+        var list = new List<string>();
+        foreach (var item in prop.EnumerateArray())
+        {
+            if (item.ValueKind is JsonValueKind.String)
+            {
+                var s = item.GetString();
+                if (!string.IsNullOrWhiteSpace(s))
+                    list.Add(s);
+            }
+        }
+
+        return list;
+    }
+
+    private static bool? GetBool(JsonElement el, string name)
+    {
+        if (!TryGetPropertyIgnoreCase(el, name, out var prop))
+            return null;
+        return prop.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null,
+        };
     }
 
     internal static IReadOnlyList<DokployProjectDto> ParseProjects(JsonElement root)
