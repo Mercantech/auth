@@ -92,6 +92,7 @@ builder.Services.AddSingleton<IFido2>(_ =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddMercantecDataProtection(builder.Configuration, builder.Environment);
 
 builder.Services.AddAuthentication(options =>
     {

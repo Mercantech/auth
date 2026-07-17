@@ -33,7 +33,14 @@ Conflict. The container name "/auth-authprod-zuyvik-api-1" is already in use
 docker rm -f auth-authprod-zuyvik-api-1
 ```
 
-Genudrul derefter i Dokploy. Postgres-data og `jwt_keys`-volume påvirkes ikke.
+Genudrul derefter i Dokploy. Postgres-data og `jwt_keys`-volume påvirkes ikke
+(JWT-signing + Data Protection-nøgler til auth-cookies ligger begge under `/app/keys`).
+
+### Login forsvinder ved hvert deploy
+
+Auth-cookies er krypteret med ASP.NET Data Protection. Nøglerne gemmes i
+`keys/dataprotection` på `jwt_keys`-volumen. Sørg for at volumen **ikke** slettes
+ved redeploy (Dokploy: behold named volumes).
 
 Valgfrit — ryd hele stacken og start forfra (kort nedetid):
 

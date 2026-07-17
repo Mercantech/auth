@@ -4,6 +4,8 @@ obj/
 *.suo
 .vs/
 keys/*.pem
+keys/**/dataprotection/
+keys-testing/
 !keys/.gitkeep
 appsettings.*.local.json
 docker/.env
