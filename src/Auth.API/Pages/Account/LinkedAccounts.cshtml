@@ -31,9 +31,9 @@
     @if (Model.ShowDokployCreatedOk)
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
-            Dokploy-bruger er klar. Åbn
+            Dokploy-bruger er oprettet. Log ind på
             <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">@Model.DokployUiUrl</a>
-            og log ind dér (invite-mail / Dokploy-login).
+            med din e-mail og den Dokploy-adgangskode, du lige valgte.
         </div>
     }
     @if (Model.ShowDokployLinkedOk)
@@ -78,8 +78,8 @@
         <section class="linked-section linked-section--bordered" aria-labelledby="dokploy-heading">
             <h2 id="dokploy-heading" class="linked-section__heading">Dokploy (deploy)</h2>
             <p class="linked-section__lede">
-                Dokploy har ikke selv-registrering. Her kan du oprette eller linke en Dokploy-bruger via Auth.
-                Login til deploy sker stadig på Dokploy — ikke via Auth SSO.
+                Dokploy har ikke selv-registrering. Her opretter Auth en Dokploy-bruger med e-mail + adgangskode
+                (samme e-mail som din Auth-konto). Login til deploy sker stadig på Dokploy — ikke via Auth SSO.
             </p>
             @if (Model.DokployIsProvisioned)
             {
@@ -100,10 +100,14 @@
             }
             else
             {
-                <form method="post" action="@(Request.PathBase)/account/dokploy/provision">
+                <form class="linked-password-form" method="post" action="@(Request.PathBase)/account/dokploy/provision">
                     <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
                     <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
-                    <button type="submit" class="auth-btn auth-btn--primary">Lav mig en Dokploy-bruger</button>
+                    <label class="auth-label" for="dokploy-password">Dokploy-adgangskode (min. 8 tegn)</label>
+                    <input id="dokploy-password" name="password" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                    <label class="auth-label" for="dokploy-password-confirm">Gentag Dokploy-adgangskode</label>
+                    <input id="dokploy-password-confirm" name="passwordConfirm" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
+                    <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Opret Dokploy-bruger</button>
                 </form>
                 @if (!string.IsNullOrWhiteSpace(Model.DokployLastError))
                 {

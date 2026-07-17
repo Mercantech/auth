@@ -71,6 +71,7 @@ public class LinkedAccountsModel(
             "disabled" => "Kontoen er deaktiveret.",
             "dokploy_email" => "Din Auth-konto mangler en e-mail. Tilføj e-mail via login/adgangskode, før Dokploy kan oprettes.",
             "dokploy_disabled" => "Dokploy-integration er ikke aktiveret på serveren.",
+            "dokploy_password" => "Dokploy-adgangskoder matcher ikke, eller opfylder ikke krav (mindst 8 tegn).",
             "dokploy_failed" => "Kunne ikke oprette Dokploy-bruger. Prøv igen senere, eller kontakt en admin.",
             _ => null,
         };
@@ -109,8 +110,7 @@ public class LinkedAccountsModel(
 
         if (user.DokployLink is not null)
         {
-            DokployIsProvisioned = user.DokployLink.IsProvisioned
-                && !string.IsNullOrWhiteSpace(user.DokployLink.DokployUserId);
+            DokployIsProvisioned = user.DokployLink.IsProvisioned;
             DokployUserId = user.DokployLink.DokployUserId;
             DokployLastError = user.DokployLink.LastError;
         }

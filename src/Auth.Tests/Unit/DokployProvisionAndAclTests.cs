@@ -30,7 +30,7 @@ public class DokployProvisionAndAclTests
             TimeProvider.System,
             NullLogger<DokployProvisionService>.Instance);
 
-        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: false);
+        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: false, dokployPassword: null);
 
         Assert.Empty(handler.Requests);
         Assert.Empty(await db.DokployUserLinks.ToListAsync());
@@ -56,12 +56,67 @@ public class DokployProvisionAndAclTests
             TimeProvider.System,
             NullLogger<DokployProvisionService>.Instance);
 
-        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: true);
+        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: true, dokployPassword: "password1");
 
         var link = Assert.Single(await db.DokployUserLinks.ToListAsync());
         Assert.True(link.IsProvisioned);
         Assert.Equal("dok-1", link.DokployUserId);
         Assert.Contains(handler.Requests, r => r.Method == HttpMethod.Get && r.RequestUri!.AbsolutePath.Contains("user.all"));
+        Assert.DoesNotContain(handler.Requests, r => r.RequestUri!.AbsolutePath.Contains("inviteMember"));
+    }
+
+    [Fact]
+    public async Task ProvisionAsync_creates_with_credentials_not_invite()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "new@example.com");
+        var listCalls = 0;
+        var handler = new RecordingHandler(req =>
+        {
+            var path = req.RequestUri!.AbsolutePath;
+            if (path.Contains("user.all"))
+            {
+                listCalls++;
+                var body = listCalls == 1
+                    ? "[]"
+                    : """[{"id":"dok-new","user":{"id":"dok-new","email":"new@example.com"}}]""";
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (path.Contains("user.createUserWithCredentials"))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var svc = new DokployProvisionService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k", MemberRole = "member" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        var result = await svc.ProvisionAsync(user.Id, "secretpass");
+
+        Assert.Equal(DokployProvisionStatus.Created, result.Status);
+        Assert.Equal("dok-new", result.DokployUserId);
+        Assert.Contains(handler.Requests, r => r.Method == HttpMethod.Post
+            && r.RequestUri!.AbsolutePath.Contains("createUserWithCredentials"));
+        Assert.DoesNotContain(handler.Requests, r => r.RequestUri!.AbsolutePath.Contains("inviteMember"));
+    }
+
+    [Fact]
+    public void ParseUsers_reads_nested_user_email()
+    {
+        using var doc = JsonDocument.Parse(
+            """[{"id":"m1","role":"member","user":{"id":"u1","email":"nested@example.com"}}]""");
+        var users = DokployApiClient.ParseUsers(doc.RootElement);
+        Assert.Single(users);
+        Assert.Equal("m1", users[0].Id);
+        Assert.Equal("nested@example.com", users[0].Email);
     }
 
     [Fact]
@@ -199,7 +254,7 @@ public class DokployProvisionAndAclTests
             TimeProvider.System,
             NullLogger<DokployProvisionService>.Instance);
 
-        var result = await svc.ProvisionAsync(user.Id);
+        var result = await svc.ProvisionAsync(user.Id, "password1");
 
         Assert.Equal(DokployProvisionStatus.AlreadyProvisioned, result.Status);
         Assert.Equal("dok-existing", result.DokployUserId);
@@ -222,9 +277,31 @@ public class DokployProvisionAndAclTests
             TimeProvider.System,
             NullLogger<DokployProvisionService>.Instance);
 
-        var result = await svc.ProvisionAsync(user.Id);
+        var result = await svc.ProvisionAsync(user.Id, "password1");
 
         Assert.Equal(DokployProvisionStatus.MissingEmail, result.Status);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ProvisionAsync_returns_InvalidPassword_when_too_short()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "x@example.com");
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        });
+        var svc = new DokployProvisionService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        var result = await svc.ProvisionAsync(user.Id, "short");
+
+        Assert.Equal(DokployProvisionStatus.InvalidPassword, result.Status);
         Assert.Empty(handler.Requests);
     }
 

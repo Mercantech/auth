@@ -16,13 +16,10 @@ Alle kald bruger header **`x-api-key`** (ikke Bearer).
 
 ## Brugere (1-way, opt-in)
 
-1. **Ved signup** (`/Account/Register`): checkbox **Opret også konto på deploy**
-2. **Self-service** (`/Account/LinkedAccounts`): knap **Lav mig en Dokploy-bruger** (for eksisterende brugere)
+1. **Ved signup** (`/Account/Register`): checkbox **Opret også konto på deploy** — Auth opretter Dokploy-bruger med **samme e-mail + adgangskode**
+2. **Self-service** (`/Account/LinkedAccounts`): vælg en Dokploy-adgangskode → **Opret Dokploy-bruger**
 
-Begge:
-- Match på e-mail via `GET /user.all`
-- Ellers `POST /organization.inviteMember` (fallback: `user.createUserWithCredentials`)
-- Signup er best-effort (fejler ikke Auth); knappen viser status tilbage til brugeren
+Kun `POST /user.createUserWithCredentials` (ingen invite). Password gemmes ikke i Auth — kun i Dokploy.
 
 Projektadgang styres stadig af admin (`/Admin/Dokploy`) eller i Dokploy UI.
 ## Projekt-ACL (to-vejs)

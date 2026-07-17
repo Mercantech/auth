@@ -362,7 +362,11 @@ public static class AccountEndpointExtensions
                 try
                 {
                     await ctx.RequestServices.GetRequiredService<IDokployProvisionService>()
-                        .TryProvisionIfRequestedAsync(user, wantDokploy: true, ctx.RequestAborted);
+                        .TryProvisionIfRequestedAsync(
+                            user,
+                            wantDokploy: true,
+                            dokployPassword: password,
+                            ctx.RequestAborted);
                 }
                 catch (Exception ex)
                 {
@@ -500,14 +504,23 @@ public static class AccountEndpointExtensions
         if (!Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
             return Results.Redirect("/Account/Login");
 
-        var result = await provision.ProvisionAsync(userId, ctx.RequestAborted);
+        var password = form["password"].ToString();
+        var confirm = form["passwordConfirm"].ToString();
+        if (!string.Equals(password, confirm, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(password)
+            || password.Length < 8
+            || password.Length > 100)
+            return RedirectWithQuery(returnUrl, "error=dokploy_password");
+
+        var result = await provision.ProvisionAsync(userId, password, ctx.RequestAborted);
         var q = result.Status switch
         {
             DokployProvisionStatus.AlreadyProvisioned => "dokploy=already",
             DokployProvisionStatus.LinkedExisting => "dokploy=linked",
-            DokployProvisionStatus.InvitedOrCreated => "dokploy=created",
+            DokployProvisionStatus.Created => "dokploy=created",
             DokployProvisionStatus.MissingEmail => "error=dokploy_email",
             DokployProvisionStatus.Disabled => "error=dokploy_disabled",
+            DokployProvisionStatus.InvalidPassword => "error=dokploy_password",
             _ => "error=dokploy_failed",
         };
 

@@ -18,7 +18,7 @@ public sealed class DokployApiClient(
     public async Task<IReadOnlyList<DokployUserDto>> ListUsersAsync(CancellationToken cancellationToken = default)
     {
         using var doc = await GetJsonAsync("user.all", cancellationToken);
-        return UnwrapArray<DokployUserDto>(doc.RootElement);
+        return ParseUsers(doc.RootElement);
     }
 
     public async Task InviteMemberAsync(string email, string role, CancellationToken cancellationToken = default)
@@ -123,6 +123,56 @@ public sealed class DokployApiClient(
 
         var list = array.Value.Deserialize<List<T>>(JsonOptions);
         return list ?? [];
+    }
+
+    /// <summary>
+    /// Dokploy returnerer ofte medlemmer med nestet <c>user.email</c> / <c>user.id</c>.
+    /// </summary>
+    internal static IReadOnlyList<DokployUserDto> ParseUsers(JsonElement root)
+    {
+        var array = FindArray(root);
+        if (array is null)
+            return [];
+
+        var list = new List<DokployUserDto>();
+        foreach (var el in array.Value.EnumerateArray())
+        {
+            if (el.ValueKind is not JsonValueKind.Object)
+                continue;
+
+            var id = GetString(el, "id")
+                ?? GetString(el, "userId")
+                ?? GetNestedString(el, "user", "id");
+            var email = GetString(el, "email")
+                ?? GetNestedString(el, "user", "email")
+                ?? GetString(el, "memberEmail");
+
+            if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(email))
+                continue;
+
+            list.Add(new DokployUserDto
+            {
+                Id = id,
+                UserId = GetString(el, "userId") ?? GetNestedString(el, "user", "id"),
+                Email = email,
+            });
+        }
+
+        return list;
+    }
+
+    private static string? GetString(JsonElement el, string name)
+    {
+        if (!TryGetPropertyIgnoreCase(el, name, out var prop))
+            return null;
+        return prop.ValueKind is JsonValueKind.String ? prop.GetString() : null;
+    }
+
+    private static string? GetNestedString(JsonElement el, string objectName, string propertyName)
+    {
+        if (!TryGetPropertyIgnoreCase(el, objectName, out var nested) || nested.ValueKind is not JsonValueKind.Object)
+            return null;
+        return GetString(nested, propertyName);
     }
 
     internal static JsonElement UnwrapObject(JsonElement root)

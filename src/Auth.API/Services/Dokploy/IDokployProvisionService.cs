@@ -7,9 +7,10 @@ public enum DokployProvisionStatus
     Skipped,
     Disabled,
     MissingEmail,
+    InvalidPassword,
     AlreadyProvisioned,
     LinkedExisting,
-    InvitedOrCreated,
+    Created,
     Failed,
 }
 
@@ -21,18 +22,20 @@ public sealed record DokployProvisionResult(
 public interface IDokployProvisionService
 {
     /// <summary>
-    /// Best-effort ved signup: opretter/linker Dokploy-bruger hvis Enabled og wantDokploy.
-    /// Fejl logges — kaster ikke.
+    /// Best-effort ved signup: opretter/linker Dokploy-bruger med den angivne adgangskode.
     /// </summary>
     Task TryProvisionIfRequestedAsync(
         User user,
         bool wantDokploy,
+        string? dokployPassword,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Self-service / eksplicit provision. Returnerer status til UI.
+    /// Self-service: opretter Dokploy-bruger med <paramref name="password"/> (min. 8 tegn).
+    /// Ingen invite — kun <c>user.createUserWithCredentials</c>.
     /// </summary>
     Task<DokployProvisionResult> ProvisionAsync(
         Guid userId,
+        string password,
         CancellationToken cancellationToken = default);
 }
