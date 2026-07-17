@@ -230,19 +230,24 @@ public sealed class DokployAclSyncService(
             .Select(g => g.DokployProjectId)
             .ToListAsync(cancellationToken);
 
+        var projects = await api.ListProjectsForPermissionsAsync(cancellationToken);
+        var (environments, services) = DokployApiClient.ExpandProjectChildren(projects, projectIds);
+
         logger.LogInformation(
-            "Dokploy assignPermissions for Auth-bruger {UserId} → Dokploy userId={DokployUserId}, projects={ProjectCount}",
+            "Dokploy assignPermissions for Auth-bruger {UserId} → Dokploy userId={DokployUserId}, projects={ProjectCount}, environments={EnvCount}, services={ServiceCount}",
             link.UserId,
             link.DokployUserId,
-            projectIds.Count);
+            projectIds.Count,
+            environments.Count,
+            services.Count);
 
         await api.AssignPermissionsAsync(
             new DokployAssignPermissionsRequest
             {
                 Id = link.DokployUserId!,
                 AccessedProjects = projectIds,
-                AccessedEnvironments = [],
-                AccessedServices = [],
+                AccessedEnvironments = environments,
+                AccessedServices = services,
                 AccessedGitProviders = [],
                 AccessedServers = [],
                 CanCreateProjects = link.CanCreateProjects,

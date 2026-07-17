@@ -92,7 +92,16 @@ public sealed class DokployProjectDto
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
+    public List<DokployEnvironmentDto> Environments { get; set; } = [];
+
     public string ResolvedId => ProjectId ?? Id ?? string.Empty;
+}
+
+public sealed class DokployEnvironmentDto
+{
+    public string? EnvironmentId { get; set; }
+    public string? Name { get; set; }
+    public List<string> ServiceIds { get; set; } = [];
 }
 
 public sealed class DokployPermissionsDto

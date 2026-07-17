@@ -241,10 +241,107 @@ public sealed class DokployApiClient(
                 ProjectId = id,
                 Id = id,
                 Name = name,
+                Environments = ParseEnvironments(el),
             });
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Udtrækker environments + service-id'er (application/compose/db) under et projekt.
+    /// </summary>
+    internal static List<DokployEnvironmentDto> ParseEnvironments(JsonElement project)
+    {
+        if (!TryGetPropertyIgnoreCase(project, "environments", out var envs)
+            || envs.ValueKind is not JsonValueKind.Array)
+            return [];
+
+        var list = new List<DokployEnvironmentDto>();
+        foreach (var env in envs.EnumerateArray())
+        {
+            if (env.ValueKind is not JsonValueKind.Object)
+                continue;
+
+            var envId = GetString(env, "environmentId") ?? GetString(env, "id");
+            if (string.IsNullOrWhiteSpace(envId))
+                continue;
+
+            list.Add(new DokployEnvironmentDto
+            {
+                EnvironmentId = envId,
+                Name = GetString(env, "name"),
+                ServiceIds = ExtractServiceIds(env),
+            });
+        }
+
+        return list;
+    }
+
+    private static readonly (string ArrayName, string IdProperty)[] ServiceCollections =
+    [
+        ("applications", "applicationId"),
+        ("compose", "composeId"),
+        ("mariadb", "mariadbId"),
+        ("postgres", "postgresId"),
+        ("mysql", "mysqlId"),
+        ("mongo", "mongoId"),
+        ("redis", "redisId"),
+        ("libsql", "libsqlId"),
+    ];
+
+    internal static List<string> ExtractServiceIds(JsonElement environment)
+    {
+        var ids = new List<string>();
+        foreach (var (arrayName, idProperty) in ServiceCollections)
+        {
+            if (!TryGetPropertyIgnoreCase(environment, arrayName, out var arr)
+                || arr.ValueKind is not JsonValueKind.Array)
+                continue;
+
+            foreach (var item in arr.EnumerateArray())
+            {
+                if (item.ValueKind is not JsonValueKind.Object)
+                    continue;
+                var id = GetString(item, idProperty) ?? GetString(item, "id");
+                if (!string.IsNullOrWhiteSpace(id))
+                    ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
+
+    /// <summary>
+    /// Når Auth giver projektadgang, ekspanderes til alle environments + services under projektet
+    /// (Dokploy kræver eksplicitte id'er i accessedEnvironments/accessedServices).
+    /// </summary>
+    internal static (List<string> Environments, List<string> Services) ExpandProjectChildren(
+        IReadOnlyList<DokployProjectDto> projects,
+        IEnumerable<string> selectedProjectIds)
+    {
+        var selected = selectedProjectIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var environments = new List<string>();
+        var services = new List<string>();
+        foreach (var project in projects)
+        {
+            if (!selected.Contains(project.ResolvedId))
+                continue;
+
+            foreach (var env in project.Environments)
+            {
+                if (!string.IsNullOrWhiteSpace(env.EnvironmentId))
+                    environments.Add(env.EnvironmentId);
+                services.AddRange(env.ServiceIds.Where(id => !string.IsNullOrWhiteSpace(id)));
+            }
+        }
+
+        return (
+            environments.Distinct(StringComparer.Ordinal).ToList(),
+            services.Distinct(StringComparer.Ordinal).ToList());
     }
 
     private static string? GetString(JsonElement el, string name)

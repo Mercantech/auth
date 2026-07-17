@@ -376,6 +376,99 @@ public class DokployProvisionAndAclTests
         Assert.Equal("Infra", projects[1].Name);
     }
 
+    [Fact]
+    public void ParseProjects_and_Expand_includes_all_environments_and_services()
+    {
+        using var doc = JsonDocument.Parse(
+            """
+            [{
+              "projectId":"proj-a",
+              "name":"GF2Learn",
+              "environments":[{
+                "environmentId":"env-prod",
+                "name":"production",
+                "applications":[{"applicationId":"app-1","name":"Web"}],
+                "compose":[{"composeId":"cmp-1","name":"GF2-Learn-Prod"}],
+                "postgres":[{"postgresId":"pg-1","name":"DB"}]
+              }]
+            },{
+              "projectId":"proj-b",
+              "name":"Skills",
+              "environments":[{
+                "environmentId":"env-skills",
+                "name":"production",
+                "compose":[{"composeId":"cmp-2","name":"SkillsOversigt"}]
+              }]
+            }]
+            """);
+        var projects = DokployApiClient.ParseProjects(doc.RootElement);
+        Assert.Equal(2, projects.Count);
+        Assert.Single(projects[0].Environments);
+        Assert.Equal(3, projects[0].Environments[0].ServiceIds.Count);
+
+        var (envs, services) = DokployApiClient.ExpandProjectChildren(projects, ["proj-a"]);
+        Assert.Equal(["env-prod"], envs);
+        Assert.Equal(3, services.Count);
+        Assert.Contains("app-1", services);
+        Assert.Contains("cmp-1", services);
+        Assert.Contains("pg-1", services);
+        Assert.DoesNotContain("cmp-2", services);
+    }
+
+    [Fact]
+    public async Task SaveGrantsAndPush_expands_services_under_selected_projects()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "expand@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-exp",
+            LinkedEmail = "expand@example.com",
+            IsProvisioned = true,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(req =>
+        {
+            var path = req.RequestUri!.AbsolutePath;
+            if (path.Contains("user.assignPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+            if (path.Contains("project.allForPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """[{"projectId":"proj-1","name":"Demo","environments":[{"environmentId":"env-1","name":"production","compose":[{"composeId":"svc-1","name":"App"}]}]}]"""),
+                };
+            if (path.Contains("user.all"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"id":"dok-exp","email":"expand@example.com"}]"""),
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        var sync = new DokployAclSyncService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployAclSyncService>.Instance);
+
+        await sync.SavePermissionsAndPushAsync(
+            user.Id,
+            [("proj-1", "Demo")],
+            new DokployCapabilityFlags());
+
+        var assign = Assert.Single(handler.Requests, r => r.Method == HttpMethod.Post
+            && r.RequestUri!.AbsolutePath.Contains("user.assignPermissions"));
+        var body = await assign.Content!.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal("proj-1", doc.RootElement.GetProperty("accessedProjects")[0].GetString());
+        Assert.Equal("env-1", doc.RootElement.GetProperty("accessedEnvironments")[0].GetString());
+        Assert.Equal("svc-1", doc.RootElement.GetProperty("accessedServices")[0].GetString());
+    }
+
     private static DokployApiClient CreateApi(RecordingHandler handler, bool enabled)
     {
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://deploy.example/api/") };
