@@ -1,6 +1,5 @@
 @page "/Admin/Dokploy"
 @attribute [Authorize(Roles = "Admin")]
-@using Auth.API.Models.Entities
 @using Auth.API.Options
 @using Auth.API.Services.Dokploy
 @using Microsoft.EntityFrameworkCore
@@ -12,8 +11,8 @@
 
 <PageTitle>Dokploy (admin)</PageTitle>
 
-<div class="merc-page merc-users">
-    <header class="merc-users__header">
+<div class="merc-page merc-dokploy">
+    <header class="merc-users__header merc-dokploy__header">
         <div>
             <h1>Dokploy</h1>
             <p class="merc-users__lead">
@@ -57,31 +56,27 @@
     {
         <p class="merc-users__loading">Henter…</p>
     }
+    else if (_rows.Count == 0)
+    {
+        <p class="merc-hint merc-hint--block">Ingen brugere endnu.</p>
+    }
     else
     {
-        <div class="merc-users__table-wrap">
-            <table class="table table-sm merc-users__table">
-                <thead>
-                <tr>
-                    <th scope="col">Bruger</th>
-                    <th scope="col">E-mail</th>
-                    <th scope="col">Dokploy-link</th>
-                    <th scope="col">Projekter</th>
-                    <th scope="col">ACL</th>
-                    <th scope="col" class="merc-users__th-actions">Gem</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach (var r in _rows)
-                {
-                    <tr>
-                        <td>@r.DisplayName</td>
-                        <td>@(r.Email ?? "—")</td>
-                        <td>
+        <div class="merc-dokploy__grid">
+            @foreach (var r in _rows)
+            {
+                var open = _openDropdownUserId == r.Id;
+                var selectedCount = r.SelectedProjectIds.Count;
+                <article class="merc-panel merc-dokploy__card">
+                    <div class="merc-dokploy__card-top">
+                        <div>
+                            <h2 class="merc-dokploy__name">@r.DisplayName</h2>
+                            <p class="merc-dokploy__email">@(r.Email ?? "—")</p>
+                        </div>
+                        <div class="merc-dokploy__badges">
                             @if (r.IsProvisioned)
                             {
                                 <span class="merc-badge merc-badge--public">linked</span>
-                                <code>@(r.DokployUserId ?? "?")</code>
                             }
                             else if (r.HasLink)
                             {
@@ -89,60 +84,124 @@
                             }
                             else
                             {
-                                <span class="merc-badge merc-badge--muted">ingen</span>
+                                <span class="merc-badge merc-badge--muted">ingen link</span>
                             }
-                            @if (!string.IsNullOrWhiteSpace(r.LastError))
-                            {
-                                <div class="merc-hint">@r.LastError</div>
-                            }
-                        </td>
-                        <td>
-                            @if (_projects is null || _projects.Count == 0)
-                            {
-                                <span class="merc-hint">Ingen projekter hentet</span>
-                            }
-                            else
-                            {
-                                <div style="display:flex;flex-direction:column;gap:0.25rem;max-height:8rem;overflow:auto">
-                                    @foreach (var p in _projects)
-                                    {
-                                        var selected = r.SelectedProjectIds.Contains(p.Id);
-                                        <label class="merc-check">
-                                            <input type="checkbox"
-                                                   checked="@selected"
-                                                   @onchange="e => ToggleProject(r, p.Id, (bool)(e.Value ?? false))" />
-                                            @(string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name)
-                                        </label>
-                                    }
-                                </div>
-                            }
-                        </td>
-                        <td>
                             @if (r.AclDirty)
                             {
                                 <span class="merc-badge">dirty</span>
                             }
-                            else if (r.AclSyncedAtUtc is not null)
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(r.DokployUserId))
+                    {
+                        <p class="merc-dokploy__meta"><code>@r.DokployUserId</code></p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(r.LastError))
+                    {
+                        <p class="merc-hint merc-hint--block">@r.LastError</p>
+                    }
+
+                    <label class="merc-dokploy__field-label" for="dokploy-projects-@r.Id">Projekter</label>
+                    <div class="merc-dokploy__dropdown @(open ? "merc-dokploy__dropdown--open" : null)">
+                        <button type="button"
+                                id="dokploy-projects-@r.Id"
+                                class="merc-dokploy__dropdown-trigger merc-input"
+                                disabled="@(!_enabled || _projects is null || _projects.Count == 0)"
+                                aria-expanded="@open"
+                                aria-haspopup="listbox"
+                                @onclick="() => ToggleDropdown(r.Id)">
+                            <span>
+                                @if (_projects is null || _projects.Count == 0)
+                                {
+                                    <text>Ingen projekter hentet</text>
+                                }
+                                else if (selectedCount == 0)
+                                {
+                                    <text>Vælg projekter…</text>
+                                }
+                                else
+                                {
+                                    <text>@selectedCount projekt@(selectedCount == 1 ? "" : "er") valgt</text>
+                                }
+                            </span>
+                            <span class="merc-dokploy__chevron" aria-hidden="true">▾</span>
+                        </button>
+
+                        @if (open && _projects is { Count: > 0 })
+                        {
+                            <div class="merc-dokploy__dropdown-panel" role="listbox" aria-multiselectable="true">
+                                <input class="merc-input merc-dokploy__search"
+                                       type="search"
+                                       placeholder="Søg projekter…"
+                                       value="@_projectFilter"
+                                       @oninput="OnFilterInput"
+                                       @onclick:stopPropagation="true" />
+                                <div class="merc-dokploy__options">
+                                    @foreach (var p in FilteredProjects())
+                                    {
+                                        var selected = r.SelectedProjectIds.Contains(p.Id);
+                                        var label = string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name!;
+                                        <label class="merc-dokploy__option merc-check">
+                                            <input type="checkbox"
+                                                   checked="@selected"
+                                                   @onchange="e => ToggleProject(r, p.Id, (bool)(e.Value ?? false))" />
+                                            <span class="merc-dokploy__option-text">
+                                                <span class="merc-dokploy__option-name">@label</span>
+                                                @if (!string.IsNullOrWhiteSpace(p.Name) && !string.Equals(p.Name, p.Id, StringComparison.Ordinal))
+                                                {
+                                                    <span class="merc-dokploy__option-id">@p.Id</span>
+                                                }
+                                            </span>
+                                        </label>
+                                    }
+                                </div>
+                                @if (FilteredProjects().Count == 0)
+                                {
+                                    <p class="merc-hint merc-dokploy__empty">Ingen match.</p>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (selectedCount > 0)
+                    {
+                        <ul class="merc-dokploy__chips" aria-label="Valgte projekter">
+                            @foreach (var id in r.SelectedProjectIds.OrderBy(x => ProjectLabel(x)))
                             {
-                                <span class="merc-hint">@r.AclSyncedAtUtc.Value.ToLocalTime().ToString("g")</span>
+                                <li>
+                                    <button type="button"
+                                            class="merc-dokploy__chip"
+                                            title="Fjern"
+                                            @onclick="() => ToggleProject(r, id, false)">
+                                        @ProjectLabel(id)
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <div class="merc-dokploy__card-actions">
+                        <span class="merc-hint">
+                            @if (r.AclSyncedAtUtc is not null)
+                            {
+                                <text>Synket @r.AclSyncedAtUtc.Value.ToLocalTime().ToString("g")</text>
                             }
                             else
                             {
-                                <span class="merc-hint">—</span>
+                                <text>Ikke synket endnu</text>
                             }
-                        </td>
-                        <td class="merc-users__th-actions">
-                            <button type="button"
-                                    class="merc-btn merc-btn--primary"
-                                    disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
-                                    @onclick="() => SaveAsync(r)">
-                                Gem
-                            </button>
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
+                        </span>
+                        <button type="button"
+                                class="merc-btn merc-btn--primary"
+                                disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
+                                @onclick="() => SaveAsync(r)">
+                            Gem
+                        </button>
+                    </div>
+                </article>
+            }
         </div>
     }
 </div>
@@ -156,6 +215,8 @@
     private List<UserRow>? _rows;
     private List<ProjectOption>? _projects;
     private DokployAclSyncResult? _lastResult;
+    private Guid? _openDropdownUserId;
+    private string _projectFilter = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,7 +276,45 @@
         }).ToList();
     }
 
-    private static void ToggleProject(UserRow row, string projectId, bool on)
+    private void ToggleDropdown(Guid userId)
+    {
+        if (_openDropdownUserId == userId)
+        {
+            _openDropdownUserId = null;
+            _projectFilter = "";
+            return;
+        }
+
+        _openDropdownUserId = userId;
+        _projectFilter = "";
+    }
+
+    private void OnFilterInput(ChangeEventArgs e)
+        => _projectFilter = e.Value?.ToString() ?? "";
+
+    private IReadOnlyList<ProjectOption> FilteredProjects()
+    {
+        if (_projects is null || _projects.Count == 0)
+            return [];
+
+        if (string.IsNullOrWhiteSpace(_projectFilter))
+            return _projects;
+
+        var q = _projectFilter.Trim();
+        return _projects
+            .Where(p =>
+                (p.Name?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+                || p.Id.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private string ProjectLabel(string projectId)
+    {
+        var match = _projects?.FirstOrDefault(p => p.Id == projectId);
+        return string.IsNullOrWhiteSpace(match?.Name) ? projectId : match!.Name!;
+    }
+
+    private void ToggleProject(UserRow row, string projectId, bool on)
     {
         if (on)
             row.SelectedProjectIds.Add(projectId);
@@ -236,6 +335,7 @@
             await AclSync.SaveGrantsAndPushAsync(row.Id, projects);
             _status = $"Gemt ACL for {row.DisplayName}.";
             _statusIsError = false;
+            _openDropdownUserId = null;
             await LoadAsync();
         }
         catch (Exception ex)
@@ -260,6 +360,7 @@
                 ? $"Sync færdig med {_lastResult.Errors} fejl."
                 : "Sync færdig.";
             _statusIsError = _lastResult.Errors > 0;
+            _openDropdownUserId = null;
             await LoadAsync();
         }
         catch (Exception ex)

@@ -1650,3 +1650,209 @@ footer.merc-shell__footer a:active {
 .merc-shell .btn:active:focus {
   box-shadow: 0 0 0 2px var(--merc-card), 0 0 0 4px var(--merc-accent-soft);
 }
+
+/* Admin Dokploy (/Admin/Dokploy) */
+.merc-dokploy__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.merc-dokploy__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+
+.merc-dokploy__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.merc-dokploy__card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.merc-dokploy__name {
+  margin: 0;
+  font-family: Syne, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.merc-dokploy__email {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--merc-muted);
+  word-break: break-word;
+}
+
+.merc-dokploy__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.merc-dokploy__meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--merc-muted);
+}
+
+.merc-dokploy__field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--merc-muted);
+}
+
+.merc-dokploy__dropdown {
+  position: relative;
+}
+
+.merc-dokploy__dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.merc-dokploy__dropdown-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.merc-dokploy__chevron {
+  color: var(--merc-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.merc-dokploy__dropdown--open .merc-dokploy__chevron {
+  transform: rotate(180deg);
+}
+
+.merc-dokploy__dropdown-panel {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: min(22rem, 70vh);
+  padding: 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--merc-border, rgba(0, 0, 0, 0.12));
+  background: var(--merc-card, #fff);
+  box-shadow: 0 10px 28px rgba(20, 24, 28, 0.14);
+}
+
+.merc-dokploy__search {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.merc-dokploy__options {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 0;
+  max-height: 16rem;
+  padding-right: 0.15rem;
+}
+
+.merc-dokploy__option {
+  align-items: flex-start;
+  padding: 0.35rem 0.25rem;
+  border-radius: 4px;
+}
+
+.merc-dokploy__option:hover {
+  background: var(--merc-accent-soft, rgba(42, 77, 92, 0.08));
+}
+
+.merc-dokploy__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.merc-dokploy__option-name {
+  font-size: 0.88rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.merc-dokploy__option-id {
+  font-size: 0.7rem;
+  color: var(--merc-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+
+.merc-dokploy__empty {
+  margin: 0;
+  padding: 0.35rem 0.25rem;
+}
+
+.merc-dokploy__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.merc-dokploy__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--merc-border, rgba(0, 0, 0, 0.12));
+  background: var(--merc-accent-soft, rgba(42, 77, 92, 0.1));
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.merc-dokploy__chip span {
+  opacity: 0.7;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.merc-dokploy__card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--merc-border, rgba(0, 0, 0, 0.08));
+}
