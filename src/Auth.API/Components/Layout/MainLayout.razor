@@ -11,21 +11,22 @@
                 <a href="/">Forside</a>
                 <AuthorizeView Roles="Admin">
                     <Authorized>
-                        <a href="/Admin/Users">Admin · brugere</a>
-                        <a href="/Admin/Clients">Admin · klienter</a>
-                        <a href="/Admin/Usage">Admin · brug</a>
-                        <a href="/Admin/Dokploy">Admin · Dokploy</a>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@MfaPolicies.FullSession">
-                    <Authorized>
-                        <a href="/dokploy">Dokploy</a>
+                        <details class="merc-shell__menu">
+                            <summary class="merc-shell__menu-summary">Admin</summary>
+                            <div class="merc-shell__menu-panel" role="menu">
+                                <a href="/Admin/Users" role="menuitem">Brugere</a>
+                                <a href="/Admin/Clients" role="menuitem">Klienter</a>
+                                <a href="/Admin/Usage" role="menuitem">Brug</a>
+                                <a href="/Admin/Dokploy" role="menuitem">Dokploy</a>
+                            </div>
+                        </details>
                     </Authorized>
                 </AuthorizeView>
             </div>
             <div class="merc-shell__links merc-shell__links--end">
                 <AuthorizeView>
                     <Authorized>
+                        <a href="/dokploy">Dokploy</a>
                         <a href="/Account/LinkedAccounts">Tilknyttede login</a>
                         <a href="/signout">Log ud</a>
                     </Authorized>

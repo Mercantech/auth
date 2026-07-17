@@ -122,6 +122,77 @@ body::before {
   margin-left: auto;
 }
 
+.merc-shell__menu {
+  position: relative;
+}
+
+.merc-shell__menu-summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--merc-font-ui);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--merc-ink);
+  border-bottom: 2px solid transparent;
+  padding-bottom: 0.15rem;
+  user-select: none;
+}
+
+.merc-shell__menu-summary::-webkit-details-marker {
+  display: none;
+}
+
+.merc-shell__menu-summary::after {
+  content: " ▾";
+  font-size: 0.65em;
+  opacity: 0.7;
+}
+
+.merc-shell__menu[open] > .merc-shell__menu-summary {
+  color: var(--merc-accent);
+  border-bottom-color: var(--merc-warm-pop);
+}
+
+.merc-shell__menu-summary:hover {
+  color: var(--merc-accent);
+  border-bottom-color: var(--merc-warm-pop);
+}
+
+.merc-shell__menu-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  z-index: 40;
+  min-width: 10.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem;
+  background: var(--merc-card);
+  border: 2px solid var(--merc-card-edge);
+  border-radius: var(--merc-radius);
+  box-shadow: 4px 4px 0 var(--merc-card-edge);
+}
+
+.merc-shell__menu-panel a {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border-bottom: none;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 2px;
+}
+
+.merc-shell__menu-panel a:hover {
+  background: var(--merc-accent-soft);
+  color: var(--merc-accent);
+  border-bottom-color: transparent;
+}
+
 .merc-shell__main {
   flex: 1;
 }
