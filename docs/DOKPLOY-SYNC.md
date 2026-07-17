@@ -16,12 +16,15 @@ Alle kald bruger header **`x-api-key`** (ikke Bearer).
 
 ## Brugere (1-way, opt-in)
 
-Ved lokal signup (`/Account/Register`) vises checkboxen **Opret også konto på deploy**, når integrationen er enabled.
+1. **Ved signup** (`/Account/Register`): checkbox **Opret også konto på deploy**
+2. **Self-service** (`/Account/LinkedAccounts`): knap **Lav mig en Dokploy-bruger** (for eksisterende brugere)
 
+Begge:
 - Match på e-mail via `GET /user.all`
 - Ellers `POST /organization.inviteMember` (fallback: `user.createUserWithCredentials`)
-- Best-effort: Auth-signup fejler ikke, hvis Dokploy er nede
+- Signup er best-effort (fejler ikke Auth); knappen viser status tilbage til brugeren
 
+Projektadgang styres stadig af admin (`/Admin/Dokploy`) eller i Dokploy UI.
 ## Projekt-ACL (to-vejs)
 
 - Admin: `/Admin/Dokploy` — vælg projekter pr. bruger → `assignPermissions` (Auth sætter `AclDirty` og pusher)

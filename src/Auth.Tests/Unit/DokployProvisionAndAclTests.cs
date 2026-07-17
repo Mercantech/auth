@@ -174,6 +174,60 @@ public class DokployProvisionAndAclTests
         Assert.Equal("1", users[0].Id);
     }
 
+    [Fact]
+    public async Task ProvisionAsync_returns_AlreadyProvisioned_when_linked()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "has@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-existing",
+            LinkedEmail = "has@example.com",
+            IsProvisioned = true,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        });
+        var svc = new DokployProvisionService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        var result = await svc.ProvisionAsync(user.Id);
+
+        Assert.Equal(DokployProvisionStatus.AlreadyProvisioned, result.Status);
+        Assert.Equal("dok-existing", result.DokployUserId);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ProvisionAsync_returns_MissingEmail_without_email()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, email: null);
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        });
+        var svc = new DokployProvisionService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        var result = await svc.ProvisionAsync(user.Id);
+
+        Assert.Equal(DokployProvisionStatus.MissingEmail, result.Status);
+        Assert.Empty(handler.Requests);
+    }
+
     private static DokployApiClient CreateApi(RecordingHandler handler, bool enabled)
     {
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://deploy.example/api/") };
@@ -183,7 +237,7 @@ public class DokployProvisionAndAclTests
             NullLogger<DokployApiClient>.Instance);
     }
 
-    private static async Task<User> SeedUserAsync(AuthDbContext db, string email)
+    private static async Task<User> SeedUserAsync(AuthDbContext db, string? email)
     {
         var user = new User
         {

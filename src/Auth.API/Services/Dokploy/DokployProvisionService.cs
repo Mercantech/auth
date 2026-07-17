@@ -20,19 +20,50 @@ public sealed class DokployProvisionService(
         bool wantDokploy,
         CancellationToken cancellationToken = default)
     {
-        var opts = options.Value;
-        if (!opts.Enabled || !wantDokploy)
+        if (!wantDokploy)
             return;
 
-        var email = user.Email;
+        try
+        {
+            await ProvisionCoreAsync(user, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Dokploy-provision kastede uventet for {UserId}", user.Id);
+        }
+    }
+
+    public async Task<DokployProvisionResult> ProvisionAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null)
+            return new DokployProvisionResult(DokployProvisionStatus.Failed, ErrorMessage: "Bruger findes ikke.");
+
+        return await ProvisionCoreAsync(user, cancellationToken);
+    }
+
+    private async Task<DokployProvisionResult> ProvisionCoreAsync(
+        User user,
+        CancellationToken cancellationToken)
+    {
+        var opts = options.Value;
+        if (!opts.Enabled || string.IsNullOrWhiteSpace(opts.ApiKey))
+            return new DokployProvisionResult(DokployProvisionStatus.Disabled);
+
+        var email = await ResolveEmailAsync(user, cancellationToken);
         var norm = EmailNormalizer.Normalize(email);
         if (norm is null)
         {
             logger.LogWarning("Dokploy-provision sprunget over for {UserId}: mangler e-mail", user.Id);
-            return;
+            return new DokployProvisionResult(DokployProvisionStatus.MissingEmail);
         }
 
         var link = await db.DokployUserLinks.FirstOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+        if (link is { IsProvisioned: true } && !string.IsNullOrWhiteSpace(link.DokployUserId))
+            return new DokployProvisionResult(DokployProvisionStatus.AlreadyProvisioned, link.DokployUserId);
+
         if (link is null)
         {
             link = new DokployUserLink
@@ -50,12 +81,13 @@ public sealed class DokployProvisionService(
         try
         {
             var users = await api.ListUsersAsync(cancellationToken);
-            var match = users.FirstOrDefault(u =>
-                EmailNormalizer.Normalize(u.Email) == norm);
+            var match = users.FirstOrDefault(u => EmailNormalizer.Normalize(u.Email) == norm);
             var dokployId = match?.Id ?? match?.UserId;
+            var createdNew = false;
 
             if (string.IsNullOrWhiteSpace(dokployId))
             {
+                createdNew = true;
                 try
                 {
                     await api.InviteMemberAsync(email!, opts.MemberRole, cancellationToken);
@@ -86,11 +118,22 @@ public sealed class DokployProvisionService(
                 ? null
                 : "Bruger oprettet/inviteret, men Dokploy-userId kunne ikke findes endnu.";
             await db.SaveChangesAsync(cancellationToken);
+
+            if (!link.IsProvisioned)
+            {
+                return new DokployProvisionResult(
+                    DokployProvisionStatus.Failed,
+                    ErrorMessage: link.LastError);
+            }
+
+            return new DokployProvisionResult(
+                createdNew ? DokployProvisionStatus.InvitedOrCreated : DokployProvisionStatus.LinkedExisting,
+                link.DokployUserId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Dokploy-provision fejlede for Auth-bruger {UserId}", user.Id);
-            link.LastError = ex.Message.Length <= 1000 ? ex.Message : ex.Message[..1000];
+            link.LastError = Truncate(ex.Message);
             link.IsProvisioned = false;
             try
             {
@@ -100,6 +143,32 @@ public sealed class DokployProvisionService(
             {
                 logger.LogError(saveEx, "Kunne ikke gemme Dokploy-provision-fejl for {UserId}", user.Id);
             }
+
+            return new DokployProvisionResult(DokployProvisionStatus.Failed, ErrorMessage: Truncate(ex.Message));
         }
     }
+
+    private async Task<string?> ResolveEmailAsync(User user, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(user.Email))
+            return user.Email;
+
+        var local = await db.LocalLogins
+            .AsNoTracking()
+            .Where(l => l.UserId == user.Id)
+            .Select(l => l.Email)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(local))
+            return local;
+
+        return await db.UserEmails
+            .AsNoTracking()
+            .Where(e => e.UserId == user.Id)
+            .OrderByDescending(e => e.LinkedAt)
+            .Select(e => e.NormalizedEmail)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private static string Truncate(string message)
+        => message.Length <= 1000 ? message : message[..1000];
 }

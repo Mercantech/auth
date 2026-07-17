@@ -28,6 +28,28 @@
     {
         <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">Adgangskode er tilknyttet — du kan nu logge ind med e-mail og adgangskode (samme <code class="linked-accounts__mono">sub</code>).</div>
     }
+    @if (Model.ShowDokployCreatedOk)
+    {
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
+            Dokploy-bruger er klar. Åbn
+            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">@Model.DokployUiUrl</a>
+            og log ind dér (invite-mail / Dokploy-login).
+        </div>
+    }
+    @if (Model.ShowDokployLinkedOk)
+    {
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
+            Din Auth-konto er nu linket til en eksisterende Dokploy-bruger.
+            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
+        </div>
+    }
+    @if (Model.ShowDokployAlreadyOk)
+    {
+        <div class="linked-accounts-banner linked-accounts-banner--ok" role="status">
+            Du har allerede en Dokploy-bruger.
+            <a href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
+        </div>
+    }
 
     @if (Model.CanSetPassword)
     {
@@ -48,6 +70,46 @@
                 <input id="password-confirm" name="passwordConfirm" class="auth-input" type="password" autocomplete="new-password" required minlength="8" maxlength="100" />
                 <button type="submit" class="auth-btn auth-btn--primary linked-password-form__submit">Gem adgangskode</button>
             </form>
+        </section>
+    }
+
+    @if (Model.DokploySectionVisible)
+    {
+        <section class="linked-section linked-section--bordered" aria-labelledby="dokploy-heading">
+            <h2 id="dokploy-heading" class="linked-section__heading">Dokploy (deploy)</h2>
+            <p class="linked-section__lede">
+                Dokploy har ikke selv-registrering. Her kan du oprette eller linke en Dokploy-bruger via Auth.
+                Login til deploy sker stadig på Dokploy — ikke via Auth SSO.
+            </p>
+            @if (Model.DokployIsProvisioned)
+            {
+                <p class="linked-section__muted">
+                    Status: <strong>aktiv</strong>
+                    @if (!string.IsNullOrWhiteSpace(Model.DokployUserId))
+                    {
+                        <text> · <code class="linked-accounts__mono">@Model.DokployUserId</code></text>
+                    }
+                </p>
+                <p>
+                    <a class="auth-btn auth-btn--primary" href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
+                </p>
+            }
+            else if (string.IsNullOrWhiteSpace(Model.UserEmail) && string.IsNullOrWhiteSpace(Model.SuggestedPasswordEmail))
+            {
+                <p class="linked-section__muted">Du mangler en e-mail på din Auth-konto, før Dokploy-brugeren kan oprettes.</p>
+            }
+            else
+            {
+                <form method="post" action="@(Request.PathBase)/account/dokploy/provision">
+                    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrlParam" />
+                    <button type="submit" class="auth-btn auth-btn--primary">Lav mig en Dokploy-bruger</button>
+                </form>
+                @if (!string.IsNullOrWhiteSpace(Model.DokployLastError))
+                {
+                    <p class="linked-section__muted" style="margin-top:0.75rem">Sidste forsøg: @Model.DokployLastError</p>
+                }
+            }
         </section>
     }
 

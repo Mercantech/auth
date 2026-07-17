@@ -38,6 +38,10 @@ public static class AccountEndpointExtensions
             .RequireAuthorization(MfaPolicies.FullSession)
             .DisableAntiforgery();
 
+        app.MapPost("/account/dokploy/provision", HandleDokployProvisionAsync)
+            .RequireAuthorization(MfaPolicies.FullSession)
+            .DisableAntiforgery();
+
         app.MapGet("/signout", async (HttpContext ctx, IReturnUrlValidator urls, IClientLoginBrandingService branding, string? returnUrl) =>
             {
                 await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -468,6 +472,44 @@ public static class AccountEndpointExtensions
         if (q == "password_set=1")
             await ctx.RequestServices.GetRequiredService<IAuthUsageTracker>()
                 .RecordPasswordLinkAsync(userId, ctx.RequestAborted);
+
+        return RedirectWithQuery(returnUrl, q);
+    }
+
+    private static async Task<IResult> HandleDokployProvisionAsync(
+        HttpContext ctx,
+        IAntiforgery antiforgery,
+        IDokployProvisionService provision)
+    {
+        try
+        {
+            await antiforgery.ValidateRequestAsync(ctx);
+        }
+        catch
+        {
+            return Results.Redirect("/Account/LinkedAccounts?error=invalid_token");
+        }
+
+        var form = await ctx.Request.ReadFormAsync();
+        var returnUrl = string.IsNullOrWhiteSpace(form["returnUrl"].ToString())
+            ? "/Account/LinkedAccounts"
+            : form["returnUrl"].ToString();
+        if (!returnUrl.StartsWith("/Account/", StringComparison.Ordinal))
+            returnUrl = "/Account/LinkedAccounts";
+
+        if (!Guid.TryParse(ctx.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return Results.Redirect("/Account/Login");
+
+        var result = await provision.ProvisionAsync(userId, ctx.RequestAborted);
+        var q = result.Status switch
+        {
+            DokployProvisionStatus.AlreadyProvisioned => "dokploy=already",
+            DokployProvisionStatus.LinkedExisting => "dokploy=linked",
+            DokployProvisionStatus.InvitedOrCreated => "dokploy=created",
+            DokployProvisionStatus.MissingEmail => "error=dokploy_email",
+            DokployProvisionStatus.Disabled => "error=dokploy_disabled",
+            _ => "error=dokploy_failed",
+        };
 
         return RedirectWithQuery(returnUrl, q);
     }

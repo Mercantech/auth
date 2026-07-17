@@ -16,7 +16,8 @@ namespace Auth.API.Pages.Account;
 public class LinkedAccountsModel(
     AuthDbContext db,
     IConfiguration configuration,
-    IOptions<AuthOptions> authOptions) : PageModel
+    IOptions<AuthOptions> authOptions,
+    IOptions<DokployOptions> dokployOptions) : PageModel
 {
     public IReadOnlyList<ExternalLoginRow> ExternalLogins { get; private set; } = [];
     public IReadOnlyList<LinkProviderOffer> OfferedLinkProviders { get; private set; } = [];
@@ -31,9 +32,20 @@ public class LinkedAccountsModel(
     /// <summary>Foreslået e-mail til adgangskode-formular (profil eller Personal UserEmail).</summary>
     public string? SuggestedPasswordEmail { get; private set; }
 
+    public string? UserEmail { get; private set; }
+
     public string? BannerError { get; private set; }
     public bool ShowUnlinkedOk { get; private set; }
     public bool ShowPasswordSetOk { get; private set; }
+    public bool ShowDokployCreatedOk { get; private set; }
+    public bool ShowDokployLinkedOk { get; private set; }
+    public bool ShowDokployAlreadyOk { get; private set; }
+
+    public bool DokploySectionVisible { get; private set; }
+    public bool DokployIsProvisioned { get; private set; }
+    public string? DokployUserId { get; private set; }
+    public string? DokployLastError { get; private set; }
+    public string DokployUiUrl { get; private set; } = "https://deploy.mags.dk";
 
     public sealed record ExternalLoginRow(Guid Id, string Provider, string ProviderLabel, string? ProviderEmail, DateTime LinkedAtUtc);
 
@@ -42,7 +54,7 @@ public class LinkedAccountsModel(
     private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
         OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
 
-    public async Task OnGetAsync(string? error, string? unlinked, string? password_set)
+    public async Task OnGetAsync(string? error, string? unlinked, string? password_set, string? dokploy)
     {
         ReturnUrlParam = Request.Path.HasValue ? Request.PathBase + Request.Path : "/Account/LinkedAccounts";
 
@@ -57,11 +69,21 @@ public class LinkedAccountsModel(
             "password_email" => "E-mail skal være en adresse der allerede hører til din Mercantec-konto (samme som ved OAuth-login).",
             "password_invalid" => "Adgangskoder matcher ikke, eller opfylder ikke krav (mindst 8 tegn).",
             "disabled" => "Kontoen er deaktiveret.",
+            "dokploy_email" => "Din Auth-konto mangler en e-mail. Tilføj e-mail via login/adgangskode, før Dokploy kan oprettes.",
+            "dokploy_disabled" => "Dokploy-integration er ikke aktiveret på serveren.",
+            "dokploy_failed" => "Kunne ikke oprette Dokploy-bruger. Prøv igen senere, eller kontakt en admin.",
             _ => null,
         };
 
         ShowUnlinkedOk = string.Equals(unlinked, "1", StringComparison.Ordinal);
         ShowPasswordSetOk = string.Equals(password_set, "1", StringComparison.Ordinal);
+        ShowDokployCreatedOk = string.Equals(dokploy, "created", StringComparison.Ordinal);
+        ShowDokployLinkedOk = string.Equals(dokploy, "linked", StringComparison.Ordinal);
+        ShowDokployAlreadyOk = string.Equals(dokploy, "already", StringComparison.Ordinal);
+
+        var dokployOpts = dokployOptions.Value;
+        DokploySectionVisible = dokployOpts.Enabled && !string.IsNullOrWhiteSpace(dokployOpts.ApiKey);
+        DokployUiUrl = dokployOpts.ResolvePublicUiUrl();
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdStr, out var userId))
@@ -72,9 +94,11 @@ public class LinkedAccountsModel(
             .Include(u => u.ExternalLogins)
             .Include(u => u.LocalLogin)
             .Include(u => u.LinkedEmails)
+            .Include(u => u.DokployLink)
             .FirstAsync(u => u.Id == userId);
 
         HasPasswordLogin = user.LocalLogin is not null;
+        UserEmail = user.Email;
         SuggestedPasswordEmail = user.LocalLogin?.Email
             ?? user.LinkedEmails
                 .Where(e => e.Kind == UserEmailKind.Personal)
@@ -82,6 +106,14 @@ public class LinkedAccountsModel(
                 .Select(e => e.NormalizedEmail)
                 .FirstOrDefault()
             ?? user.Email;
+
+        if (user.DokployLink is not null)
+        {
+            DokployIsProvisioned = user.DokployLink.IsProvisioned
+                && !string.IsNullOrWhiteSpace(user.DokployLink.DokployUserId);
+            DokployUserId = user.DokployLink.DokployUserId;
+            DokployLastError = user.DokployLink.LastError;
+        }
 
         ExternalLogins = user.ExternalLogins
             .OrderByDescending(x => x.LinkedAt)

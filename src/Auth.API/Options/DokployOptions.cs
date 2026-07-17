@@ -10,6 +10,9 @@ public class DokployOptions
     public string MemberRole { get; set; } = "member";
     public int AclSyncIntervalMinutes { get; set; } = 15;
 
+    /// <summary>Offentlig Dokploy UI-URL (til “Åbn deploy”-link). Tom = udled fra BaseUrl.</summary>
+    public string? PublicUiUrl { get; set; }
+
     public bool CanCreateProjects { get; set; }
     public bool CanCreateServices { get; set; }
     public bool CanDeleteProjects { get; set; }
@@ -21,4 +24,16 @@ public class DokployOptions
     public bool CanAccessToGitProviders { get; set; }
     public bool CanDeleteEnvironments { get; set; }
     public bool CanCreateEnvironments { get; set; }
+
+    public string ResolvePublicUiUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(PublicUiUrl))
+            return PublicUiUrl.TrimEnd('/');
+
+        var baseUrl = (BaseUrl ?? "").TrimEnd('/');
+        if (baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
+            return baseUrl[..^4];
+
+        return string.IsNullOrWhiteSpace(baseUrl) ? "https://deploy.mags.dk" : baseUrl;
+    }
 }
