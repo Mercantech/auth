@@ -1,0 +1,434 @@
+@page "/dokploy"
+@attribute [Authorize(Policy = MfaPolicies.FullSession)]
+@using System.Security.Claims
+@using Auth.API.Models.Entities
+@using Auth.API.Options
+@using Auth.API.Security
+@using Auth.API.Services.Dokploy
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Options
+@inject AuthDbContext Db
+@inject IDokployAccessRequestService Requests
+@inject IDokployApiClient Api
+@inject IOptions<DokployOptions> DokployOptions
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Dokploy-adgang</PageTitle>
+
+<div class="merc-page merc-dokploy merc-dokploy--request">
+    <header class="merc-users__header merc-dokploy__header">
+        <div>
+            <h1>Dokploy</h1>
+            <p class="merc-users__lead">
+                Anmod om deploy-adgang og rettigheder. En admin skal godkende, før projekter og permissions træder i kraft.
+            </p>
+        </div>
+        @if (_uiUrl is not null)
+        {
+            <a class="merc-btn merc-btn--ghost" href="@_uiUrl" target="_blank" rel="noopener">Åbn deploy</a>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="merc-alert @(_statusIsError ? "merc-alert--error" : "merc-alert--ok")" role="status">
+            @_status
+        </div>
+    }
+
+    @if (!_enabled)
+    {
+        <p class="merc-hint merc-hint--block">Dokploy-integration er ikke aktiveret.</p>
+    }
+    else if (_loading)
+    {
+        <p class="merc-users__loading">Henter…</p>
+    }
+    else
+    {
+        <section class="merc-panel" aria-labelledby="status-heading">
+            <h2 id="status-heading" class="merc-users__panel-title">Din status</h2>
+            <p class="merc-hint merc-hint--block">
+                Dokploy-konto:
+                <strong>@(_hasAccount ? "ja" : "nej")</strong>
+                @if (_currentProjects.Count > 0)
+                {
+                    <text> · Projekter: @string.Join(", ", _currentProjects)</text>
+                }
+            </p>
+        </section>
+
+        <section class="merc-panel merc-dokploy__request-form" aria-labelledby="request-heading">
+            <h2 id="request-heading" class="merc-users__panel-title">Ny anmodning</h2>
+
+            @if (_hasPending)
+            {
+                <p class="merc-hint merc-hint--block">
+                    Du har allerede en afventende anmodning. Annullér den nedenfor, hvis du vil sende en ny.
+                </p>
+            }
+            else
+            {
+                @if (!_hasAccount)
+                {
+                    <div class="merc-dokploy__account-fields">
+                        <p class="merc-hint merc-hint--block">
+                            Du har endnu ikke en Dokploy-konto. Angiv en adgangskode — kontoen oprettes med det samme,
+                            mens projektadgang og rettigheder afventer admin-godkendelse.
+                        </p>
+                        <label class="merc-dokploy__field-label" for="dokploy-req-password">Dokploy-adgangskode</label>
+                        <input id="dokploy-req-password" class="merc-input" type="password" @bind="_password" autocomplete="new-password" minlength="8" />
+                        <label class="merc-dokploy__field-label" for="dokploy-req-password2">Gentag adgangskode</label>
+                        <input id="dokploy-req-password2" class="merc-input" type="password" @bind="_passwordConfirm" autocomplete="new-password" minlength="8" />
+                    </div>
+                }
+
+                <label class="merc-dokploy__field-label">Projekter</label>
+                <div class="merc-dokploy__dropdown @(_projectsOpen ? "merc-dokploy__dropdown--open" : null)">
+                    <button type="button"
+                            class="merc-dokploy__dropdown-trigger merc-input"
+                            aria-expanded="@_projectsOpen"
+                            @onclick="() => _projectsOpen = !_projectsOpen">
+                        <span>
+                            @(_selectedProjectIds.Count == 0
+                                ? "Vælg projekter…"
+                                : $"{_selectedProjectIds.Count} projekt{(_selectedProjectIds.Count == 1 ? "" : "er")} valgt")
+                        </span>
+                        <span class="merc-dokploy__chevron" aria-hidden="true">▾</span>
+                    </button>
+                    @if (_projectsOpen)
+                    {
+                        <div class="merc-dokploy__dropdown-panel">
+                            <input class="merc-input merc-dokploy__search"
+                                   type="search"
+                                   placeholder="Søg på projektnavn…"
+                                   @bind="_projectFilter"
+                                   @bind:event="oninput"
+                                   @onclick:stopPropagation="true" />
+                            <div class="merc-dokploy__options">
+                                @foreach (var p in FilteredProjects())
+                                {
+                                    var selected = _selectedProjectIds.Contains(p.Id);
+                                    <label class="merc-dokploy__option merc-check">
+                                        <input type="checkbox"
+                                               checked="@selected"
+                                               @onchange="e => ToggleProject(p.Id, (bool)(e.Value ?? false))" />
+                                        <span class="merc-dokploy__option-name">@p.DisplayName</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (_selectedProjectIds.Count > 0)
+                {
+                    <ul class="merc-dokploy__chips">
+                        @foreach (var id in _selectedProjectIds.OrderBy(ProjectLabel))
+                        {
+                            <li>
+                                <button type="button" class="merc-dokploy__chip" @onclick="() => ToggleProject(id, false)">
+                                    @ProjectLabel(id) <span aria-hidden="true">×</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <div class="merc-dokploy__caps">
+                    <p class="merc-dokploy__field-label">Rettigheder</p>
+                    <div class="merc-dokploy__caps-grid">
+                        @foreach (var cap in CapabilityDefs)
+                        {
+                            <label class="merc-check merc-dokploy__cap">
+                                <input type="checkbox"
+                                       checked="@GetCap(cap.Key)"
+                                       @onchange="e => SetCap(cap.Key, (bool)(e.Value ?? false))" />
+                                <span>@cap.Label</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <label class="merc-dokploy__field-label" for="dokploy-req-msg">Besked til admin (valgfri)</label>
+                <textarea id="dokploy-req-msg" class="merc-input merc-dokploy__textarea" rows="3" @bind="_message" maxlength="1000"></textarea>
+
+                <div class="merc-dokploy__card-actions">
+                    <span class="merc-hint">Anmodningen synlig for admins under Admin · Dokploy</span>
+                    <button type="button" class="merc-btn merc-btn--primary" disabled="@_busy" @onclick="SubmitAsync">
+                        @(_busy ? "Sender…" : "Send anmodning")
+                    </button>
+                </div>
+            }
+        </section>
+
+        <section class="merc-panel" aria-labelledby="history-heading">
+            <h2 id="history-heading" class="merc-users__panel-title">Dine anmodninger</h2>
+            @if (_history.Count == 0)
+            {
+                <p class="merc-hint merc-hint--block">Ingen anmodninger endnu.</p>
+            }
+            else
+            {
+                <ul class="merc-dokploy__history" role="list">
+                    @foreach (var h in _history)
+                    {
+                        <li class="merc-dokploy__history-item">
+                            <div class="merc-dokploy__history-top">
+                                <span class="merc-badge @StatusBadgeClass(h.Status)">@StatusLabel(h.Status)</span>
+                                <span class="merc-hint">@h.CreatedAtUtc.ToLocalTime().ToString("g")</span>
+                            </div>
+                            <p class="merc-dokploy__history-body">
+                                Projekter: @(h.Projects.Count == 0 ? "—" : string.Join(", ", h.Projects.Select(p => p.ProjectName ?? "Projekt")))
+                            </p>
+                            @if (!string.IsNullOrWhiteSpace(h.Message))
+                            {
+                                <p class="merc-hint">“@h.Message”</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(h.ReviewNote))
+                            {
+                                <p class="merc-hint">Admin: @h.ReviewNote</p>
+                            }
+                            @if (h.Status == DokployAccessRequestStatus.Pending)
+                            {
+                                <button type="button" class="merc-btn merc-btn--ghost" disabled="@_busy" @onclick="() => CancelAsync(h.Id)">
+                                    Annullér
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private bool _enabled;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _hasAccount;
+    private bool _hasPending;
+    private bool _projectsOpen;
+    private string? _status;
+    private bool _statusIsError;
+    private string? _uiUrl;
+    private string _password = "";
+    private string _passwordConfirm = "";
+    private string _message = "";
+    private string _projectFilter = "";
+    private Guid _userId;
+    private List<ProjectOption> _projects = [];
+    private HashSet<string> _selectedProjectIds = new(StringComparer.Ordinal);
+    private List<string> _currentProjects = [];
+    private List<DokployAccessRequest> _history = [];
+    private DokployCapabilityFlags _caps = new();
+
+    private static readonly (string Key, string Label)[] CapabilityDefs =
+    [
+        ("CanCreateProjects", "Opret projekter"),
+        ("CanDeleteProjects", "Slet projekter"),
+        ("CanCreateServices", "Opret services"),
+        ("CanDeleteServices", "Slet services"),
+        ("CanCreateEnvironments", "Opret environments"),
+        ("CanDeleteEnvironments", "Slet environments"),
+        ("CanAccessToDocker", "Docker"),
+        ("CanAccessToTraefikFiles", "Traefik-filer"),
+        ("CanAccessToAPI", "API"),
+        ("CanAccessToSSHKeys", "SSH-nøgler"),
+        ("CanAccessToGitProviders", "Git-providers"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var opts = DokployOptions.Value;
+        _enabled = opts.Enabled && !string.IsNullOrWhiteSpace(opts.ApiKey);
+        _uiUrl = _enabled ? opts.ResolvePublicUiUrl() : null;
+
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        if (!Guid.TryParse(auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out _userId))
+        {
+            _loading = false;
+            return;
+        }
+
+        await ReloadAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _projects = [];
+        if (_enabled)
+        {
+            try
+            {
+                var remote = await Api.ListProjectsForPermissionsAsync();
+                _projects = remote
+                    .Where(p => !string.IsNullOrWhiteSpace(p.ResolvedId))
+                    .Select(p => new ProjectOption(p.ResolvedId, CleanName(p.Name, p.ResolvedId)))
+                    .DistinctBy(p => p.Id)
+                    .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _status = $"Kunne ikke hente projekter: {ex.Message}";
+                _statusIsError = true;
+            }
+        }
+
+        var link = await Db.DokployUserLinks.AsNoTracking().FirstOrDefaultAsync(l => l.UserId == _userId);
+        _hasAccount = link?.IsProvisioned == true;
+
+        _currentProjects = await Db.DokployProjectGrants.AsNoTracking()
+            .Where(g => g.UserId == _userId)
+            .OrderBy(g => g.ProjectName)
+            .Select(g => g.ProjectName ?? "Projekt")
+            .ToListAsync();
+
+        _history = (await Requests.ListForUserAsync(_userId)).ToList();
+        _hasPending = _history.Any(h => h.Status == DokployAccessRequestStatus.Pending);
+    }
+
+    private IEnumerable<ProjectOption> FilteredProjects()
+    {
+        if (string.IsNullOrWhiteSpace(_projectFilter))
+            return _projects;
+        var q = _projectFilter.Trim();
+        return _projects.Where(p => p.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string ProjectLabel(string id)
+        => _projects.FirstOrDefault(p => p.Id == id)?.DisplayName ?? "Projekt";
+
+    private void ToggleProject(string id, bool on)
+    {
+        if (on) _selectedProjectIds.Add(id);
+        else _selectedProjectIds.Remove(id);
+    }
+
+    private static string CleanName(string? name, string id)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "Projekt";
+        var t = name.Trim();
+        if (t.EndsWith(id, StringComparison.Ordinal) && t.Length > id.Length)
+            return t[..^id.Length].Trim();
+        return t;
+    }
+
+    private bool GetCap(string key) => key switch
+    {
+        "CanCreateProjects" => _caps.CanCreateProjects,
+        "CanCreateServices" => _caps.CanCreateServices,
+        "CanDeleteProjects" => _caps.CanDeleteProjects,
+        "CanDeleteServices" => _caps.CanDeleteServices,
+        "CanAccessToDocker" => _caps.CanAccessToDocker,
+        "CanAccessToTraefikFiles" => _caps.CanAccessToTraefikFiles,
+        "CanAccessToAPI" => _caps.CanAccessToAPI,
+        "CanAccessToSSHKeys" => _caps.CanAccessToSSHKeys,
+        "CanAccessToGitProviders" => _caps.CanAccessToGitProviders,
+        "CanDeleteEnvironments" => _caps.CanDeleteEnvironments,
+        "CanCreateEnvironments" => _caps.CanCreateEnvironments,
+        _ => false,
+    };
+
+    private void SetCap(string key, bool value)
+    {
+        switch (key)
+        {
+            case "CanCreateProjects": _caps.CanCreateProjects = value; break;
+            case "CanCreateServices": _caps.CanCreateServices = value; break;
+            case "CanDeleteProjects": _caps.CanDeleteProjects = value; break;
+            case "CanDeleteServices": _caps.CanDeleteServices = value; break;
+            case "CanAccessToDocker": _caps.CanAccessToDocker = value; break;
+            case "CanAccessToTraefikFiles": _caps.CanAccessToTraefikFiles = value; break;
+            case "CanAccessToAPI": _caps.CanAccessToAPI = value; break;
+            case "CanAccessToSSHKeys": _caps.CanAccessToSSHKeys = value; break;
+            case "CanAccessToGitProviders": _caps.CanAccessToGitProviders = value; break;
+            case "CanDeleteEnvironments": _caps.CanDeleteEnvironments = value; break;
+            case "CanCreateEnvironments": _caps.CanCreateEnvironments = value; break;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _status = null;
+        try
+        {
+            string? password = null;
+            if (!_hasAccount)
+            {
+                if (!string.Equals(_password, _passwordConfirm, StringComparison.Ordinal))
+                {
+                    _status = "Adgangskoderne matcher ikke.";
+                    _statusIsError = true;
+                    return;
+                }
+                password = _password;
+            }
+
+            var projects = _selectedProjectIds
+                .Select(id => (id, (string?)ProjectLabel(id)))
+                .ToList();
+            var result = await Requests.SubmitAsync(_userId, projects, _caps, _message, password);
+            if (!result.Ok)
+            {
+                _status = result.Error;
+                _statusIsError = true;
+                return;
+            }
+
+            _status = "Anmodning sendt. En admin skal godkende den.";
+            _statusIsError = false;
+            _selectedProjectIds.Clear();
+            _caps = new DokployCapabilityFlags();
+            _message = "";
+            _password = "";
+            _passwordConfirm = "";
+            _projectsOpen = false;
+            await ReloadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CancelAsync(Guid requestId)
+    {
+        _busy = true;
+        try
+        {
+            var result = await Requests.CancelAsync(_userId, requestId);
+            _status = result.Ok ? "Anmodning annulleret." : result.Error;
+            _statusIsError = !result.Ok;
+            await ReloadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string StatusLabel(DokployAccessRequestStatus s) => s switch
+    {
+        DokployAccessRequestStatus.Pending => "Afventer",
+        DokployAccessRequestStatus.Approved => "Godkendt",
+        DokployAccessRequestStatus.Rejected => "Afvist",
+        DokployAccessRequestStatus.Cancelled => "Annulleret",
+        _ => s.ToString(),
+    };
+
+    private static string StatusBadgeClass(DokployAccessRequestStatus s) => s switch
+    {
+        DokployAccessRequestStatus.Pending => "",
+        DokployAccessRequestStatus.Approved => "merc-badge--public",
+        DokployAccessRequestStatus.Rejected => "merc-badge--muted",
+        _ => "merc-badge--muted",
+    };
+
+    private sealed record ProjectOption(string Id, string DisplayName);
+}

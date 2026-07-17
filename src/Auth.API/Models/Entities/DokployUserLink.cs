@@ -12,4 +12,17 @@ public class DokployUserLink
     public bool IsProvisioned { get; set; }
     public bool AclDirty { get; set; }
     public DateTime? AclSyncedAtUtc { get; set; }
+
+    // Dokploy capability flags (assignPermissions)
+    public bool CanCreateProjects { get; set; }
+    public bool CanCreateServices { get; set; }
+    public bool CanDeleteProjects { get; set; }
+    public bool CanDeleteServices { get; set; }
+    public bool CanAccessToDocker { get; set; }
+    public bool CanAccessToTraefikFiles { get; set; }
+    public bool CanAccessToAPI { get; set; }
+    public bool CanAccessToSSHKeys { get; set; }
+    public bool CanAccessToGitProviders { get; set; }
+    public bool CanDeleteEnvironments { get; set; }
+    public bool CanCreateEnvironments { get; set; }
 }

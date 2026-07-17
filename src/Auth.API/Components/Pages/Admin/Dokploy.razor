@@ -1,13 +1,18 @@
 @page "/Admin/Dokploy"
 @attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using Auth.API.Models.Entities
 @using Auth.API.Options
 @using Auth.API.Services.Dokploy
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.Options
 @inject AuthDbContext Db
 @inject IDokployAclSyncService AclSync
+@inject IDokployAccessRequestService AccessRequests
 @inject IDokployApiClient Api
 @inject IOptions<DokployOptions> DokployOptions
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Dokploy (admin)</PageTitle>
 
@@ -16,13 +21,16 @@
         <div>
             <h1>Dokploy</h1>
             <p class="merc-users__lead">
-                Styr hvilke Dokploy-projekter hver Auth-bruger må se. Valg gemmes i Auth og pushes til Dokploy.
-                I listen vises kun projektnavne — ikke interne IDs.
+                Godkend adgangsanmodninger, og styr projekter + rettigheder pr. bruger.
+                Kun projektnavne vises — ikke IDs.
             </p>
         </div>
-        <button type="button" class="merc-btn merc-btn--primary" @onclick="SyncNowAsync" disabled="@(_busy || !_enabled)">
-            @(_busy ? "Synker…" : "Sync nu")
-        </button>
+        <div class="merc-dokploy__header-actions">
+            <a class="merc-btn merc-btn--ghost" href="/dokploy">Brugerside</a>
+            <button type="button" class="merc-btn merc-btn--primary" @onclick="SyncNowAsync" disabled="@(_busy || !_enabled)">
+                @(_busy ? "Synker…" : "Sync nu")
+            </button>
+        </div>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -49,6 +57,66 @@
         @if (!_enabled)
         {
             <p class="merc-hint merc-hint--block">Sæt <code>Dokploy__Enabled=true</code> og <code>Dokploy__ApiKey</code> for at aktivere.</p>
+        }
+    </section>
+
+    <section class="merc-panel" aria-labelledby="pending-heading">
+        <h2 id="pending-heading" class="merc-users__panel-title">
+            Afventende anmodninger
+            @if (_pending is { Count: > 0 })
+            {
+                <span class="merc-badge">@_pending.Count</span>
+            }
+        </h2>
+        @if (_pending is null)
+        {
+            <p class="merc-users__loading">Henter…</p>
+        }
+        else if (_pending.Count == 0)
+        {
+            <p class="merc-hint merc-hint--block">Ingen afventende anmodninger.</p>
+        }
+        else
+        {
+            <div class="merc-dokploy__pending-list">
+                @foreach (var req in _pending)
+                {
+                    <article class="merc-dokploy__pending-card">
+                        <div class="merc-dokploy__card-top">
+                            <div>
+                                <h3 class="merc-dokploy__name">@req.User.DisplayName</h3>
+                                <p class="merc-dokploy__email">@(req.User.Email ?? "—")</p>
+                                <p class="merc-hint">Sendt @req.CreatedAtUtc.ToLocalTime().ToString("g")</p>
+                            </div>
+                        </div>
+                        <p class="merc-dokploy__history-body">
+                            <strong>Projekter:</strong>
+                            @(req.Projects.Count == 0
+                                ? "—"
+                                : string.Join(", ", req.Projects.Select(p => p.ProjectName ?? "Projekt")))
+                        </p>
+                        <p class="merc-dokploy__history-body">
+                            <strong>Rettigheder:</strong> @DescribeCaps(req)
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(req.Message))
+                        {
+                            <p class="merc-hint">“@req.Message”</p>
+                        }
+                        <label class="merc-dokploy__field-label" for="note-@req.Id">Note (valgfri)</label>
+                        <input id="note-@req.Id" class="merc-input" @bind="_reviewNotes[req.Id]" />
+                        <div class="merc-dokploy__card-actions">
+                            <button type="button" class="merc-btn merc-btn--ghost" disabled="@_busy"
+                                    @onclick="() => RejectAsync(req.Id)">
+                                Afvis
+                            </button>
+                            <button type="button" class="merc-btn merc-btn--primary" disabled="@_busy"
+                                    @onclick="() => ApproveAsync(req.Id)">
+                                Godkend
+                            </button>
+                        </div>
+                    </article>
+                }
+            </div>
         }
     </section>
 
@@ -171,6 +239,21 @@
                         </ul>
                     }
 
+                    <div class="merc-dokploy__caps">
+                        <p class="merc-dokploy__field-label">Rettigheder i Dokploy</p>
+                        <div class="merc-dokploy__caps-grid">
+                            @foreach (var cap in CapabilityDefs)
+                            {
+                                <label class="merc-check merc-dokploy__cap">
+                                    <input type="checkbox"
+                                           checked="@GetCap(r, cap.Key)"
+                                           @onchange="e => SetCap(r, cap.Key, (bool)(e.Value ?? false))" />
+                                    <span>@cap.Label</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+
                     <div class="merc-dokploy__card-actions">
                         <span class="merc-hint">
                             @if (r.AclSyncedAtUtc is not null)
@@ -202,6 +285,9 @@
     private string? _status;
     private bool _statusIsError;
     private List<UserRow>? _rows;
+    private List<DokployAccessRequest>? _pending;
+    private Dictionary<Guid, string> _reviewNotes = new();
+    private Guid _adminUserId;
     private List<ProjectOption>? _projects;
     private DokployAclSyncResult? _lastResult;
     private Guid? _openDropdownUserId;
@@ -212,11 +298,17 @@
         var opts = DokployOptions.Value;
         _enabled = opts.Enabled && !string.IsNullOrWhiteSpace(opts.ApiKey);
         _interval = Math.Max(1, opts.AclSyncIntervalMinutes);
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        Guid.TryParse(auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out _adminUserId);
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
+        _pending = (await AccessRequests.ListPendingAsync()).ToList();
+        foreach (var p in _pending)
+            _reviewNotes.TryAdd(p.Id, "");
+
         _projects = [];
         if (_enabled)
         {
@@ -252,21 +344,128 @@
             })
             .ToListAsync();
 
-        _rows = users.Select(u => new UserRow
+        _rows = users.Select(u =>
         {
-            Id = u.Id,
-            DisplayName = u.DisplayName,
-            Email = u.Email,
-            HasLink = u.Link is not null,
-            IsProvisioned = u.Link?.IsProvisioned == true,
-            LastError = u.Link?.LastError,
-            AclDirty = u.Link?.AclDirty == true,
-            AclSyncedAtUtc = u.Link?.AclSyncedAtUtc,
-            SelectedProjectIds = u.Grants.Select(g => g.DokployProjectId).ToHashSet(StringComparer.Ordinal),
-            GrantNames = u.Grants
-                .Where(g => !string.IsNullOrWhiteSpace(g.ProjectName))
-                .ToDictionary(g => g.DokployProjectId, g => g.ProjectName!, StringComparer.Ordinal),
+            var caps = u.Link is null
+                ? new DokployCapabilityFlags()
+                : DokployCapabilityFlags.FromLink(u.Link);
+            return new UserRow
+            {
+                Id = u.Id,
+                DisplayName = u.DisplayName,
+                Email = u.Email,
+                HasLink = u.Link is not null,
+                IsProvisioned = u.Link?.IsProvisioned == true,
+                LastError = u.Link?.LastError,
+                AclDirty = u.Link?.AclDirty == true,
+                AclSyncedAtUtc = u.Link?.AclSyncedAtUtc,
+                SelectedProjectIds = u.Grants.Select(g => g.DokployProjectId).ToHashSet(StringComparer.Ordinal),
+                GrantNames = u.Grants
+                    .Where(g => !string.IsNullOrWhiteSpace(g.ProjectName))
+                    .ToDictionary(g => g.DokployProjectId, g => g.ProjectName!, StringComparer.Ordinal),
+                Caps = caps,
+            };
         }).ToList();
+    }
+
+    private async Task ApproveAsync(Guid requestId)
+    {
+        _busy = true;
+        try
+        {
+            _reviewNotes.TryGetValue(requestId, out var note);
+            var result = await AccessRequests.ApproveAsync(requestId, _adminUserId, note);
+            _status = result.Ok ? "Anmodning godkendt — permissions pushet." : result.Error;
+            _statusIsError = !result.Ok;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RejectAsync(Guid requestId)
+    {
+        _busy = true;
+        try
+        {
+            _reviewNotes.TryGetValue(requestId, out var note);
+            var result = await AccessRequests.RejectAsync(requestId, _adminUserId, note);
+            _status = result.Ok ? "Anmodning afvist." : result.Error;
+            _statusIsError = !result.Ok;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string DescribeCaps(DokployAccessRequest r)
+    {
+        var parts = new List<string>();
+        if (r.CanCreateProjects) parts.Add("Opret projekter");
+        if (r.CanDeleteProjects) parts.Add("Slet projekter");
+        if (r.CanCreateServices) parts.Add("Opret services");
+        if (r.CanDeleteServices) parts.Add("Slet services");
+        if (r.CanCreateEnvironments) parts.Add("Opret env");
+        if (r.CanDeleteEnvironments) parts.Add("Slet env");
+        if (r.CanAccessToDocker) parts.Add("Docker");
+        if (r.CanAccessToTraefikFiles) parts.Add("Traefik");
+        if (r.CanAccessToAPI) parts.Add("API");
+        if (r.CanAccessToSSHKeys) parts.Add("SSH");
+        if (r.CanAccessToGitProviders) parts.Add("Git");
+        return parts.Count == 0 ? "—" : string.Join(", ", parts);
+    }
+
+    private static readonly (string Key, string Label)[] CapabilityDefs =
+    [
+        ("CanCreateProjects", "Opret projekter"),
+        ("CanDeleteProjects", "Slet projekter"),
+        ("CanCreateServices", "Opret services"),
+        ("CanDeleteServices", "Slet services"),
+        ("CanCreateEnvironments", "Opret environments"),
+        ("CanDeleteEnvironments", "Slet environments"),
+        ("CanAccessToDocker", "Docker"),
+        ("CanAccessToTraefikFiles", "Traefik-filer"),
+        ("CanAccessToAPI", "API"),
+        ("CanAccessToSSHKeys", "SSH-nøgler"),
+        ("CanAccessToGitProviders", "Git-providers"),
+    ];
+
+    private static bool GetCap(UserRow row, string key) => key switch
+    {
+        "CanCreateProjects" => row.Caps.CanCreateProjects,
+        "CanCreateServices" => row.Caps.CanCreateServices,
+        "CanDeleteProjects" => row.Caps.CanDeleteProjects,
+        "CanDeleteServices" => row.Caps.CanDeleteServices,
+        "CanAccessToDocker" => row.Caps.CanAccessToDocker,
+        "CanAccessToTraefikFiles" => row.Caps.CanAccessToTraefikFiles,
+        "CanAccessToAPI" => row.Caps.CanAccessToAPI,
+        "CanAccessToSSHKeys" => row.Caps.CanAccessToSSHKeys,
+        "CanAccessToGitProviders" => row.Caps.CanAccessToGitProviders,
+        "CanDeleteEnvironments" => row.Caps.CanDeleteEnvironments,
+        "CanCreateEnvironments" => row.Caps.CanCreateEnvironments,
+        _ => false,
+    };
+
+    private static void SetCap(UserRow row, string key, bool value)
+    {
+        switch (key)
+        {
+            case "CanCreateProjects": row.Caps.CanCreateProjects = value; break;
+            case "CanCreateServices": row.Caps.CanCreateServices = value; break;
+            case "CanDeleteProjects": row.Caps.CanDeleteProjects = value; break;
+            case "CanDeleteServices": row.Caps.CanDeleteServices = value; break;
+            case "CanAccessToDocker": row.Caps.CanAccessToDocker = value; break;
+            case "CanAccessToTraefikFiles": row.Caps.CanAccessToTraefikFiles = value; break;
+            case "CanAccessToAPI": row.Caps.CanAccessToAPI = value; break;
+            case "CanAccessToSSHKeys": row.Caps.CanAccessToSSHKeys = value; break;
+            case "CanAccessToGitProviders": row.Caps.CanAccessToGitProviders = value; break;
+            case "CanDeleteEnvironments": row.Caps.CanDeleteEnvironments = value; break;
+            case "CanCreateEnvironments": row.Caps.CanCreateEnvironments = value; break;
+        }
     }
 
     /// <summary>
@@ -348,7 +547,7 @@
             var projects = row.SelectedProjectIds
                 .Select(id => (id, nameById.GetValueOrDefault(id) ?? row.GrantNames.GetValueOrDefault(id)))
                 .ToList();
-            await AclSync.SaveGrantsAndPushAsync(row.Id, projects);
+            await AclSync.SavePermissionsAndPushAsync(row.Id, projects, row.Caps);
             _status = $"Permissions gemt for {row.DisplayName}.";
             _statusIsError = false;
             _openDropdownUserId = null;
@@ -402,6 +601,7 @@
         public DateTime? AclSyncedAtUtc { get; init; }
         public HashSet<string> SelectedProjectIds { get; init; } = new(StringComparer.Ordinal);
         public Dictionary<string, string> GrantNames { get; init; } = new(StringComparer.Ordinal);
+        public DokployCapabilityFlags Caps { get; init; } = new();
     }
 
     private sealed record ProjectOption(string Id, string DisplayName);

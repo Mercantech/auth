@@ -1652,12 +1652,78 @@ footer.merc-shell__footer a:active {
 }
 
 /* Admin Dokploy (/Admin/Dokploy) */
-.merc-dokploy__header {
+.merc-dokploy__header-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.merc-dokploy__textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.merc-dokploy__account-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.merc-dokploy__history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.merc-dokploy__history-item {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--merc-border, rgba(0, 0, 0, 0.08));
+}
+
+.merc-dokploy__history-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.merc-dokploy__history-top {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.merc-dokploy__history-body {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.merc-dokploy__pending-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
   gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.merc-dokploy__pending-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--merc-border, rgba(0, 0, 0, 0.1));
+  background: var(--merc-accent-soft, rgba(42, 77, 92, 0.06));
+}
+
+.merc-dokploy__request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .merc-dokploy__grid {
@@ -1855,4 +1921,27 @@ footer.merc-shell__footer a:active {
   margin-top: 0.25rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--merc-border, rgba(0, 0, 0, 0.08));
+}
+
+.merc-dokploy__caps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.merc-dokploy__caps-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.75rem;
+}
+
+.merc-dokploy__cap {
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 420px) {
+  .merc-dokploy__caps-grid {
+    grid-template-columns: 1fr;
+  }
 }

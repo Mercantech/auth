@@ -23,6 +23,8 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
     public DbSet<UserActionToken> UserActionTokens => Set<UserActionToken>();
     public DbSet<DokployUserLink> DokployUserLinks => Set<DokployUserLink>();
     public DbSet<DokployProjectGrant> DokployProjectGrants => Set<DokployProjectGrant>();
+    public DbSet<DokployAccessRequest> DokployAccessRequests => Set<DokployAccessRequest>();
+    public DbSet<DokployAccessRequestProject> DokployAccessRequestProjects => Set<DokployAccessRequestProject>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -140,6 +142,26 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
             e.Property(x => x.DokployProjectId).HasMaxLength(128);
             e.Property(x => x.ProjectName).HasMaxLength(256);
             e.HasOne(x => x.User).WithMany(u => u.DokployProjectGrants).HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<DokployAccessRequest>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.Status });
+            e.HasIndex(x => x.CreatedAtUtc);
+            e.Property(x => x.Message).HasMaxLength(1000);
+            e.Property(x => x.ReviewNote).HasMaxLength(1000);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+            e.HasMany(x => x.Projects).WithOne(p => p.Request).HasForeignKey(p => p.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DokployAccessRequestProject>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.RequestId, x.DokployProjectId }).IsUnique();
+            e.Property(x => x.DokployProjectId).HasMaxLength(128);
+            e.Property(x => x.ProjectName).HasMaxLength(256);
         });
     }
 }

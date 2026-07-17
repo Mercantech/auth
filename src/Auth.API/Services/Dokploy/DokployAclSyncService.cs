@@ -68,9 +68,10 @@ public sealed class DokployAclSyncService(
         return new DokployAclSyncResult(links.Count, pushed, pulled, errors, ranAt);
     }
 
-    public async Task SaveGrantsAndPushAsync(
+    public async Task SavePermissionsAndPushAsync(
         Guid userId,
         IReadOnlyList<(string ProjectId, string? ProjectName)> projects,
+        DokployCapabilityFlags capabilities,
         CancellationToken cancellationToken = default)
     {
         var opts = options.Value;
@@ -117,6 +118,7 @@ public sealed class DokployAclSyncService(
             });
         }
 
+        capabilities.ApplyTo(link);
         link.AclDirty = true;
         link.LastError = null;
         await db.SaveChangesAsync(cancellationToken);
@@ -198,7 +200,6 @@ public sealed class DokployAclSyncService(
 
     private async Task PushPermissionsAsync(DokployUserLink link, CancellationToken cancellationToken)
     {
-        var opts = options.Value;
         var projectIds = await db.DokployProjectGrants
             .Where(g => g.UserId == link.UserId)
             .Select(g => g.DokployProjectId)
@@ -209,17 +210,21 @@ public sealed class DokployAclSyncService(
             {
                 Id = link.DokployUserId!,
                 AccessedProjects = projectIds,
-                CanCreateProjects = opts.CanCreateProjects,
-                CanCreateServices = opts.CanCreateServices,
-                CanDeleteProjects = opts.CanDeleteProjects,
-                CanDeleteServices = opts.CanDeleteServices,
-                CanAccessToDocker = opts.CanAccessToDocker,
-                CanAccessToTraefikFiles = opts.CanAccessToTraefikFiles,
-                CanAccessToAPI = opts.CanAccessToAPI,
-                CanAccessToSSHKeys = opts.CanAccessToSSHKeys,
-                CanAccessToGitProviders = opts.CanAccessToGitProviders,
-                CanDeleteEnvironments = opts.CanDeleteEnvironments,
-                CanCreateEnvironments = opts.CanCreateEnvironments,
+                AccessedEnvironments = [],
+                AccessedServices = [],
+                AccessedGitProviders = [],
+                AccessedServers = [],
+                CanCreateProjects = link.CanCreateProjects,
+                CanCreateServices = link.CanCreateServices,
+                CanDeleteProjects = link.CanDeleteProjects,
+                CanDeleteServices = link.CanDeleteServices,
+                CanAccessToDocker = link.CanAccessToDocker,
+                CanAccessToTraefikFiles = link.CanAccessToTraefikFiles,
+                CanAccessToAPI = link.CanAccessToAPI,
+                CanAccessToSSHKeys = link.CanAccessToSSHKeys,
+                CanAccessToGitProviders = link.CanAccessToGitProviders,
+                CanDeleteEnvironments = link.CanDeleteEnvironments,
+                CanCreateEnvironments = link.CanCreateEnvironments,
             },
             cancellationToken);
 
@@ -256,6 +261,21 @@ public sealed class DokployAclSyncService(
                 ProjectName = name,
                 GrantedAtUtc = now,
             });
+        }
+
+        if (perms is not null)
+        {
+            link.CanCreateProjects = perms.CanCreateProjects;
+            link.CanCreateServices = perms.CanCreateServices;
+            link.CanDeleteProjects = perms.CanDeleteProjects;
+            link.CanDeleteServices = perms.CanDeleteServices;
+            link.CanAccessToDocker = perms.CanAccessToDocker;
+            link.CanAccessToTraefikFiles = perms.CanAccessToTraefikFiles;
+            link.CanAccessToAPI = perms.CanAccessToAPI;
+            link.CanAccessToSSHKeys = perms.CanAccessToSSHKeys;
+            link.CanAccessToGitProviders = perms.CanAccessToGitProviders;
+            link.CanDeleteEnvironments = perms.CanDeleteEnvironments;
+            link.CanCreateEnvironments = perms.CanCreateEnvironments;
         }
 
         link.AclDirty = false;

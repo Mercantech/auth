@@ -153,10 +153,15 @@ public class DokployProvisionAndAclTests
             TimeProvider.System,
             NullLogger<DokployAclSyncService>.Instance);
 
-        await sync.SaveGrantsAndPushAsync(user.Id, [("proj-1", "Demo")]);
+        await sync.SavePermissionsAndPushAsync(
+            user.Id,
+            [("proj-1", "Demo")],
+            new DokployCapabilityFlags { CanAccessToDocker = true, CanCreateProjects = true });
 
         var link = await db.DokployUserLinks.SingleAsync();
         Assert.False(link.AclDirty);
+        Assert.True(link.CanAccessToDocker);
+        Assert.True(link.CanCreateProjects);
         Assert.NotNull(link.AclSyncedAtUtc);
         var grant = Assert.Single(await db.DokployProjectGrants.ToListAsync());
         Assert.Equal("proj-1", grant.DokployProjectId);
@@ -167,7 +172,9 @@ public class DokployProvisionAndAclTests
         using var doc = JsonDocument.Parse(body);
         Assert.Equal("dok-acl", doc.RootElement.GetProperty("id").GetString());
         Assert.Equal("proj-1", doc.RootElement.GetProperty("accessedProjects")[0].GetString());
-        Assert.False(doc.RootElement.GetProperty("canCreateProjects").GetBoolean());
+        Assert.True(doc.RootElement.GetProperty("canCreateProjects").GetBoolean());
+        Assert.True(doc.RootElement.GetProperty("canAccessToDocker").GetBoolean());
+        Assert.False(doc.RootElement.GetProperty("canDeleteProjects").GetBoolean());
     }
 
     [Fact]
@@ -191,7 +198,8 @@ public class DokployProvisionAndAclTests
             if (path.Contains("user.getPermissions"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent("""{"id":"dok-pull","accessedProjects":["p-remote"]}"""),
+                    Content = new StringContent(
+                        """{"id":"dok-pull","accessedProjects":["p-remote"],"canAccessToAPI":true,"canCreateServices":true}"""),
                 };
             if (path.Contains("project.allForPermissions"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -218,6 +226,10 @@ public class DokployProvisionAndAclTests
         var grant = Assert.Single(await db.DokployProjectGrants.ToListAsync());
         Assert.Equal("p-remote", grant.DokployProjectId);
         Assert.Equal("Remote", grant.ProjectName);
+        var link = await db.DokployUserLinks.SingleAsync();
+        Assert.True(link.CanAccessToAPI);
+        Assert.True(link.CanCreateServices);
+        Assert.False(link.CanCreateProjects);
     }
 
     [Fact]

@@ -22,11 +22,11 @@ Alle kald bruger header **`x-api-key`** (ikke Bearer).
 Kun `POST /user.createUserWithCredentials` (ingen invite). Password gemmes ikke i Auth — kun i Dokploy.
 
 Projektadgang styres stadig af admin (`/Admin/Dokploy`) eller i Dokploy UI.
-## Projekt-ACL (to-vejs)
+## Adgangsanmodninger
 
-- Admin: `/Admin/Dokploy` — vælg projekter pr. bruger → `assignPermissions` (Auth sætter `AclDirty` og pusher)
-- Ændringer i Dokploy UI importeres ved periodisk sync / **Sync nu**, når Auth **ikke** er dirty (`GET /user.getPermissions`)
-
+- Brugere: [`/dokploy`](/dokploy) — vælg projekter + rettigheder, send anmodning (opretter Dokploy-konto med password hvis mangler)
+- Admin: [`/Admin/Dokploy`](/Admin/Dokploy) — **Godkend** / **Afvis** afventende anmodninger
+- Ved godkendelse: projekter merges (union), `can*`-flags OR’es ind, derefter `assignPermissions`
 ## Login
 
 - Apps: Auth (OIDC) som hidtil

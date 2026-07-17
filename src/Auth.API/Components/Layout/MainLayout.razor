@@ -17,6 +17,11 @@
                         <a href="/Admin/Dokploy">Admin · Dokploy</a>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@MfaPolicies.FullSession">
+                    <Authorized>
+                        <a href="/dokploy">Dokploy</a>
+                    </Authorized>
+                </AuthorizeView>
             </div>
             <div class="merc-shell__links merc-shell__links--end">
                 <AuthorizeView>

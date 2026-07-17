@@ -35,6 +35,51 @@ public sealed class DokployPermissionsDto
 
     [JsonPropertyName("accessedProjects")]
     public List<string>? AccessedProjects { get; set; }
+
+    [JsonPropertyName("accessedEnvironments")]
+    public List<string>? AccessedEnvironments { get; set; }
+
+    [JsonPropertyName("accessedServices")]
+    public List<string>? AccessedServices { get; set; }
+
+    [JsonPropertyName("accessedGitProviders")]
+    public List<string>? AccessedGitProviders { get; set; }
+
+    [JsonPropertyName("accessedServers")]
+    public List<string>? AccessedServers { get; set; }
+
+    [JsonPropertyName("canCreateProjects")]
+    public bool CanCreateProjects { get; set; }
+
+    [JsonPropertyName("canCreateServices")]
+    public bool CanCreateServices { get; set; }
+
+    [JsonPropertyName("canDeleteProjects")]
+    public bool CanDeleteProjects { get; set; }
+
+    [JsonPropertyName("canDeleteServices")]
+    public bool CanDeleteServices { get; set; }
+
+    [JsonPropertyName("canAccessToDocker")]
+    public bool CanAccessToDocker { get; set; }
+
+    [JsonPropertyName("canAccessToTraefikFiles")]
+    public bool CanAccessToTraefikFiles { get; set; }
+
+    [JsonPropertyName("canAccessToAPI")]
+    public bool CanAccessToAPI { get; set; }
+
+    [JsonPropertyName("canAccessToSSHKeys")]
+    public bool CanAccessToSSHKeys { get; set; }
+
+    [JsonPropertyName("canAccessToGitProviders")]
+    public bool CanAccessToGitProviders { get; set; }
+
+    [JsonPropertyName("canDeleteEnvironments")]
+    public bool CanDeleteEnvironments { get; set; }
+
+    [JsonPropertyName("canCreateEnvironments")]
+    public bool CanCreateEnvironments { get; set; }
 }
 
 public sealed class DokployCreateUserRequest

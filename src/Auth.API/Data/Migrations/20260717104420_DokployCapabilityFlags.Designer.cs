@@ -3,6 +3,7 @@ using System;
 using Auth.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Auth.API.Data.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    partial class AuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717104420_DokployCapabilityFlags")]
+    partial class DokployCapabilityFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -193,103 +196,6 @@ namespace Auth.API.Data.Migrations
                     b.HasIndex("ClientAppId");
 
                     b.ToTable("ClientAppRedirectUris");
-                });
-
-            modelBuilder.Entity("Auth.API.Models.Entities.DokployAccessRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("CanAccessToAPI")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanAccessToDocker")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanAccessToGitProviders")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanAccessToSSHKeys")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanAccessToTraefikFiles")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanCreateEnvironments")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanCreateProjects")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanCreateServices")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanDeleteEnvironments")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanDeleteProjects")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("CanDeleteServices")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Message")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("ReviewNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("ReviewedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAtUtc");
-
-                    b.HasIndex("UserId", "Status");
-
-                    b.ToTable("DokployAccessRequests");
-                });
-
-            modelBuilder.Entity("Auth.API.Models.Entities.DokployAccessRequestProject", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DokployProjectId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("ProjectName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid>("RequestId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RequestId", "DokployProjectId")
-                        .IsUnique();
-
-                    b.ToTable("DokployAccessRequestProjects");
                 });
 
             modelBuilder.Entity("Auth.API.Models.Entities.DokployProjectGrant", b =>
@@ -811,28 +717,6 @@ namespace Auth.API.Data.Migrations
                     b.Navigation("ClientApp");
                 });
 
-            modelBuilder.Entity("Auth.API.Models.Entities.DokployAccessRequest", b =>
-                {
-                    b.HasOne("Auth.API.Models.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Auth.API.Models.Entities.DokployAccessRequestProject", b =>
-                {
-                    b.HasOne("Auth.API.Models.Entities.DokployAccessRequest", "Request")
-                        .WithMany("Projects")
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Request");
-                });
-
             modelBuilder.Entity("Auth.API.Models.Entities.DokployProjectGrant", b =>
                 {
                     b.HasOne("Auth.API.Models.Entities.User", "User")
@@ -976,11 +860,6 @@ namespace Auth.API.Data.Migrations
             modelBuilder.Entity("Auth.API.Models.Entities.ClientApp", b =>
                 {
                     b.Navigation("RedirectUris");
-                });
-
-            modelBuilder.Entity("Auth.API.Models.Entities.DokployAccessRequest", b =>
-                {
-                    b.Navigation("Projects");
                 });
 
             modelBuilder.Entity("Auth.API.Models.Entities.Role", b =>

@@ -49,6 +49,7 @@ builder.Services.AddHttpClient<IDokployApiClient, DokployApiClient>((sp, client)
     .AddHttpMessageHandler<DokployApiKeyHandler>();
 builder.Services.AddScoped<IDokployProvisionService, DokployProvisionService>();
 builder.Services.AddScoped<IDokployAclSyncService, DokployAclSyncService>();
+builder.Services.AddScoped<IDokployAccessRequestService, DokployAccessRequestService>();
 builder.Services.AddHostedService<DokployAclSyncBackgroundService>();
 builder.Services.AddScoped<ITokenIssuer, TokenIssuer>();
 builder.Services.AddScoped<IExternalAccountService, ExternalAccountService>();
