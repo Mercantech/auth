@@ -21,7 +21,7 @@
         <div>
             <h1>Dokploy</h1>
             <p class="merc-users__lead">
-                Godkend adgangsanmodninger, og styr projekter + rettigheder pr. bruger.
+                Godkend adgangsanmodninger, og styr projekter + rettigheder for brugere med Dokploy-konto.
                 Kun projektnavne vises — ikke IDs.
             </p>
         </div>
@@ -126,7 +126,7 @@
     }
     else if (_rows.Count == 0)
     {
-        <p class="merc-hint merc-hint--block">Ingen brugere endnu.</p>
+        <p class="merc-hint merc-hint--block">Ingen brugere med Dokploy-konto endnu.</p>
     }
     else
     {
@@ -142,18 +142,7 @@
                             <p class="merc-dokploy__email">@(r.Email ?? "—")</p>
                         </div>
                         <div class="merc-dokploy__badges">
-                            @if (r.IsProvisioned)
-                            {
-                                <span class="merc-badge merc-badge--public">Dokploy-konto</span>
-                            }
-                            else if (r.HasLink)
-                            {
-                                <span class="merc-badge merc-badge--muted">afventer</span>
-                            }
-                            else
-                            {
-                                <span class="merc-badge merc-badge--muted">ingen Dokploy-konto</span>
-                            }
+                            <span class="merc-badge merc-badge--public">Dokploy-konto</span>
                             @if (r.AclDirty)
                             {
                                 <span class="merc-badge">ikke synket</span>
@@ -331,13 +320,15 @@
 
         var users = await Db.Users
             .AsNoTracking()
+            .Where(u => u.DokployLink != null
+                && (u.DokployLink.IsProvisioned || u.DokployLink.DokployUserId != null))
             .OrderBy(u => u.DisplayName)
             .Select(u => new
             {
                 u.Id,
                 u.DisplayName,
                 u.Email,
-                Link = u.DokployLink,
+                Link = u.DokployLink!,
                 Grants = u.DokployProjectGrants
                     .Select(g => new { g.DokployProjectId, g.ProjectName })
                     .ToList(),
@@ -346,19 +337,15 @@
 
         _rows = users.Select(u =>
         {
-            var caps = u.Link is null
-                ? new DokployCapabilityFlags()
-                : DokployCapabilityFlags.FromLink(u.Link);
+            var caps = DokployCapabilityFlags.FromLink(u.Link);
             return new UserRow
             {
                 Id = u.Id,
                 DisplayName = u.DisplayName,
                 Email = u.Email,
-                HasLink = u.Link is not null,
-                IsProvisioned = u.Link?.IsProvisioned == true,
-                LastError = u.Link?.LastError,
-                AclDirty = u.Link?.AclDirty == true,
-                AclSyncedAtUtc = u.Link?.AclSyncedAtUtc,
+                LastError = u.Link.LastError,
+                AclDirty = u.Link.AclDirty,
+                AclSyncedAtUtc = u.Link.AclSyncedAtUtc,
                 SelectedProjectIds = u.Grants.Select(g => g.DokployProjectId).ToHashSet(StringComparer.Ordinal),
                 GrantNames = u.Grants
                     .Where(g => !string.IsNullOrWhiteSpace(g.ProjectName))
@@ -594,8 +581,6 @@
         public Guid Id { get; init; }
         public string DisplayName { get; init; } = "";
         public string? Email { get; init; }
-        public bool HasLink { get; init; }
-        public bool IsProvisioned { get; init; }
         public string? LastError { get; init; }
         public bool AclDirty { get; init; }
         public DateTime? AclSyncedAtUtc { get; init; }

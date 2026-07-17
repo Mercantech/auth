@@ -55,6 +55,11 @@ public interface IDokployAclSyncService
         IReadOnlyList<(string ProjectId, string? ProjectName)> projects,
         DokployCapabilityFlags capabilities,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Henter ACL for én bruger fra Dokploy og opdaterer Auth (projekter + can*-flags).
+    /// </summary>
+    Task PullPermissionsForUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public sealed record DokployAclSyncResult(

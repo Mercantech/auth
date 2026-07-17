@@ -232,6 +232,54 @@ public class DokployProvisionAndAclTests
     }
 
     [Fact]
+    public async Task PullPermissionsForUser_updates_grants_from_user_all()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "pull-one@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-one",
+            LinkedEmail = "pull-one@example.com",
+            IsProvisioned = true,
+            AclDirty = false,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(req =>
+        {
+            var path = req.RequestUri!.AbsolutePath;
+            if (path.Contains("project.allForPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"projectId":"p1","name":"Alpha"}]"""),
+                };
+            if (path.Contains("user.all"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """[{"id":"mem","userId":"dok-one","email":"pull-one@example.com","accessedProjects":["p1"],"canAccessToDocker":true}]"""),
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        var sync = new DokployAclSyncService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployAclSyncService>.Instance);
+
+        await sync.PullPermissionsForUserAsync(user.Id);
+
+        var grant = Assert.Single(await db.DokployProjectGrants.ToListAsync());
+        Assert.Equal("p1", grant.DokployProjectId);
+        Assert.Equal("Alpha", grant.ProjectName);
+        var link = await db.DokployUserLinks.SingleAsync();
+        Assert.True(link.CanAccessToDocker);
+    }
+
+    [Fact]
     public void UnwrapArray_handles_trpc_wrapper()
     {
         using var doc = JsonDocument.Parse("""{"result":{"data":{"json":[{"id":"1","email":"x@y.z"}]}}}""");

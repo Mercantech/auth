@@ -10,6 +10,7 @@
 @using Microsoft.Extensions.Options
 @inject AuthDbContext Db
 @inject IDokployAccessRequestService Requests
+@inject IDokployAclSyncService AclSync
 @inject IDokployApiClient Api
 @inject IOptions<DokployOptions> DokployOptions
 @inject AuthenticationStateProvider AuthState
@@ -54,9 +55,19 @@
                 <strong>@(_hasAccount ? "ja" : "nej")</strong>
                 @if (_currentProjects.Count > 0)
                 {
-                    <text> · Projekter: @string.Join(", ", _currentProjects)</text>
+                    <text> · Nuværende projekter: @string.Join(", ", _currentProjects)</text>
+                }
+                else if (_hasAccount)
+                {
+                    <text> · Ingen projekter endnu</text>
                 }
             </p>
+            @if (_hasAccount && !_hasPending)
+            {
+                <p class="merc-hint merc-hint--block">
+                    Formularen er forudfyldt med din nuværende adgang fra Dokploy — tilføj eller fjern efter behov.
+                </p>
+            }
         </section>
 
         <section class="merc-panel merc-dokploy__request-form" aria-labelledby="request-heading">
@@ -280,13 +291,35 @@
         }
 
         var link = await Db.DokployUserLinks.AsNoTracking().FirstOrDefaultAsync(l => l.UserId == _userId);
-        _hasAccount = link?.IsProvisioned == true;
+        _hasAccount = link is { IsProvisioned: true } || !string.IsNullOrWhiteSpace(link?.DokployUserId);
 
-        _currentProjects = await Db.DokployProjectGrants.AsNoTracking()
+        if (_enabled && _hasAccount)
+        {
+            try
+            {
+                await AclSync.PullPermissionsForUserAsync(_userId);
+                link = await Db.DokployUserLinks.AsNoTracking().FirstOrDefaultAsync(l => l.UserId == _userId);
+            }
+            catch (Exception ex)
+            {
+                _status = $"Kunne ikke hente din nuværende Dokploy-adgang: {ex.Message}";
+                _statusIsError = true;
+            }
+        }
+
+        var grants = await Db.DokployProjectGrants.AsNoTracking()
             .Where(g => g.UserId == _userId)
-            .OrderBy(g => g.ProjectName)
-            .Select(g => g.ProjectName ?? "Projekt")
             .ToListAsync();
+
+        _currentProjects = grants
+            .Select(g => CleanName(g.ProjectName, g.DokployProjectId))
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _selectedProjectIds = grants
+            .Select(g => g.DokployProjectId)
+            .ToHashSet(StringComparer.Ordinal);
+        _caps = link is null ? new DokployCapabilityFlags() : DokployCapabilityFlags.FromLink(link);
 
         _history = (await Requests.ListForUserAsync(_userId)).ToList();
         _hasPending = _history.Any(h => h.Status == DokployAccessRequestStatus.Pending);
@@ -383,8 +416,6 @@
 
             _status = "Anmodning sendt. En admin skal godkende den.";
             _statusIsError = false;
-            _selectedProjectIds.Clear();
-            _caps = new DokployCapabilityFlags();
             _message = "";
             _password = "";
             _passwordConfirm = "";

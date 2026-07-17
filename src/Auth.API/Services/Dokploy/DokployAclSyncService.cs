@@ -125,6 +125,26 @@ public sealed class DokployAclSyncService(
             await PushPermissionsAsync(link, cancellationToken);
     }
 
+    public async Task PullPermissionsForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var opts = options.Value;
+        if (!opts.Enabled)
+            throw new InvalidOperationException("Dokploy-integration er deaktiveret.");
+
+        var link = await db.DokployUserLinks
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.UserId == userId, cancellationToken);
+        if (link is null)
+            return;
+
+        await ResolveDokployUserIdAsync(link, cancellationToken);
+        if (string.IsNullOrWhiteSpace(link.DokployUserId))
+            return;
+
+        var projectNames = await LoadProjectNameMapAsync(cancellationToken);
+        await PullPermissionsAsync(link, projectNames, cancellationToken);
+    }
+
     private async Task LinkExistingDokployUsersByEmailAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<DokployUserDto> dokployUsers;
