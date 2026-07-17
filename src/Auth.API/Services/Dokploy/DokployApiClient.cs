@@ -63,7 +63,7 @@ public sealed class DokployApiClient(
         CancellationToken cancellationToken = default)
     {
         using var doc = await GetJsonAsync("project.allForPermissions", cancellationToken);
-        return UnwrapArray<DokployProjectDto>(doc.RootElement);
+        return ParseProjects(doc.RootElement);
     }
 
     private async Task<JsonDocument> GetJsonAsync(string relativePath, CancellationToken cancellationToken)
@@ -155,6 +155,39 @@ public sealed class DokployApiClient(
                 Id = id,
                 UserId = GetString(el, "userId") ?? GetNestedString(el, "user", "id"),
                 Email = email,
+            });
+        }
+
+        return list;
+    }
+
+    internal static IReadOnlyList<DokployProjectDto> ParseProjects(JsonElement root)
+    {
+        var array = FindArray(root);
+        if (array is null)
+            return [];
+
+        var list = new List<DokployProjectDto>();
+        foreach (var el in array.Value.EnumerateArray())
+        {
+            if (el.ValueKind is not JsonValueKind.Object)
+                continue;
+
+            var id = GetString(el, "projectId")
+                ?? GetString(el, "id")
+                ?? GetNestedString(el, "project", "projectId")
+                ?? GetNestedString(el, "project", "id");
+            var name = GetString(el, "name")
+                ?? GetNestedString(el, "project", "name");
+
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            list.Add(new DokployProjectDto
+            {
+                ProjectId = id,
+                Id = id,
+                Name = name,
             });
         }
 

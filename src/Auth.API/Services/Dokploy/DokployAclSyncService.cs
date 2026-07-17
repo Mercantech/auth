@@ -273,7 +273,18 @@ public sealed class DokployAclSyncService(
             return projects
                 .Where(p => !string.IsNullOrWhiteSpace(p.ResolvedId))
                 .GroupBy(p => p.ResolvedId, StringComparer.Ordinal)
-                .ToDictionary(g => g.Key, g => g.First().Name, StringComparer.Ordinal);
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var name = g.First().Name;
+                        if (string.IsNullOrWhiteSpace(name))
+                            return null;
+                        if (name.EndsWith(g.Key, StringComparison.Ordinal) && name.Length > g.Key.Length)
+                            return name[..^g.Key.Length].Trim();
+                        return name;
+                    },
+                    StringComparer.Ordinal);
         }
         catch (Exception ex)
         {

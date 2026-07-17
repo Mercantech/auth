@@ -16,8 +16,8 @@
         <div>
             <h1>Dokploy</h1>
             <p class="merc-users__lead">
-                Tildel Dokploy-projekter til Auth-brugere. ACL synces to-vejs (Auth ↔ Dokploy).
-                Brugere oprettes kun ved Auth-signup med opt-in, eller via e-mail-match under sync.
+                Styr hvilke Dokploy-projekter hver Auth-bruger må se. Valg gemmes i Auth og pushes til Dokploy.
+                I listen vises kun projektnavne — ikke interne IDs.
             </p>
         </div>
         <button type="button" class="merc-btn merc-btn--primary" @onclick="SyncNowAsync" disabled="@(_busy || !_enabled)">
@@ -76,7 +76,7 @@
                         <div class="merc-dokploy__badges">
                             @if (r.IsProvisioned)
                             {
-                                <span class="merc-badge merc-badge--public">linked</span>
+                                <span class="merc-badge merc-badge--public">Dokploy-konto</span>
                             }
                             else if (r.HasLink)
                             {
@@ -84,19 +84,15 @@
                             }
                             else
                             {
-                                <span class="merc-badge merc-badge--muted">ingen link</span>
+                                <span class="merc-badge merc-badge--muted">ingen Dokploy-konto</span>
                             }
                             @if (r.AclDirty)
                             {
-                                <span class="merc-badge">dirty</span>
+                                <span class="merc-badge">ikke synket</span>
                             }
                         </div>
                     </div>
 
-                    @if (!string.IsNullOrWhiteSpace(r.DokployUserId))
-                    {
-                        <p class="merc-dokploy__meta"><code>@r.DokployUserId</code></p>
-                    }
                     @if (!string.IsNullOrWhiteSpace(r.LastError))
                     {
                         <p class="merc-hint merc-hint--block">@r.LastError</p>
@@ -133,7 +129,7 @@
                             <div class="merc-dokploy__dropdown-panel" role="listbox" aria-multiselectable="true">
                                 <input class="merc-input merc-dokploy__search"
                                        type="search"
-                                       placeholder="Søg projekter…"
+                                       placeholder="Søg på projektnavn…"
                                        value="@_projectFilter"
                                        @oninput="OnFilterInput"
                                        @onclick:stopPropagation="true" />
@@ -141,18 +137,11 @@
                                     @foreach (var p in FilteredProjects())
                                     {
                                         var selected = r.SelectedProjectIds.Contains(p.Id);
-                                        var label = string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name!;
                                         <label class="merc-dokploy__option merc-check">
                                             <input type="checkbox"
                                                    checked="@selected"
                                                    @onchange="e => ToggleProject(r, p.Id, (bool)(e.Value ?? false))" />
-                                            <span class="merc-dokploy__option-text">
-                                                <span class="merc-dokploy__option-name">@label</span>
-                                                @if (!string.IsNullOrWhiteSpace(p.Name) && !string.Equals(p.Name, p.Id, StringComparison.Ordinal))
-                                                {
-                                                    <span class="merc-dokploy__option-id">@p.Id</span>
-                                                }
-                                            </span>
+                                            <span class="merc-dokploy__option-name">@p.DisplayName</span>
                                         </label>
                                     }
                                 </div>
@@ -167,14 +156,14 @@
                     @if (selectedCount > 0)
                     {
                         <ul class="merc-dokploy__chips" aria-label="Valgte projekter">
-                            @foreach (var id in r.SelectedProjectIds.OrderBy(x => ProjectLabel(x)))
+                            @foreach (var id in r.SelectedProjectIds.OrderBy(x => ProjectLabel(r, x), StringComparer.OrdinalIgnoreCase))
                             {
                                 <li>
                                     <button type="button"
                                             class="merc-dokploy__chip"
                                             title="Fjern"
                                             @onclick="() => ToggleProject(r, id, false)">
-                                        @ProjectLabel(id)
+                                        @ProjectLabel(r, id)
                                         <span aria-hidden="true">×</span>
                                     </button>
                                 </li>
@@ -197,7 +186,7 @@
                                 class="merc-btn merc-btn--primary"
                                 disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
                                 @onclick="() => SaveAsync(r)">
-                            Gem
+                            Gem permissions
                         </button>
                     </div>
                 </article>
@@ -236,9 +225,9 @@
                 var remote = await Api.ListProjectsForPermissionsAsync();
                 _projects = remote
                     .Where(p => !string.IsNullOrWhiteSpace(p.ResolvedId))
-                    .Select(p => new ProjectOption(p.ResolvedId, p.Name))
+                    .Select(p => new ProjectOption(p.ResolvedId, CleanProjectName(p.Name, p.ResolvedId)))
                     .DistinctBy(p => p.Id)
-                    .OrderBy(p => p.Name ?? p.Id)
+                    .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
             catch (Exception ex)
@@ -257,7 +246,9 @@
                 u.DisplayName,
                 u.Email,
                 Link = u.DokployLink,
-                Grants = u.DokployProjectGrants.Select(g => g.DokployProjectId).ToList(),
+                Grants = u.DokployProjectGrants
+                    .Select(g => new { g.DokployProjectId, g.ProjectName })
+                    .ToList(),
             })
             .ToListAsync();
 
@@ -268,12 +259,33 @@
             Email = u.Email,
             HasLink = u.Link is not null,
             IsProvisioned = u.Link?.IsProvisioned == true,
-            DokployUserId = u.Link?.DokployUserId,
             LastError = u.Link?.LastError,
             AclDirty = u.Link?.AclDirty == true,
             AclSyncedAtUtc = u.Link?.AclSyncedAtUtc,
-            SelectedProjectIds = u.Grants.ToHashSet(StringComparer.Ordinal),
+            SelectedProjectIds = u.Grants.Select(g => g.DokployProjectId).ToHashSet(StringComparer.Ordinal),
+            GrantNames = u.Grants
+                .Where(g => !string.IsNullOrWhiteSpace(g.ProjectName))
+                .ToDictionary(g => g.DokployProjectId, g => g.ProjectName!, StringComparer.Ordinal),
         }).ToList();
+    }
+
+    /// <summary>
+    /// Hvis API returnerer navn+id klæbet sammen, strip id-suffix så UI kun viser navnet.
+    /// </summary>
+    private static string CleanProjectName(string? name, string projectId)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "Projekt";
+
+        var trimmed = name.Trim();
+        if (!string.IsNullOrWhiteSpace(projectId)
+            && trimmed.EndsWith(projectId, StringComparison.Ordinal)
+            && trimmed.Length > projectId.Length)
+        {
+            return trimmed[..^projectId.Length].Trim();
+        }
+
+        return trimmed;
     }
 
     private void ToggleDropdown(Guid userId)
@@ -302,16 +314,20 @@
 
         var q = _projectFilter.Trim();
         return _projects
-            .Where(p =>
-                (p.Name?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
-                || p.Id.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .Where(p => p.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
-    private string ProjectLabel(string projectId)
+    private string ProjectLabel(UserRow row, string projectId)
     {
-        var match = _projects?.FirstOrDefault(p => p.Id == projectId);
-        return string.IsNullOrWhiteSpace(match?.Name) ? projectId : match!.Name!;
+        var fromList = _projects?.FirstOrDefault(p => p.Id == projectId);
+        if (fromList is not null)
+            return fromList.DisplayName;
+
+        if (row.GrantNames.TryGetValue(projectId, out var cached) && !string.IsNullOrWhiteSpace(cached))
+            return CleanProjectName(cached, projectId);
+
+        return "Ukendt projekt";
     }
 
     private void ToggleProject(UserRow row, string projectId, bool on)
@@ -328,12 +344,12 @@
         _status = null;
         try
         {
-            var nameById = (_projects ?? []).ToDictionary(p => p.Id, p => p.Name, StringComparer.Ordinal);
+            var nameById = (_projects ?? []).ToDictionary(p => p.Id, p => (string?)p.DisplayName, StringComparer.Ordinal);
             var projects = row.SelectedProjectIds
-                .Select(id => (id, nameById.GetValueOrDefault(id)))
+                .Select(id => (id, nameById.GetValueOrDefault(id) ?? row.GrantNames.GetValueOrDefault(id)))
                 .ToList();
             await AclSync.SaveGrantsAndPushAsync(row.Id, projects);
-            _status = $"Gemt ACL for {row.DisplayName}.";
+            _status = $"Permissions gemt for {row.DisplayName}.";
             _statusIsError = false;
             _openDropdownUserId = null;
             await LoadAsync();
@@ -381,12 +397,12 @@
         public string? Email { get; init; }
         public bool HasLink { get; init; }
         public bool IsProvisioned { get; init; }
-        public string? DokployUserId { get; init; }
         public string? LastError { get; init; }
         public bool AclDirty { get; init; }
         public DateTime? AclSyncedAtUtc { get; init; }
         public HashSet<string> SelectedProjectIds { get; init; } = new(StringComparer.Ordinal);
+        public Dictionary<string, string> GrantNames { get; init; } = new(StringComparer.Ordinal);
     }
 
-    private sealed record ProjectOption(string Id, string? Name);
+    private sealed record ProjectOption(string Id, string DisplayName);
 }

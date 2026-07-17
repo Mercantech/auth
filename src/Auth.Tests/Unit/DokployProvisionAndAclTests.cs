@@ -305,6 +305,18 @@ public class DokployProvisionAndAclTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact]
+    public void ParseProjects_reads_name_and_projectId()
+    {
+        using var doc = JsonDocument.Parse(
+            """[{"projectId":"LzhD8J5dpv75HvfnzuGy","name":"AuthZ"},{"id":"x","name":"Infra"}]""");
+        var projects = DokployApiClient.ParseProjects(doc.RootElement);
+        Assert.Equal(2, projects.Count);
+        Assert.Equal("LzhD8J5dpv75HvfnzuGy", projects[0].ResolvedId);
+        Assert.Equal("AuthZ", projects[0].Name);
+        Assert.Equal("Infra", projects[1].Name);
+    }
+
     private static DokployApiClient CreateApi(RecordingHandler handler, bool enabled)
     {
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://deploy.example/api/") };

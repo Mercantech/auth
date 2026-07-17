@@ -85,10 +85,6 @@
             {
                 <p class="linked-section__muted">
                     Status: <strong>aktiv</strong>
-                    @if (!string.IsNullOrWhiteSpace(Model.DokployUserId))
-                    {
-                        <text> · <code class="linked-accounts__mono">@Model.DokployUserId</code></text>
-                    }
                 </p>
                 <p>
                     <a class="auth-btn auth-btn--primary" href="@Model.DokployUiUrl" target="_blank" rel="noopener">Åbn deploy</a>
