@@ -1754,18 +1754,25 @@ footer.merc-shell__footer a:active {
 
 .merc-dokploy__logo {
   flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  margin-top: 0.15rem;
-  color: var(--merc-ink);
+  width: auto;
+  height: 2.75rem;
+  margin-top: 0.1rem;
+  object-fit: contain;
+  object-position: left center;
 }
 
-.merc-dokploy__header h1 {
-  margin: 0 0 0.35rem;
+.merc-dokploy__title {
+  margin: 0 0 0.5rem;
+  line-height: 0;
 }
 
-.merc-dokploy__header .merc-users__lead {
-  margin-top: 0;
+.merc-dokploy__logo {
+  flex-shrink: 0;
+  display: block;
+  width: auto;
+  height: 2.85rem;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .merc-dokploy__header-actions {
@@ -1782,10 +1789,15 @@ footer.merc-shell__footer a:active {
 }
 
 .merc-shell__dokploy-icon {
-  width: 0.9rem;
-  height: 0.9rem;
+  display: block;
+  width: auto;
+  height: 1.15rem;
   flex-shrink: 0;
-  color: currentColor;
+  object-fit: contain;
+}
+
+.merc-shell__menu-panel .merc-shell__dokploy-icon {
+  height: 1.05rem;
 }
 
 .merc-shell__menu-panel .merc-shell__dokploy-link {
