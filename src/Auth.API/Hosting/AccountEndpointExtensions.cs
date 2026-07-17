@@ -4,6 +4,7 @@ using Auth.API.Models.Entities;
 using Auth.API.Options;
 using Auth.API.Security;
 using Auth.API.Services;
+using Auth.API.Services.Dokploy;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -278,6 +279,8 @@ public static class AccountEndpointExtensions
         var displayName = form["displayName"].ToString();
         var email = form["email"].ToString();
         var password = form["password"].ToString();
+        var wantDokploy = string.Equals(form["wantDokploy"].ToString(), "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(form["wantDokploy"].ToString(), "on", StringComparison.OrdinalIgnoreCase);
         var returnUrl = string.IsNullOrWhiteSpace(form["returnUrl"].ToString()) ? "/" : form["returnUrl"].ToString();
 
         if (!returnUrlValidator.IsSafePostLoginReturnUrl(returnUrl, ctx.Request)
@@ -350,6 +353,21 @@ public static class AccountEndpointExtensions
 
         if (!linkedToExisting)
         {
+            if (wantDokploy)
+            {
+                try
+                {
+                    await ctx.RequestServices.GetRequiredService<IDokployProvisionService>()
+                        .TryProvisionIfRequestedAsync(user, wantDokploy: true, ctx.RequestAborted);
+                }
+                catch (Exception ex)
+                {
+                    ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("AccountSignup")
+                        .LogError(ex, "Dokploy-provision kastede uventet for {UserId}", user.Id);
+                }
+            }
+
             var accountEmail = ctx.RequestServices.GetRequiredService<IAccountEmailService>();
             try
             {

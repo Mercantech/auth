@@ -25,4 +25,6 @@ public class User
     public ICollection<UserPasskeyCredential> PasskeyCredentials { get; set; } = new List<UserPasskeyCredential>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<UserClientUsage> ClientUsages { get; set; } = new List<UserClientUsage>();
+    public DokployUserLink? DokployLink { get; set; }
+    public ICollection<DokployProjectGrant> DokployProjectGrants { get; set; } = new List<DokployProjectGrant>();
 }

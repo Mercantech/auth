@@ -3,6 +3,7 @@ using Auth.API.Hosting;
 using Auth.API.Options;
 using Auth.API.Security;
 using Auth.API.Services;
+using Auth.API.Services.Dokploy;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -21,6 +22,7 @@ builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOpt
 builder.Services.Configure<MfaOptions>(builder.Configuration.GetSection(MfaOptions.SectionName));
 builder.Services.Configure<PasskeyOptions>(builder.Configuration.GetSection(PasskeyOptions.SectionName));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.Configure<DokployOptions>(builder.Configuration.GetSection(DokployOptions.SectionName));
 
 Action<DbContextOptionsBuilder> configureAuthDb = options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -34,6 +36,20 @@ builder.Services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtB
 builder.Services.AddSingleton<IReturnUrlValidator, ReturnUrlValidator>();
 builder.Services.AddSingleton<ExternalOAuthTokensProtector>();
 builder.Services.AddHttpClient<MicrosoftIdentityTokenRefresher>();
+builder.Services.AddTransient<DokployApiKeyHandler>();
+builder.Services.AddHttpClient<IDokployApiClient, DokployApiClient>((sp, client) =>
+    {
+        var opts = sp.GetRequiredService<IOptions<DokployOptions>>().Value;
+        var baseUrl = string.IsNullOrWhiteSpace(opts.BaseUrl)
+            ? "https://deploy.mags.dk/api"
+            : opts.BaseUrl.TrimEnd('/') + "/";
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .AddHttpMessageHandler<DokployApiKeyHandler>();
+builder.Services.AddScoped<IDokployProvisionService, DokployProvisionService>();
+builder.Services.AddScoped<IDokployAclSyncService, DokployAclSyncService>();
+builder.Services.AddHostedService<DokployAclSyncBackgroundService>();
 builder.Services.AddScoped<ITokenIssuer, TokenIssuer>();
 builder.Services.AddScoped<IExternalAccountService, ExternalAccountService>();
 builder.Services.AddScoped<IAccountMergeService, AccountMergeService>();

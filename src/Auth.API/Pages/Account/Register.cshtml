@@ -38,6 +38,16 @@
                 <label class="auth-label" for="password">Adgangskode</label>
                 <input id="password" name="password" class="auth-input" type="password" autocomplete="new-password" minlength="8" maxlength="100" placeholder="Mindst 8 tegn" required />
             </div>
+            @if (Model.DokployOptInEnabled)
+            {
+                <div class="auth-field">
+                    <label class="auth-check">
+                        <input type="checkbox" name="wantDokploy" value="true" />
+                        Opret også konto på deploy (Dokploy)
+                    </label>
+                    <p class="auth-lead" style="margin-top:0.35rem;font-size:0.9rem;opacity:0.85">Valgfrit. Du logger stadig ind på deploy med Dokploy’s eget login.</p>
+                </div>
+            }
             <button type="submit" class="auth-submit">Opret konto</button>
         </form>
     }

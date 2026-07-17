@@ -1,0 +1,236 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using Auth.API.Data;
+using Auth.API.Models.Entities;
+using Auth.API.Options;
+using Auth.API.Services.Dokploy;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace Auth.Tests.Unit;
+
+public class DokployProvisionAndAclTests
+{
+    [Fact]
+    public async Task TryProvision_skips_when_not_requested()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "a@example.com");
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        });
+        var api = CreateApi(handler, enabled: true);
+        var svc = new DokployProvisionService(
+            db,
+            api,
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: false);
+
+        Assert.Empty(handler.Requests);
+        Assert.Empty(await db.DokployUserLinks.ToListAsync());
+    }
+
+    [Fact]
+    public async Task TryProvision_links_existing_dokploy_user_by_email()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "match@example.com");
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """[{"id":"dok-1","email":"match@example.com"}]""",
+                Encoding.UTF8,
+                "application/json"),
+        });
+        var api = CreateApi(handler, enabled: true);
+        var svc = new DokployProvisionService(
+            db,
+            api,
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k", MemberRole = "member" }),
+            TimeProvider.System,
+            NullLogger<DokployProvisionService>.Instance);
+
+        await svc.TryProvisionIfRequestedAsync(user, wantDokploy: true);
+
+        var link = Assert.Single(await db.DokployUserLinks.ToListAsync());
+        Assert.True(link.IsProvisioned);
+        Assert.Equal("dok-1", link.DokployUserId);
+        Assert.Contains(handler.Requests, r => r.Method == HttpMethod.Get && r.RequestUri!.AbsolutePath.Contains("user.all"));
+    }
+
+    [Fact]
+    public async Task SaveGrantsAndPush_sets_dirty_then_clears_after_assignPermissions()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "acl@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-acl",
+            LinkedEmail = "acl@example.com",
+            IsProvisioned = true,
+            AclDirty = false,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("user.assignPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+            if (req.RequestUri.AbsolutePath.Contains("user.all"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"id":"dok-acl","email":"acl@example.com"}]"""),
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+        var api = CreateApi(handler, enabled: true);
+        var sync = new DokployAclSyncService(
+            db,
+            api,
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployAclSyncService>.Instance);
+
+        await sync.SaveGrantsAndPushAsync(user.Id, [("proj-1", "Demo")]);
+
+        var link = await db.DokployUserLinks.SingleAsync();
+        Assert.False(link.AclDirty);
+        Assert.NotNull(link.AclSyncedAtUtc);
+        var grant = Assert.Single(await db.DokployProjectGrants.ToListAsync());
+        Assert.Equal("proj-1", grant.DokployProjectId);
+
+        var assign = Assert.Single(handler.Requests, r => r.Method == HttpMethod.Post
+            && r.RequestUri!.AbsolutePath.Contains("user.assignPermissions"));
+        var body = await assign.Content!.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal("dok-acl", doc.RootElement.GetProperty("id").GetString());
+        Assert.Equal("proj-1", doc.RootElement.GetProperty("accessedProjects")[0].GetString());
+        Assert.False(doc.RootElement.GetProperty("canCreateProjects").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Reconcile_pulls_when_not_dirty()
+    {
+        await using var db = CreateDb();
+        var user = await SeedUserAsync(db, "pull@example.com");
+        db.DokployUserLinks.Add(new DokployUserLink
+        {
+            UserId = user.Id,
+            DokployUserId = "dok-pull",
+            LinkedEmail = "pull@example.com",
+            IsProvisioned = true,
+            AclDirty = false,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new RecordingHandler(req =>
+        {
+            var path = req.RequestUri!.AbsolutePath;
+            if (path.Contains("user.getPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"id":"dok-pull","accessedProjects":["p-remote"]}"""),
+                };
+            if (path.Contains("project.allForPermissions"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"projectId":"p-remote","name":"Remote"}]"""),
+                };
+            if (path.Contains("user.all"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""[{"id":"dok-pull","email":"pull@example.com"}]"""),
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+
+        var sync = new DokployAclSyncService(
+            db,
+            CreateApi(handler, enabled: true),
+            Options.Create(new DokployOptions { Enabled = true, ApiKey = "k" }),
+            TimeProvider.System,
+            NullLogger<DokployAclSyncService>.Instance);
+
+        var result = await sync.ReconcileAsync();
+        Assert.Equal(1, result.Pulled);
+        var grant = Assert.Single(await db.DokployProjectGrants.ToListAsync());
+        Assert.Equal("p-remote", grant.DokployProjectId);
+        Assert.Equal("Remote", grant.ProjectName);
+    }
+
+    [Fact]
+    public void UnwrapArray_handles_trpc_wrapper()
+    {
+        using var doc = JsonDocument.Parse("""{"result":{"data":{"json":[{"id":"1","email":"x@y.z"}]}}}""");
+        var users = DokployApiClient.UnwrapArray<DokployUserDto>(doc.RootElement);
+        Assert.Single(users);
+        Assert.Equal("1", users[0].Id);
+    }
+
+    private static DokployApiClient CreateApi(RecordingHandler handler, bool enabled)
+    {
+        var http = new HttpClient(handler) { BaseAddress = new Uri("https://deploy.example/api/") };
+        return new DokployApiClient(
+            http,
+            Options.Create(new DokployOptions { Enabled = enabled, ApiKey = "test-key", BaseUrl = "https://deploy.example/api" }),
+            NullLogger<DokployApiClient>.Instance);
+    }
+
+    private static async Task<User> SeedUserAsync(AuthDbContext db, string email)
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Test",
+            Email = email,
+            CreatedAt = DateTime.UtcNow,
+            LastLoginAt = DateTime.UtcNow,
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        return user;
+    }
+
+    private static AuthDbContext CreateDb()
+    {
+        var options = new DbContextOptionsBuilder<AuthDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new AuthDbContext(options);
+    }
+
+    private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var clone = await CloneAsync(request);
+            Requests.Add(clone);
+            return respond(request);
+        }
+
+        private static async Task<HttpRequestMessage> CloneAsync(HttpRequestMessage request)
+        {
+            var clone = new HttpRequestMessage(request.Method, request.RequestUri);
+            if (request.Content is not null)
+            {
+                var bytes = await request.Content.ReadAsByteArrayAsync();
+                clone.Content = new ByteArrayContent(bytes);
+                foreach (var h in request.Content.Headers)
+                    clone.Content.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+
+            return clone;
+        }
+    }
+}

@@ -7,7 +7,10 @@ using Microsoft.Extensions.Options;
 
 namespace Auth.API.Pages.Account;
 
-public class RegisterModel(IOptions<AuthOptions> authOptions, IConfiguration configuration) : PageModel
+public class RegisterModel(
+    IOptions<AuthOptions> authOptions,
+    IOptions<DokployOptions> dokployOptions,
+    IConfiguration configuration) : PageModel
 {
     private ClientLoginMethodsPolicy _methods =
         ClientLoginMethodsPolicy.FromGlobalConfiguration(configuration, authOptions.Value);
@@ -19,6 +22,9 @@ public class RegisterModel(IOptions<AuthOptions> authOptions, IConfiguration con
     public string? Error { get; set; }
 
     public bool LocalLoginEnabled => _methods.Password;
+
+    public bool DokployOptInEnabled =>
+        dokployOptions.Value.Enabled && !string.IsNullOrWhiteSpace(dokployOptions.Value.ApiKey);
 
     public string? ErrorMessage => Error switch
     {

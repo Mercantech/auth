@@ -361,6 +361,19 @@
     margin-bottom: 0.95rem;
 }
 
+.auth-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    color: var(--auth-ink);
+    cursor: pointer;
+}
+
+.auth-check input {
+    margin-top: 0.2rem;
+}
+
 .auth-label {
     display: block;
     font-size: 0.72rem;

@@ -1,0 +1,291 @@
+@page "/Admin/Dokploy"
+@attribute [Authorize(Roles = "Admin")]
+@using Auth.API.Models.Entities
+@using Auth.API.Options
+@using Auth.API.Services.Dokploy
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Options
+@inject AuthDbContext Db
+@inject IDokployAclSyncService AclSync
+@inject IDokployApiClient Api
+@inject IOptions<DokployOptions> DokployOptions
+
+<PageTitle>Dokploy (admin)</PageTitle>
+
+<div class="merc-page merc-users">
+    <header class="merc-users__header">
+        <div>
+            <h1>Dokploy</h1>
+            <p class="merc-users__lead">
+                Tildel Dokploy-projekter til Auth-brugere. ACL synces to-vejs (Auth ↔ Dokploy).
+                Brugere oprettes kun ved Auth-signup med opt-in, eller via e-mail-match under sync.
+            </p>
+        </div>
+        <button type="button" class="merc-btn merc-btn--primary" @onclick="SyncNowAsync" disabled="@(_busy || !_enabled)">
+            @(_busy ? "Synker…" : "Sync nu")
+        </button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="merc-alert @(_statusIsError ? "merc-alert--error" : "merc-alert--ok")" role="status">
+            @_status
+        </div>
+    }
+
+    <section class="merc-panel" aria-labelledby="dokploy-status">
+        <h2 id="dokploy-status" class="merc-users__panel-title">Status</h2>
+        <p class="merc-hint merc-hint--block">
+            Enabled: <strong>@(_enabled ? "ja" : "nej")</strong>
+            · Interval: <strong>@_interval min</strong>
+            @if (_lastResult is not null)
+            {
+                <text>
+                    · Sidste sync: linked=@_lastResult.LinkedUsers, pushed=@_lastResult.Pushed,
+                    pulled=@_lastResult.Pulled, errors=@_lastResult.Errors
+                    (@_lastResult.RanAtUtc.LocalDateTime.ToString("g"))
+                </text>
+            }
+        </p>
+        @if (!_enabled)
+        {
+            <p class="merc-hint merc-hint--block">Sæt <code>Dokploy__Enabled=true</code> og <code>Dokploy__ApiKey</code> for at aktivere.</p>
+        }
+    </section>
+
+    @if (_rows is null)
+    {
+        <p class="merc-users__loading">Henter…</p>
+    }
+    else
+    {
+        <div class="merc-users__table-wrap">
+            <table class="table table-sm merc-users__table">
+                <thead>
+                <tr>
+                    <th scope="col">Bruger</th>
+                    <th scope="col">E-mail</th>
+                    <th scope="col">Dokploy-link</th>
+                    <th scope="col">Projekter</th>
+                    <th scope="col">ACL</th>
+                    <th scope="col" class="merc-users__th-actions">Gem</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in _rows)
+                {
+                    <tr>
+                        <td>@r.DisplayName</td>
+                        <td>@(r.Email ?? "—")</td>
+                        <td>
+                            @if (r.IsProvisioned)
+                            {
+                                <span class="merc-badge merc-badge--public">linked</span>
+                                <code>@(r.DokployUserId ?? "?")</code>
+                            }
+                            else if (r.HasLink)
+                            {
+                                <span class="merc-badge merc-badge--muted">afventer</span>
+                            }
+                            else
+                            {
+                                <span class="merc-badge merc-badge--muted">ingen</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(r.LastError))
+                            {
+                                <div class="merc-hint">@r.LastError</div>
+                            }
+                        </td>
+                        <td>
+                            @if (_projects is null || _projects.Count == 0)
+                            {
+                                <span class="merc-hint">Ingen projekter hentet</span>
+                            }
+                            else
+                            {
+                                <div style="display:flex;flex-direction:column;gap:0.25rem;max-height:8rem;overflow:auto">
+                                    @foreach (var p in _projects)
+                                    {
+                                        var selected = r.SelectedProjectIds.Contains(p.Id);
+                                        <label class="merc-check">
+                                            <input type="checkbox"
+                                                   checked="@selected"
+                                                   @onchange="e => ToggleProject(r, p.Id, (bool)(e.Value ?? false))" />
+                                            @(string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name)
+                                        </label>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            @if (r.AclDirty)
+                            {
+                                <span class="merc-badge">dirty</span>
+                            }
+                            else if (r.AclSyncedAtUtc is not null)
+                            {
+                                <span class="merc-hint">@r.AclSyncedAtUtc.Value.ToLocalTime().ToString("g")</span>
+                            }
+                            else
+                            {
+                                <span class="merc-hint">—</span>
+                            }
+                        </td>
+                        <td class="merc-users__th-actions">
+                            <button type="button"
+                                    class="merc-btn merc-btn--primary"
+                                    disabled="@(_busy || !_enabled || string.IsNullOrWhiteSpace(r.Email))"
+                                    @onclick="() => SaveAsync(r)">
+                                Gem
+                            </button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _enabled;
+    private int _interval;
+    private bool _busy;
+    private string? _status;
+    private bool _statusIsError;
+    private List<UserRow>? _rows;
+    private List<ProjectOption>? _projects;
+    private DokployAclSyncResult? _lastResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var opts = DokployOptions.Value;
+        _enabled = opts.Enabled && !string.IsNullOrWhiteSpace(opts.ApiKey);
+        _interval = Math.Max(1, opts.AclSyncIntervalMinutes);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _projects = [];
+        if (_enabled)
+        {
+            try
+            {
+                var remote = await Api.ListProjectsForPermissionsAsync();
+                _projects = remote
+                    .Where(p => !string.IsNullOrWhiteSpace(p.ResolvedId))
+                    .Select(p => new ProjectOption(p.ResolvedId, p.Name))
+                    .DistinctBy(p => p.Id)
+                    .OrderBy(p => p.Name ?? p.Id)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _status = $"Kunne ikke hente projekter: {ex.Message}";
+                _statusIsError = true;
+            }
+        }
+
+        var users = await Db.Users
+            .AsNoTracking()
+            .OrderBy(u => u.DisplayName)
+            .Select(u => new
+            {
+                u.Id,
+                u.DisplayName,
+                u.Email,
+                Link = u.DokployLink,
+                Grants = u.DokployProjectGrants.Select(g => g.DokployProjectId).ToList(),
+            })
+            .ToListAsync();
+
+        _rows = users.Select(u => new UserRow
+        {
+            Id = u.Id,
+            DisplayName = u.DisplayName,
+            Email = u.Email,
+            HasLink = u.Link is not null,
+            IsProvisioned = u.Link?.IsProvisioned == true,
+            DokployUserId = u.Link?.DokployUserId,
+            LastError = u.Link?.LastError,
+            AclDirty = u.Link?.AclDirty == true,
+            AclSyncedAtUtc = u.Link?.AclSyncedAtUtc,
+            SelectedProjectIds = u.Grants.ToHashSet(StringComparer.Ordinal),
+        }).ToList();
+    }
+
+    private static void ToggleProject(UserRow row, string projectId, bool on)
+    {
+        if (on)
+            row.SelectedProjectIds.Add(projectId);
+        else
+            row.SelectedProjectIds.Remove(projectId);
+    }
+
+    private async Task SaveAsync(UserRow row)
+    {
+        _busy = true;
+        _status = null;
+        try
+        {
+            var nameById = (_projects ?? []).ToDictionary(p => p.Id, p => p.Name, StringComparer.Ordinal);
+            var projects = row.SelectedProjectIds
+                .Select(id => (id, nameById.GetValueOrDefault(id)))
+                .ToList();
+            await AclSync.SaveGrantsAndPushAsync(row.Id, projects);
+            _status = $"Gemt ACL for {row.DisplayName}.";
+            _statusIsError = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _status = ex.Message;
+            _statusIsError = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SyncNowAsync()
+    {
+        _busy = true;
+        _status = null;
+        try
+        {
+            _lastResult = await AclSync.ReconcileAsync();
+            _status = _lastResult.Errors > 0
+                ? $"Sync færdig med {_lastResult.Errors} fejl."
+                : "Sync færdig.";
+            _statusIsError = _lastResult.Errors > 0;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _status = ex.Message;
+            _statusIsError = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class UserRow
+    {
+        public Guid Id { get; init; }
+        public string DisplayName { get; init; } = "";
+        public string? Email { get; init; }
+        public bool HasLink { get; init; }
+        public bool IsProvisioned { get; init; }
+        public string? DokployUserId { get; init; }
+        public string? LastError { get; init; }
+        public bool AclDirty { get; init; }
+        public DateTime? AclSyncedAtUtc { get; init; }
+        public HashSet<string> SelectedProjectIds { get; init; } = new(StringComparer.Ordinal);
+    }
+
+    private sealed record ProjectOption(string Id, string? Name);
+}

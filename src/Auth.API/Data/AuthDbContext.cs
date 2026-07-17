@@ -21,6 +21,8 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
     public DbSet<UserMfaRecoveryCode> UserMfaRecoveryCodes => Set<UserMfaRecoveryCode>();
     public DbSet<UserPasskeyCredential> UserPasskeyCredentials => Set<UserPasskeyCredential>();
     public DbSet<UserActionToken> UserActionTokens => Set<UserActionToken>();
+    public DbSet<DokployUserLink> DokployUserLinks => Set<DokployUserLink>();
+    public DbSet<DokployProjectGrant> DokployProjectGrants => Set<DokployProjectGrant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +120,26 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
             e.HasIndex(x => x.TokenHash);
             e.HasIndex(x => new { x.UserId, x.Purpose, x.ConsumedAtUtc });
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<DokployUserLink>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.HasIndex(x => x.LinkedEmail);
+            e.HasIndex(x => x.DokployUserId);
+            e.Property(x => x.LinkedEmail).HasMaxLength(320);
+            e.Property(x => x.DokployUserId).HasMaxLength(128);
+            e.Property(x => x.LastError).HasMaxLength(1000);
+            e.HasOne(x => x.User).WithOne(u => u.DokployLink).HasForeignKey<DokployUserLink>(x => x.UserId);
+        });
+
+        modelBuilder.Entity<DokployProjectGrant>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.DokployProjectId }).IsUnique();
+            e.Property(x => x.DokployProjectId).HasMaxLength(128);
+            e.Property(x => x.ProjectName).HasMaxLength(256);
+            e.HasOne(x => x.User).WithMany(u => u.DokployProjectGrants).HasForeignKey(x => x.UserId);
         });
     }
 }
