@@ -1783,8 +1783,8 @@ footer.merc-shell__footer a:active {
 .merc-users__provider-logo {
   display: grid;
   flex: 0 0 auto;
-  width: 2.15rem;
-  height: 2.15rem;
+  width: 1.75rem;
+  height: 1.75rem;
   place-items: center;
   border: 1px solid rgba(20, 18, 16, 0.2);
   border-radius: 5px;
@@ -1793,8 +1793,11 @@ footer.merc-shell__footer a:active {
 }
 
 .merc-users__provider-logo svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  display: block;
+  width: 1rem !important;
+  height: 1rem !important;
+  max-width: 1rem;
+  max-height: 1rem;
 }
 
 .merc-users__provider-logo--github {
