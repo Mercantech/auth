@@ -19,8 +19,8 @@
         <div>
             <h1>Brugere</h1>
             <p class="merc-users__lead">
-                Sammenlæg duplikatkonti (én bruger beholder <code>sub</code>) eller slet en konto.
-                Se også <a href="/Admin/Usage">Auth-brug</a> for klient- og login-sporing.
+                Sortér og filtrér brugere efter oprettelsesplatform, eller slet en konto.
+                Sammenlægning kan slås til efter behov. Se også <a href="/Admin/Usage">Auth-brug</a> for klient- og login-sporing.
             </p>
         </div>
         <a class="merc-btn merc-btn--ghost" href="/Admin/Usage">Auth-brug →</a>
@@ -39,57 +39,107 @@
     }
     else
     {
-        <section class="merc-panel merc-users__toolbar" aria-labelledby="merge-heading">
-            <h2 id="merge-heading" class="merc-users__panel-title">Sammenlæg to brugere</h2>
-            <p class="merc-hint merc-hint--block">
-                Marker <strong>hovedkonto</strong> (JWT <code>sub</code> beholdes) og <strong>konto der nedlægges</strong>.
-                Alle login fra den nedlagte flyttes til hovedkontoen. Se dokumentation for overlap (lokalt login, e-mail-typer).
-            </p>
-            <div class="merc-users__merge-actions">
-                <button type="button" class="merc-btn merc-btn--primary" @onclick="MergeAsync" disabled="@(_mergeBusy || !_mergeReady)">
-                    @(_mergeBusy ? "Sammenlægger…" : "Udfør sammenlægning")
-                </button>
-                <button type="button" class="merc-btn merc-btn--ghost" @onclick="ClearMergeSelection" disabled="@_mergeBusy">Nulstil valg</button>
+        var visibleRows = GetVisibleRows();
+
+        <section class="merc-panel merc-users__toolbar" aria-label="Visningsindstillinger">
+            <div class="merc-users__filters">
+                <label class="merc-users__filter">
+                    <span>Oprettelsesplatform</span>
+                    <select class="merc-input merc-users__select" @bind="PlatformFilter">
+                        <option value="">Alle platforme</option>
+                        @if (_rows.Any(r => r.CreatedViaClientId is null))
+                        {
+                            <option value="@DirectPlatformFilter">Direkte / ældre konto</option>
+                        }
+                        @foreach (var platform in PlatformOptions())
+                        {
+                            <option value="@platform.ClientId">@platform.Label</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="merc-users__toggle">
+                    <input type="checkbox" role="switch" @bind="MergeModeEnabled" />
+                    <span>Sammenlæg brugere</span>
+                </label>
             </div>
+            <p class="merc-users__count" aria-live="polite">
+                Viser <strong>@visibleRows.Count</strong> af <strong>@_rows.Count</strong> @(_rows.Count == 1 ? "bruger" : "brugere")
+            </p>
         </section>
 
-        <div class="merc-users__table-wrap">
+        @if (_mergeModeEnabled)
+        {
+            <section class="merc-panel merc-users__merge-panel" aria-labelledby="merge-heading">
+                <h2 id="merge-heading" class="merc-users__panel-title">Sammenlæg to brugere</h2>
+                <p class="merc-hint merc-hint--block">
+                    Marker <strong>hovedkonto</strong> (JWT <code>sub</code> beholdes) og <strong>konto der nedlægges</strong>.
+                    Alle login fra den nedlagte flyttes til hovedkontoen. Se dokumentation for overlap (lokalt login, e-mail-typer).
+                </p>
+                <div class="merc-users__merge-actions">
+                    <button type="button" class="merc-btn merc-btn--primary" @onclick="MergeAsync" disabled="@(_mergeBusy || !_mergeReady)">
+                        @(_mergeBusy ? "Sammenlægger…" : "Udfør sammenlægning")
+                    </button>
+                    <button type="button" class="merc-btn merc-btn--ghost" @onclick="ClearMergeSelection" disabled="@_mergeBusy">Nulstil valg</button>
+                </div>
+            </section>
+        }
+
+        @if (visibleRows.Count == 0)
+        {
+            <div class="merc-panel merc-users__empty">
+                Ingen brugere matcher det valgte filter.
+            </div>
+        }
+        else
+        {
+            <div class="merc-users__table-wrap">
             <table class="table table-sm merc-users__table">
                 <thead>
                 <tr>
-                    <th class="merc-users__th-radio" scope="col">Beholde<br/><span class="merc-users__th-sub">(sub)</span></th>
-                    <th class="merc-users__th-radio" scope="col">Nedlægges<br/><span class="merc-users__th-sub">(donor)</span></th>
-                    <th scope="col">Navn</th>
-                    <th scope="col">E-mail</th>
-                    <th scope="col">Providers</th>
-                    <th scope="col">2FA</th>
-                    <th scope="col">OAuth-klienter</th>
-                    <th scope="col">Roller</th>
-                    <th scope="col">Status</th>
+                    @if (_mergeModeEnabled)
+                    {
+                        <th class="merc-users__th-radio" scope="col">Beholde<br/><span class="merc-users__th-sub">(sub)</span></th>
+                        <th class="merc-users__th-radio" scope="col">Nedlægges<br/><span class="merc-users__th-sub">(donor)</span></th>
+                    }
+                    <th scope="col" aria-sort="@SortAria(UserSort.Name)">@SortButton("Navn", UserSort.Name)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Email)">@SortButton("E-mail", UserSort.Email)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.CreatedAt)">@SortButton("Oprettet", UserSort.CreatedAt)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Platform)">@SortButton("Platform", UserSort.Platform)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Providers)">@SortButton("Providers", UserSort.Providers)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.TwoFactor)">@SortButton("2FA", UserSort.TwoFactor)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Clients)">@SortButton("OAuth-klienter", UserSort.Clients)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Roles)">@SortButton("Roller", UserSort.Roles)</th>
+                    <th scope="col" aria-sort="@SortAria(UserSort.Status)">@SortButton("Status", UserSort.Status)</th>
                     <th scope="col" class="merc-users__th-actions">Handling</th>
                 </tr>
                 </thead>
                 <tbody>
-                @foreach (var r in _rows)
+                @foreach (var r in visibleRows)
                 {
                     <tr>
-                        <td class="merc-users__td-radio">
-                            <input type="radio" name="merc-merge-survivor"
-                                   checked="@(_survivorId == r.Id)"
-                                   @onchange="@(_ => PickSurvivor(r.Id))"
-                                   aria-label="Bevare @r.DisplayName" />
-                        </td>
-                        <td class="merc-users__td-radio">
-                            <input type="radio" name="merc-merge-donor"
-                                   checked="@(_donorId == r.Id)"
-                                   @onchange="@(_ => PickDonor(r.Id))"
-                                   aria-label="Nedlæg @r.DisplayName" />
-                        </td>
+                        @if (_mergeModeEnabled)
+                        {
+                            <td class="merc-users__td-radio">
+                                <input type="radio" name="merc-merge-survivor"
+                                       checked="@(_survivorId == r.Id)"
+                                       @onchange="@(_ => PickSurvivor(r.Id))"
+                                       aria-label="Bevare @r.DisplayName" />
+                            </td>
+                            <td class="merc-users__td-radio">
+                                <input type="radio" name="merc-merge-donor"
+                                       checked="@(_donorId == r.Id)"
+                                       @onchange="@(_ => PickDonor(r.Id))"
+                                       aria-label="Nedlæg @r.DisplayName" />
+                            </td>
+                        }
                         <td>
                             <span class="merc-users__name">@r.DisplayName</span>
                             <code class="merc-users__id" title="@r.Id.ToString()">@ShortId(r.Id)</code>
                         </td>
                         <td>@(r.Email ?? "—")</td>
+                        <td class="merc-users__date" title="@FormatCreatedAtUtc(r.CreatedAt)">@FormatCreatedAt(r.CreatedAt)</td>
+                        <td class="merc-users__meta-cell">@r.PlatformLabel</td>
                         <td class="merc-users__meta-cell">@FormatProviders(r)</td>
                         <td class="merc-users__meta-cell">@r.TwoFactor</td>
                         <td class="merc-users__meta-cell">@FormatClients(r)</td>
@@ -117,7 +167,8 @@
                 }
                 </tbody>
             </table>
-        </div>
+            </div>
+        }
     }
 </div>
 
@@ -130,9 +181,37 @@
     private bool _statusIsError;
     private bool _mergeBusy;
     private bool _deleteBusy;
+    private bool _mergeModeEnabled;
+    private string _platformFilter = string.Empty;
+    private UserSort _sort = UserSort.CreatedAt;
+    private bool _sortDescending = true;
+
+    private const string DirectPlatformFilter = "__direct_or_legacy__";
 
     private bool _mergeReady =>
         _survivorId is { } sv && _donorId is { } dn && sv != dn;
+
+    private bool MergeModeEnabled
+    {
+        get => _mergeModeEnabled;
+        set
+        {
+            _mergeModeEnabled = value;
+            if (!value)
+                ClearMergeSelection();
+        }
+    }
+
+    private string PlatformFilter
+    {
+        get => _platformFilter;
+        set
+        {
+            _platformFilter = value;
+            _survivorId = null;
+            _donorId = null;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,6 +231,76 @@
         var s = id.ToString();
         return s[..8] + "…";
     }
+
+    private IReadOnlyList<Row> GetVisibleRows()
+    {
+        IEnumerable<Row> rows = _rows ?? [];
+        if (_platformFilter == DirectPlatformFilter)
+            rows = rows.Where(r => r.CreatedViaClientId is null);
+        else if (!string.IsNullOrWhiteSpace(_platformFilter))
+            rows = rows.Where(r => string.Equals(r.CreatedViaClientId, _platformFilter, StringComparison.OrdinalIgnoreCase));
+
+        IOrderedEnumerable<Row> orderedRows = _sort switch
+        {
+            UserSort.Name => OrderText(rows, r => r.DisplayName),
+            UserSort.Email => OrderText(rows, r => r.Email ?? string.Empty),
+            UserSort.CreatedAt => Order(rows, r => r.CreatedAt),
+            UserSort.Platform => OrderText(rows, r => r.PlatformLabel),
+            UserSort.Providers => OrderText(rows, FormatProviders),
+            UserSort.TwoFactor => OrderText(rows, r => r.TwoFactor),
+            UserSort.Clients => OrderText(rows, FormatClients),
+            UserSort.Roles => OrderText(rows, r => r.Roles),
+            UserSort.Status => Order(rows, r => r.IsDisabled),
+            _ => rows.OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase),
+        };
+
+        return orderedRows.ThenBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private IOrderedEnumerable<Row> Order<TKey>(IEnumerable<Row> rows, Func<Row, TKey> keySelector) =>
+        _sortDescending
+            ? rows.OrderByDescending(keySelector, Comparer<TKey>.Default)
+            : rows.OrderBy(keySelector, Comparer<TKey>.Default);
+
+    private IOrderedEnumerable<Row> OrderText(IEnumerable<Row> rows, Func<Row, string> keySelector) =>
+        _sortDescending
+            ? rows.OrderByDescending(keySelector, StringComparer.CurrentCultureIgnoreCase)
+            : rows.OrderBy(keySelector, StringComparer.CurrentCultureIgnoreCase);
+
+    private IReadOnlyList<PlatformOption> PlatformOptions() => (_rows ?? [])
+        .Where(r => r.CreatedViaClientId is not null)
+        .GroupBy(r => r.CreatedViaClientId!, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new PlatformOption(g.Key, g.First().PlatformLabel))
+        .OrderBy(p => p.Label, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private void SetSort(UserSort sort)
+    {
+        if (_sort == sort)
+            _sortDescending = !_sortDescending;
+        else
+        {
+            _sort = sort;
+            _sortDescending = sort == UserSort.CreatedAt;
+        }
+    }
+
+    private string? SortAria(UserSort sort) =>
+        _sort != sort ? null : _sortDescending ? "descending" : "ascending";
+
+    private RenderFragment SortButton(string label, UserSort sort) => builder =>
+    {
+        builder.OpenElement(0, "button");
+        builder.AddAttribute(1, "type", "button");
+        builder.AddAttribute(2, "class", $"merc-users__sort{(_sort == sort ? " merc-users__sort--active" : string.Empty)}");
+        builder.AddAttribute(3, "onclick", EventCallback.Factory.Create(this, () => SetSort(sort)));
+        builder.AddContent(4, label);
+        builder.OpenElement(5, "span");
+        builder.AddAttribute(6, "aria-hidden", "true");
+        builder.AddContent(7, _sort == sort ? (_sortDescending ? "▼" : "▲") : "↕");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     private void PickSurvivor(Guid id)
     {
@@ -184,6 +333,10 @@
 
     private async Task ReloadUsersAsync()
     {
+        var clientNames = await Db.ClientApps
+            .AsNoTracking()
+            .ToDictionaryAsync(c => c.ClientId, c => c.Name, StringComparer.OrdinalIgnoreCase);
+
         var users = await Db.Users
             .AsNoTracking()
             .Include(u => u.UserRoles)
@@ -205,6 +358,9 @@
             u.Id,
             u.DisplayName,
             u.Email,
+            u.CreatedAt,
+            u.CreatedViaClientId,
+            FormatPlatform(u.CreatedViaClientId, clientNames),
             u.IsDisabled,
             string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
             u.ExternalLogins.OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt).ToList(),
@@ -213,6 +369,20 @@
             u.ClientUsages.OrderByDescending(c => c.LastSeenAtUtc).ToList()))
             .ToList();
     }
+
+    private static string FormatPlatform(string? clientId, IReadOnlyDictionary<string, string> clientNames)
+    {
+        if (clientId is null)
+            return "Direkte / ældre konto";
+
+        return clientNames.TryGetValue(clientId, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? $"{name} ({clientId})"
+            : clientId;
+    }
+
+    private static string FormatCreatedAt(DateTime createdAt) => createdAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+
+    private static string FormatCreatedAtUtc(DateTime createdAt) => $"UTC: {createdAt.ToUniversalTime():yyyy-MM-dd HH:mm}";
 
     private static string FormatTwoFactor(bool totpEnabled, int passkeyCount)
     {
@@ -323,10 +493,28 @@
         Guid Id,
         string DisplayName,
         string? Email,
+        DateTime CreatedAt,
+        string? CreatedViaClientId,
+        string PlatformLabel,
         bool IsDisabled,
         string Roles,
         IReadOnlyList<Auth.API.Models.Entities.ExternalLogin> ExternalLogins,
         bool LocalLogin,
         string TwoFactor,
         IReadOnlyList<Auth.API.Models.Entities.UserClientUsage> ClientUsages);
+
+    private sealed record PlatformOption(string ClientId, string Label);
+
+    private enum UserSort
+    {
+        Name,
+        Email,
+        CreatedAt,
+        Platform,
+        Providers,
+        TwoFactor,
+        Clients,
+        Roles,
+        Status,
+    }
 }

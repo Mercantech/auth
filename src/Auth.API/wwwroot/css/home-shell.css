@@ -1559,6 +1559,58 @@ footer.merc-shell__footer a:active {
 }
 
 .merc-users__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.merc-users__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem 1.5rem;
+}
+
+.merc-users__filter {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--merc-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.merc-users__select {
+  min-width: 15rem;
+}
+
+.merc-users__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.5rem;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.merc-users__toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--merc-accent);
+}
+
+.merc-users__count {
+  margin: 0 0 0.55rem;
+  color: var(--merc-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.merc-users__merge-panel {
   margin-bottom: 1rem;
 }
 
@@ -1581,7 +1633,36 @@ footer.merc-shell__footer a:active {
 }
 
 .merc-users__table {
-  min-width: 46rem;
+  min-width: 72rem;
+}
+
+.merc-users__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.merc-users__sort span {
+  color: var(--merc-muted);
+  font-size: 0.68rem;
+}
+
+.merc-users__sort:hover,
+.merc-users__sort:focus-visible,
+.merc-users__sort--active {
+  color: var(--merc-accent);
+}
+
+.merc-users__date {
+  white-space: nowrap;
 }
 
 .merc-users__th-radio {
@@ -1629,6 +1710,11 @@ footer.merc-shell__footer a:active {
   line-height: 1.4;
   max-width: 14rem;
   color: var(--merc-muted);
+}
+
+.merc-users__empty {
+  color: var(--merc-muted);
+  text-align: center;
 }
 
 /* Admin auth-brug (/Admin/Usage) */
