@@ -1810,7 +1810,8 @@ footer.merc-shell__footer a:active {
   color: #fff;
 }
 
-.merc-users__provider-logo--password {
+.merc-users__provider-logo--password,
+.merc-users__provider-logo--passkey {
   background: var(--merc-accent-soft);
   color: var(--merc-accent);
 }
@@ -2070,7 +2071,7 @@ footer.merc-shell__footer a:active {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1rem 1.5rem;
   margin-bottom: 1.25rem;
 }
 
@@ -2086,43 +2087,331 @@ footer.merc-shell__footer a:active {
   color: var(--merc-muted);
 }
 
-.merc-usage__stats {
+.merc-usage__header-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.merc-usage__stat {
-  min-width: 8rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid rgba(20, 18, 16, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 252, 247, 0.7);
+.merc-usage__header-actions .merc-btn {
+  margin: 0;
+}
+
+.merc-usage__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.merc-usage__kpi {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  overflow: hidden;
+}
+
+.merc-usage__kpi::after {
+  position: absolute;
+  right: -1.6rem;
+  bottom: -2rem;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: var(--merc-accent-soft);
+  content: "";
+}
+
+.merc-usage__kpi-icon {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.8rem;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--merc-ok-bg);
+  color: var(--merc-ok);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.merc-usage__kpi-icon--warm {
+  background: #f4ebe8;
+  color: var(--merc-warm-pop);
+}
+
+.merc-usage__kpi-icon--provider,
+.merc-usage__kpi-icon--oauth {
+  background: var(--merc-accent-soft);
+  color: var(--merc-accent);
 }
 
 .merc-usage__stat-value {
   display: block;
   font-family: var(--merc-font-display);
   font-weight: 800;
-  font-size: 1.5rem;
+  font-size: 1.65rem;
+  line-height: 1.05;
   color: var(--merc-accent);
 }
 
 .merc-usage__stat-label {
-  font-size: 0.72rem;
+  margin-top: 0.25rem;
+  color: var(--merc-ink);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.merc-usage__stat-period {
+  margin-top: 0.12rem;
   color: var(--merc-muted);
+  font-size: 0.62rem;
+}
+
+.merc-usage__overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.35rem;
 }
 
 .merc-usage__section {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.35rem;
 }
 
-.merc-usage__section-title {
+.merc-usage__panel {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.merc-usage__section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.merc-usage__section-heading--standalone {
+  margin-bottom: 0.65rem;
+}
+
+.merc-usage__section-heading h2 {
+  margin: 0;
   font-family: var(--merc-font-display);
   font-weight: 800;
   font-size: 1.05rem;
-  margin: 0 0 0.75rem;
+}
+
+.merc-usage__section-heading p {
+  margin: 0.2rem 0 0;
+  color: var(--merc-muted);
+  font-size: 0.74rem;
+}
+
+.merc-usage__eyebrow {
+  display: block;
+  margin-bottom: 0.1rem;
+  color: var(--merc-warm-pop);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.merc-usage__heading-meta {
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  background: var(--merc-accent-soft);
+  color: var(--merc-accent);
+  font-size: 0.65rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.merc-usage__providers,
+.merc-usage__event-types {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.merc-usage__providers li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.48rem 0.55rem;
+  border: 1px solid rgba(20, 18, 16, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 252, 247, 0.62);
+}
+
+.merc-usage__provider-name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.merc-usage__provider-name strong {
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merc-usage__provider-name span {
+  color: var(--merc-muted);
+  font-size: 0.63rem;
+}
+
+.merc-usage__provider-count {
+  min-width: 2rem;
+  color: var(--merc-accent);
+  font-family: var(--merc-font-display);
+  font-size: 1rem;
+  text-align: right;
+}
+
+.merc-usage__event-types {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.merc-usage__event-type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.58rem 0.65rem;
+  border-left: 3px solid var(--merc-accent);
+  border-radius: 0 4px 4px 0;
+  background: rgba(42, 77, 92, 0.07);
+  font-size: 0.68rem;
+}
+
+.merc-usage__event-type strong {
+  color: var(--merc-accent);
+  font-family: var(--merc-font-display);
+  font-size: 0.9rem;
+}
+
+.merc-usage__event-type--security {
+  border-left-color: var(--merc-ok);
+  background: var(--merc-ok-bg);
+}
+
+.merc-usage__event-type--account {
+  border-left-color: var(--merc-warm-pop);
+  background: #f4ebe8;
+}
+
+.merc-usage__clients {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.merc-usage__client-card {
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.merc-usage__client-card > header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  margin-bottom: 0.75rem;
+}
+
+.merc-usage__client-name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.merc-usage__client-name strong,
+.merc-usage__client-name code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merc-usage__client-name strong {
+  font-size: 0.76rem;
+}
+
+.merc-usage__client-name code {
+  color: var(--merc-muted);
+  font-size: 0.62rem;
+}
+
+.merc-usage__client-users {
+  display: grid;
+  color: var(--merc-muted);
+  font-size: 0.58rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.merc-usage__client-users strong {
+  color: var(--merc-accent);
+  font-family: var(--merc-font-display);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.merc-usage__client-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.merc-usage__client-metrics div {
+  padding: 0.45rem 0.35rem;
+  border-radius: 4px;
+  background: var(--merc-accent-soft);
+  text-align: center;
+}
+
+.merc-usage__client-metrics dt {
+  color: var(--merc-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+}
+
+.merc-usage__client-metrics dd {
+  margin: 0.08rem 0 0;
+  color: var(--merc-accent);
+  font-family: var(--merc-font-display);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.merc-usage__client-card > footer {
+  margin-top: 0.6rem;
+  color: var(--merc-muted);
+  font-size: 0.59rem;
+}
+
+.merc-usage__client-card > footer strong {
+  color: var(--merc-ink);
+}
+
+.merc-usage__empty {
+  color: var(--merc-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.merc-usage__recent {
+  margin-bottom: 1.35rem;
 }
 
 .merc-usage__table-wrap {
@@ -2131,36 +2420,93 @@ footer.merc-shell__footer a:active {
 
 .merc-usage__table {
   min-width: 36rem;
-  background: rgba(255, 252, 247, 0.65);
-  border: 1px solid rgba(20, 18, 16, 0.1);
-  border-radius: 8px;
+  margin: 0;
 }
 
 .merc-usage__table--events {
   min-width: 52rem;
 }
 
-.merc-usage__event-types {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+.merc-usage__table td {
+  vertical-align: middle;
 }
 
-.merc-usage__event-types li {
-  font-size: 0.8rem;
-}
-
-.merc-usage__count {
-  font-weight: 700;
+.merc-usage__event-badge {
+  display: inline-block;
+  padding: 0.22rem 0.42rem;
+  border-radius: 3px;
+  background: var(--merc-accent-soft);
   color: var(--merc-accent);
-  margin-left: 0.25rem;
+  font-size: 0.61rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.merc-usage__etype {
-  font-size: 0.72rem;
+.merc-usage__event-badge--security {
+  background: var(--merc-ok-bg);
+  color: var(--merc-ok);
+}
+
+.merc-usage__event-badge--account {
+  background: #f4ebe8;
+  color: #8b2c26;
+}
+
+.merc-usage__provider-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.merc-usage__provider-inline .merc-users__provider-logo {
+  width: 1.45rem;
+  height: 1.45rem;
+  box-shadow: none;
+}
+
+.merc-usage__provider-inline .merc-users__provider-logo svg {
+  width: 0.82rem !important;
+  height: 0.82rem !important;
+}
+
+.merc-usage__login-method {
+  color: var(--merc-muted);
+  font-size: 0.64rem;
+}
+
+@media (max-width: 960px) {
+  .merc-usage__kpis,
+  .merc-usage__clients {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .merc-usage__overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .merc-usage__kpis,
+  .merc-usage__clients {
+    grid-template-columns: 1fr;
+  }
+
+  .merc-usage__header-actions {
+    width: 100%;
+  }
+
+  .merc-usage__header-actions .merc-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .merc-usage__event-types {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Fjern Bootstrap focus-ring der klæber til gammelt tema */

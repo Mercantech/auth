@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject IDbContextFactory<AuthDbContext> DbFactory
 @using Auth.API.Models.Entities
+@using Auth.API.Services
 @using Microsoft.EntityFrameworkCore
 
 <PageTitle>Auth-brug (admin)</PageTitle>
@@ -11,10 +12,16 @@
         <div>
             <h1>Auth-brug</h1>
             <p class="merc-usage__lead">
-                Sporing af login-udbydere, OAuth-klienter og seneste hændelser. Data opdateres ved hvert login, authorize, token og refresh.
+                Overblik over login-providers, OAuth-klienter og hændelser på tværs af auth-platformen.
+                Statistikken dækker de seneste 30 dage, mens klienttallene er akkumulerede.
             </p>
         </div>
-        <a class="merc-btn merc-btn--ghost" href="/Admin/Users">← Brugere</a>
+        <div class="merc-usage__header-actions">
+            <button type="button" class="merc-btn merc-btn--ghost" @onclick="ReloadAsync" disabled="@_isRefreshing">
+                @(_isRefreshing ? "Opdaterer…" : "↻ Opdatér")
+            </button>
+            <a class="merc-btn merc-btn--ghost" href="/Admin/Users">← Brugere</a>
+        </div>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -31,78 +38,144 @@
     }
     else
     {
-        <div class="merc-usage__stats">
-            <div class="merc-usage__stat">
+        <section class="merc-usage__kpis" aria-label="Nøgletal for de seneste 30 dage">
+            <article class="merc-panel merc-usage__kpi">
+                <span class="merc-usage__kpi-icon" aria-hidden="true">●</span>
                 <span class="merc-usage__stat-value">@_summary.ActiveUsers30</span>
-                <span class="merc-usage__stat-label">aktive brugere (30 dage)</span>
-            </div>
-            <div class="merc-usage__stat">
-                <span class="merc-usage__stat-value">@_summary.ByClient.Count</span>
-                <span class="merc-usage__stat-label">klienter med spor</span>
-            </div>
-            <div class="merc-usage__stat">
+                <span class="merc-usage__stat-label">aktive brugere</span>
+                <span class="merc-usage__stat-period">Seneste 30 dage</span>
+            </article>
+            <article class="merc-panel merc-usage__kpi">
+                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--warm" aria-hidden="true">↗</span>
                 <span class="merc-usage__stat-value">@_summary.TotalEvents30</span>
-                <span class="merc-usage__stat-label">hændelser (30 dage)</span>
-            </div>
+                <span class="merc-usage__stat-label">auth-hændelser</span>
+                <span class="merc-usage__stat-period">Seneste 30 dage</span>
+            </article>
+            <article class="merc-panel merc-usage__kpi">
+                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--provider" aria-hidden="true">@_summary.ByProvider.Count</span>
+                <span class="merc-usage__stat-value">@_summary.ByProvider.Sum(p => p.LoginCount)</span>
+                <span class="merc-usage__stat-label">provider-logins</span>
+                <span class="merc-usage__stat-period">@_summary.ByProvider.Count aktive login-metoder</span>
+            </article>
+            <article class="merc-panel merc-usage__kpi">
+                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--oauth" aria-hidden="true">O</span>
+                <span class="merc-usage__stat-value">@_summary.ByClient.Count</span>
+                <span class="merc-usage__stat-label">OAuth-klienter</span>
+                <span class="merc-usage__stat-period">Med registreret brug</span>
+            </article>
+        </section>
+
+        <div class="merc-usage__overview-grid">
+            <section class="merc-panel merc-usage__panel" aria-labelledby="providers-heading">
+                <header class="merc-usage__section-heading">
+                    <div>
+                        <span class="merc-usage__eyebrow">Login</span>
+                        <h2 id="providers-heading">Providers</h2>
+                    </div>
+                    <span class="merc-usage__heading-meta">30 dage</span>
+                </header>
+
+                @if (_summary.ByProvider.Count == 0)
+                {
+                    <p class="merc-hint">Ingen provider-logins i perioden.</p>
+                }
+                else
+                {
+                    <ul class="merc-usage__providers" role="list">
+                        @foreach (var provider in _summary.ByProvider)
+                        {
+                            <li>
+                                <span class="merc-users__provider-logo merc-users__provider-logo--@ProviderCssKey(provider.Key)">
+                                    <ProviderLogo Provider="@provider.Key" />
+                                </span>
+                                <span class="merc-usage__provider-name">
+                                    <strong>@provider.Label</strong>
+                                    <span>@provider.DistinctUsers @(provider.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                                </span>
+                                <strong class="merc-usage__provider-count">@provider.LoginCount</strong>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="merc-panel merc-usage__panel" aria-labelledby="events-type-heading">
+                <header class="merc-usage__section-heading">
+                    <div>
+                        <span class="merc-usage__eyebrow">Aktivitet</span>
+                        <h2 id="events-type-heading">Hændelsestyper</h2>
+                    </div>
+                    <span class="merc-usage__heading-meta">30 dage</span>
+                </header>
+
+                @if (_summary.ByEventType.Count == 0)
+                {
+                    <p class="merc-hint">Ingen hændelser i perioden endnu.</p>
+                }
+                else
+                {
+                    <ul class="merc-usage__event-types" role="list">
+                        @foreach (var e in _summary.ByEventType)
+                        {
+                            <li class="merc-usage__event-type merc-usage__event-type--@EventTypeCategory(e.EventType)">
+                                <span>@EventTypeLabel(e.EventType)</span>
+                                <strong>@e.Count</strong>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
         </div>
 
         <section class="merc-usage__section" aria-labelledby="clients-heading">
-            <h2 id="clients-heading" class="merc-usage__section-title">Pr. OAuth-klient</h2>
+            <header class="merc-usage__section-heading merc-usage__section-heading--standalone">
+                <div>
+                    <span class="merc-usage__eyebrow">Apps</span>
+                    <h2 id="clients-heading">OAuth-klienter</h2>
+                    <p>Akkumuleret aktivitet og seneste kontakt pr. registreret klient.</p>
+                </div>
+            </header>
+
             @if (_summary.ByClient.Count == 0)
             {
-                <p class="merc-hint">Ingen klient-brug registreret endnu — kør authorize/token via en registreret klient.</p>
+                <div class="merc-panel merc-usage__empty">Ingen klient-brug registreret endnu.</div>
             }
             else
             {
-                <div class="merc-usage__table-wrap">
-                    <table class="table table-sm merc-usage__table">
-                        <thead>
-                        <tr>
-                            <th>Klient</th>
-                            <th>Brugere</th>
-                            <th>Authorize</th>
-                            <th>Token</th>
-                            <th>Refresh</th>
-                            <th>Sidst set</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var c in _summary.ByClient)
-                        {
-                            <tr>
-                                <td><code>@c.ClientId</code></td>
-                                <td>@c.DistinctUsers</td>
-                                <td>@c.TotalAuthorizes</td>
-                                <td>@c.TotalTokenExchanges</td>
-                                <td>@c.TotalRefreshes</td>
-                                <td>@FormatLocal(c.LastSeenAtUtc)</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
+                <div class="merc-usage__clients">
+                    @foreach (var c in _summary.ByClient)
+                    {
+                        <article class="merc-panel merc-usage__client-card">
+                            <header>
+                                <span class="merc-users__provider-logo merc-users__provider-logo--oauth">
+                                    <ProviderLogo Provider="oauth" />
+                                </span>
+                                <span class="merc-usage__client-name">
+                                    <strong>@c.Name</strong>
+                                    <code>@c.ClientId</code>
+                                </span>
+                                <span class="merc-usage__client-users"><strong>@c.DistinctUsers</strong> @(c.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                            </header>
+                            <dl class="merc-usage__client-metrics">
+                                <div><dt>Authorize</dt><dd>@c.TotalAuthorizes</dd></div>
+                                <div><dt>Token</dt><dd>@c.TotalTokenExchanges</dd></div>
+                                <div><dt>Refresh</dt><dd>@c.TotalRefreshes</dd></div>
+                            </dl>
+                            <footer>Sidst set <strong>@FormatLocal(c.LastSeenAtUtc)</strong></footer>
+                        </article>
+                    }
                 </div>
             }
         </section>
 
-        <section class="merc-usage__section" aria-labelledby="events-type-heading">
-            <h2 id="events-type-heading" class="merc-usage__section-title">Hændelser seneste 30 dage</h2>
-            @if (_summary.ByEventType.Count == 0)
-            {
-                <p class="merc-hint">Ingen hændelser i perioden endnu.</p>
-            }
-            else
-            {
-                <ul class="merc-usage__event-types" role="list">
-                    @foreach (var e in _summary.ByEventType)
-                    {
-                        <li><code>@e.EventType</code> <span class="merc-usage__count">@e.Count</span></li>
-                    }
-                </ul>
-            }
-        </section>
-
-        <section class="merc-usage__section" aria-labelledby="recent-heading">
-            <h2 id="recent-heading" class="merc-usage__section-title">Seneste hændelser</h2>
+        <section class="merc-panel merc-usage__panel merc-usage__recent" aria-labelledby="recent-heading">
+            <header class="merc-usage__section-heading">
+                <div>
+                    <span class="merc-usage__eyebrow">Live spor</span>
+                    <h2 id="recent-heading">Seneste hændelser</h2>
+                </div>
+                <span class="merc-usage__heading-meta">Seneste @_summary.RecentEvents.Count</span>
+            </header>
             <div class="merc-usage__table-wrap">
                 <table class="table table-sm merc-usage__table merc-usage__table--events">
                     <thead>
@@ -120,11 +193,25 @@
                     {
                         <tr>
                             <td>@FormatLocal(e.CreatedAtUtc)</td>
-                            <td><code class="merc-usage__etype">@e.EventType</code></td>
-                            <td>@(e.UserId is { } uid ? ShortId(uid) : "—")</td>
-                            <td>@(e.ClientId ?? "—")</td>
-                            <td>@(e.Provider ?? "—")</td>
-                            <td>@(e.LoginMethod ?? "—")</td>
+                            <td><span class="merc-usage__event-badge merc-usage__event-badge--@EventTypeCategory(e.EventType)">@EventTypeLabel(e.EventType)</span></td>
+                            <td>@(e.UserId is { } uid ? ShortId(uid) : "System")</td>
+                            <td>@ClientLabel(e.ClientId)</td>
+                            <td>
+                                @if (EventProviderKey(e) is { } providerKey)
+                                {
+                                    <span class="merc-usage__provider-inline">
+                                        <span class="merc-users__provider-logo merc-users__provider-logo--@ProviderCssKey(providerKey)">
+                                            <ProviderLogo Provider="@providerKey" />
+                                        </span>
+                                        @ProviderLabel(providerKey)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td><code class="merc-usage__login-method">@(e.LoginMethod ?? "—")</code></td>
                         </tr>
                     }
                     </tbody>
@@ -137,40 +224,42 @@
 @code {
     private UsageSummaryVm? _summary;
     private string? _error;
-    private bool _loadStarted;
+    private bool _isRefreshing;
+    private IReadOnlyDictionary<string, string> _clientNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     private static readonly TimeZoneInfo DanishTz = TimeZoneInfo.FindSystemTimeZoneById(
         OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Copenhagen");
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (_loadStarted)
-            return;
-        _loadStarted = true;
-        await ReloadAsync();
-    }
+    protected override Task OnInitializedAsync() => ReloadAsync();
 
     private Task RetryAsync()
     {
         _error = null;
         _summary = null;
-        _loadStarted = false;
         return ReloadAsync();
     }
 
     private async Task ReloadAsync()
     {
-        _loadStarted = true;
+        if (_isRefreshing)
+            return;
+
+        _isRefreshing = true;
         try
         {
             await using var db = await DbFactory.CreateDbContextAsync();
             var since30 = DateTime.UtcNow.AddDays(-30);
+
+            _clientNames = await db.ClientApps
+                .AsNoTracking()
+                .ToDictionaryAsync(c => c.ClientId, c => c.Name, StringComparer.OrdinalIgnoreCase);
 
             var clientRows = await db.UserClientUsages.AsNoTracking().ToListAsync();
             var byClient = clientRows
                 .GroupBy(u => u.ClientId)
                 .Select(g => new ClientAgg(
                     g.Key,
+                    ClientLabel(g.Key),
                     g.Count(),
                     g.Sum(x => x.AuthorizeCount),
                     g.Sum(x => x.TokenExchangeCount),
@@ -188,6 +277,21 @@
                 .GroupBy(e => e.EventType)
                 .Select(g => new EventTypeAgg(g.Key, g.Count()))
                 .OrderByDescending(x => x.Count)
+                .ToList();
+
+            var byProvider = events30
+                .Select(e => new ProviderEvent(
+                    ProviderKeyForStats(e.EventType, e.Provider),
+                    e.UserId))
+                .Where(e => e.Key is not null)
+                .GroupBy(e => e.Key!, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new ProviderAgg(
+                    g.Key,
+                    ProviderLabel(g.Key),
+                    g.Count(),
+                    g.Where(e => e.UserId is not null).Select(e => e.UserId!.Value).Distinct().Count()))
+                .OrderByDescending(p => p.LoginCount)
+                .ThenBy(p => p.Label, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
             var recent = await db.AuthUsageEvents
@@ -211,6 +315,7 @@
 
             _summary = new UsageSummaryVm(
                 byClient,
+                byProvider,
                 byEventType,
                 recent,
                 activeUsers,
@@ -222,9 +327,98 @@
             _summary = null;
             _error = ex.InnerException?.Message ?? ex.Message;
         }
+        finally
+        {
+            _isRefreshing = false;
+        }
     }
 
     private static string ShortId(Guid id) => id.ToString()[..8] + "…";
+
+    private string ClientLabel(string? clientId)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            return "—";
+
+        return _clientNames.TryGetValue(clientId, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : clientId;
+    }
+
+    private static string? EventProviderKey(EventVm e) =>
+        ProviderKeyForStats(e.EventType, e.Provider) ?? ProviderKeyFromLoginMethod(e.LoginMethod);
+
+    private static string? ProviderKeyForStats(string eventType, string? provider)
+    {
+        if (eventType == AuthUsageEventTypes.ProviderLogin && !string.IsNullOrWhiteSpace(provider))
+            return provider.Trim().ToLowerInvariant();
+        if (eventType == AuthUsageEventTypes.PasswordLogin)
+            return "password";
+        if (eventType == AuthUsageEventTypes.PasskeyAuth)
+            return "passkey";
+
+        return null;
+    }
+
+    private static string? ProviderKeyFromLoginMethod(string? loginMethod) =>
+        loginMethod?.Trim().ToLowerInvariant() switch
+        {
+            "password" => "password",
+            "passkey" => "passkey",
+            "google" => "google",
+            "github" => "github",
+            "discord" => "discord",
+            "microsoft-work" => "microsoft",
+            "microsoft-school" => "microsoft-edu",
+            _ => null,
+        };
+
+    private static string ProviderLabel(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "password" => "E-mail / adgangskode",
+        "passkey" => "Passkey",
+        "google" => "Google",
+        "microsoft" => "Microsoft 365",
+        "microsoft-edu" => "Microsoft skolemail",
+        "github" => "GitHub",
+        "discord" => "Discord",
+        _ => provider,
+    };
+
+    private static string ProviderCssKey(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "microsoft-edu" => "microsoft",
+        "password" or "passkey" or "google" or "microsoft" or "github" or "discord" => provider.Trim().ToLowerInvariant(),
+        _ => "other",
+    };
+
+    private static string EventTypeLabel(string eventType) => eventType switch
+    {
+        AuthUsageEventTypes.ProviderLogin => "Provider-login",
+        AuthUsageEventTypes.PasswordLogin => "Password-login",
+        AuthUsageEventTypes.PasswordSignup => "Oprettelse",
+        AuthUsageEventTypes.PasswordLink => "Password tilknyttet",
+        AuthUsageEventTypes.MfaTotpVerify => "TOTP bekræftet",
+        AuthUsageEventTypes.MfaRecoveryUsed => "Recovery-kode",
+        AuthUsageEventTypes.PasskeyAuth => "Passkey-login",
+        AuthUsageEventTypes.PasskeyRegister => "Passkey oprettet",
+        AuthUsageEventTypes.OAuthAuthorize => "OAuth authorize",
+        AuthUsageEventTypes.OAuthTokenExchange => "Token udstedt",
+        AuthUsageEventTypes.OAuthRefresh => "Token refresh",
+        AuthUsageEventTypes.AccountLink => "Konto tilknyttet",
+        _ => eventType.Replace('_', ' '),
+    };
+
+    private static string EventTypeCategory(string eventType)
+    {
+        if (eventType.StartsWith("oauth_", StringComparison.Ordinal))
+            return "oauth";
+        if (eventType.StartsWith("mfa_", StringComparison.Ordinal) || eventType.StartsWith("passkey_", StringComparison.Ordinal))
+            return "security";
+        if (eventType is AuthUsageEventTypes.ProviderLogin or AuthUsageEventTypes.PasswordLogin)
+            return "login";
+        return "account";
+    }
 
     private static string FormatLocal(DateTime utc)
     {
@@ -236,6 +430,7 @@
 
     private sealed record UsageSummaryVm(
         IReadOnlyList<ClientAgg> ByClient,
+        IReadOnlyList<ProviderAgg> ByProvider,
         IReadOnlyList<EventTypeAgg> ByEventType,
         IReadOnlyList<EventVm> RecentEvents,
         int ActiveUsers30,
@@ -243,11 +438,16 @@
 
     private sealed record ClientAgg(
         string ClientId,
+        string Name,
         int DistinctUsers,
         int TotalAuthorizes,
         int TotalTokenExchanges,
         int TotalRefreshes,
         DateTime LastSeenAtUtc);
+
+    private sealed record ProviderEvent(string? Key, Guid? UserId);
+
+    private sealed record ProviderAgg(string Key, string Label, int LoginCount, int DistinctUsers);
 
     private sealed record EventTypeAgg(string EventType, int Count);
 
