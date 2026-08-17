@@ -40,6 +40,8 @@
     else
     {
         var visibleRows = GetVisibleRows();
+        var providerStats = GetProviderStats(visibleRows);
+        var oauthStats = GetOAuthStats(visibleRows);
 
         <section class="merc-panel merc-users__toolbar" aria-label="Visningsindstillinger">
             <div class="merc-users__filters">
@@ -67,6 +69,95 @@
             <p class="merc-users__count" aria-live="polite">
                 Viser <strong>@visibleRows.Count</strong> af <strong>@_rows.Count</strong> @(_rows.Count == 1 ? "bruger" : "brugere")
             </p>
+        </section>
+
+        <section class="merc-users__stats" aria-labelledby="users-stats-heading">
+            <div class="merc-users__stats-heading">
+                <div>
+                    <h2 id="users-stats-heading">Statistik</h2>
+                    <p>Baseret på de @visibleRows.Count viste brugere. En bruger kan have flere login-providers og OAuth-klienter.</p>
+                </div>
+            </div>
+
+            <div class="merc-users__stats-grid">
+                <article class="merc-panel merc-users__stat-card">
+                    <header class="merc-users__stat-card-heading">
+                        <div>
+                            <span class="merc-users__stat-eyebrow">Login</span>
+                            <h3>Providers</h3>
+                        </div>
+                        @{ var providerConnectionCount = providerStats.Sum(p => p.UserCount); }
+                        <span class="merc-users__stat-total">@providerConnectionCount @(providerConnectionCount == 1 ? "forbindelse" : "forbindelser")</span>
+                    </header>
+
+                    @if (providerStats.Count == 0)
+                    {
+                        <p class="merc-hint">Ingen login-providers blandt de viste brugere.</p>
+                    }
+                    else
+                    {
+                        <ul class="merc-users__provider-stats" role="list">
+                            @foreach (var provider in providerStats)
+                            {
+                                <li>
+                                    <span class="merc-users__provider-logo merc-users__provider-logo--@ProviderCssKey(provider.Key)">
+                                        <ProviderLogo Provider="@provider.Key" />
+                                    </span>
+                                    <span class="merc-users__provider-info">
+                                        <span class="merc-users__provider-row">
+                                            <strong>@provider.Label</strong>
+                                            <span>@provider.UserCount @(provider.UserCount == 1 ? "bruger" : "brugere")</span>
+                                        </span>
+                                        <span class="merc-users__provider-bar" aria-hidden="true">
+                                            <span style="@ShareStyle(provider.UserCount, visibleRows.Count)"></span>
+                                        </span>
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </article>
+
+                <article class="merc-panel merc-users__stat-card">
+                    <header class="merc-users__stat-card-heading">
+                        <div>
+                            <span class="merc-users__stat-eyebrow">Apps</span>
+                            <h3>OAuth-klienter</h3>
+                        </div>
+                        <span class="merc-users__stat-total">@oauthStats.Count @(oauthStats.Count == 1 ? "klient" : "klienter")</span>
+                    </header>
+
+                    @if (oauthStats.Count == 0)
+                    {
+                        <p class="merc-hint">Ingen OAuth-brug blandt de viste brugere.</p>
+                    }
+                    else
+                    {
+                        <ul class="merc-users__oauth-stats" role="list">
+                            @foreach (var client in oauthStats)
+                            {
+                                <li>
+                                    <span class="merc-users__provider-logo merc-users__provider-logo--oauth">
+                                        <ProviderLogo Provider="oauth" />
+                                    </span>
+                                    <span class="merc-users__oauth-info">
+                                        <span class="merc-users__oauth-name">
+                                            <strong>@client.Name</strong>
+                                            <code>@client.ClientId</code>
+                                        </span>
+                                        <span class="merc-users__oauth-users">@client.DistinctUsers @(client.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                                        <span class="merc-users__oauth-events">
+                                            <span title="Authorize-kald"><strong>@client.AuthorizeCount</strong> authorize</span>
+                                            <span title="Token-udvekslinger"><strong>@client.TokenExchangeCount</strong> token</span>
+                                            <span title="Refresh-kald"><strong>@client.RefreshCount</strong> refresh</span>
+                                        </span>
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </article>
+            </div>
         </section>
 
         @if (_mergeModeEnabled)
@@ -186,6 +277,7 @@
     private string _platformFilter = string.Empty;
     private UserSort _sort = UserSort.CreatedAt;
     private bool _sortDescending = true;
+    private IReadOnlyDictionary<string, string> _clientNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     private const string DirectPlatformFilter = "__direct_or_legacy__";
 
@@ -275,6 +367,66 @@
         .OrderBy(p => p.Label, StringComparer.OrdinalIgnoreCase)
         .ToList();
 
+    private static IReadOnlyList<ProviderStat> GetProviderStats(IEnumerable<Row> rows) => rows
+        .SelectMany(r => ProviderKeys(r).Distinct(StringComparer.OrdinalIgnoreCase))
+        .GroupBy(provider => provider, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new ProviderStat(g.Key, ProviderLabel(g.Key), g.Count()))
+        .OrderByDescending(p => p.UserCount)
+        .ThenBy(p => p.Label, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    private static IEnumerable<string> ProviderKeys(Row row)
+    {
+        if (row.LocalLogin)
+            yield return "password";
+
+        foreach (var provider in row.ExternalLogins.Select(e => e.Provider))
+            yield return provider;
+    }
+
+    private IReadOnlyList<OAuthStat> GetOAuthStats(IEnumerable<Row> rows) => rows
+        .SelectMany(row => row.ClientUsages.Select(usage => new { row.Id, Usage = usage }))
+        .GroupBy(x => x.Usage.ClientId, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new OAuthStat(
+            g.Key,
+            ClientName(g.Key),
+            g.Select(x => x.Id).Distinct().Count(),
+            g.Sum(x => x.Usage.AuthorizeCount),
+            g.Sum(x => x.Usage.TokenExchangeCount),
+            g.Sum(x => x.Usage.RefreshCount)))
+        .OrderByDescending(c => c.DistinctUsers)
+        .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    private string ClientName(string clientId) =>
+        _clientNames.TryGetValue(clientId, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : clientId;
+
+    private static string ProviderLabel(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "password" => "E-mail / adgangskode",
+        "google" => "Google",
+        "microsoft" => "Microsoft 365",
+        "microsoft-edu" => "Microsoft skolemail",
+        "github" => "GitHub",
+        "discord" => "Discord",
+        _ => provider,
+    };
+
+    private static string ProviderCssKey(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "microsoft-edu" => "microsoft",
+        "google" or "microsoft" or "github" or "discord" or "password" => provider.Trim().ToLowerInvariant(),
+        _ => "other",
+    };
+
+    private static string ShareStyle(int count, int total)
+    {
+        var percentage = total == 0 ? 0 : Math.Round(count * 100d / total, 1);
+        return $"width: {percentage.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%";
+    }
+
     private void SetSort(UserSort sort)
     {
         if (_sort == sort)
@@ -334,7 +486,7 @@
 
     private async Task ReloadUsersAsync()
     {
-        var clientNames = await Db.ClientApps
+        _clientNames = await Db.ClientApps
             .AsNoTracking()
             .ToDictionaryAsync(c => c.ClientId, c => c.Name, StringComparer.OrdinalIgnoreCase);
 
@@ -361,7 +513,7 @@
             u.Email,
             u.CreatedAt,
             u.CreatedViaClientId,
-            FormatPlatform(u.CreatedViaClientId, clientNames),
+            FormatPlatform(u.CreatedViaClientId, _clientNames),
             u.IsDisabled,
             string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
             u.ExternalLogins.OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt).ToList(),
@@ -397,11 +549,11 @@
 
     private static string FormatProviders(Row r)
     {
-        if (r.LocalLogin && r.ExternalLogins.Count == 0)
-            return "password";
-        if (r.ExternalLogins.Count == 0)
-            return "—";
-        return string.Join(", ", r.ExternalLogins.Select(e => e.Provider));
+        var providers = ProviderKeys(r)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(ProviderLabel)
+            .ToList();
+        return providers.Count == 0 ? "—" : string.Join(", ", providers);
     }
 
     private static string FormatClients(Row r)
@@ -505,6 +657,16 @@
         IReadOnlyList<Auth.API.Models.Entities.UserClientUsage> ClientUsages);
 
     private sealed record PlatformOption(string ClientId, string Label);
+
+    private sealed record ProviderStat(string Key, string Label, int UserCount);
+
+    private sealed record OAuthStat(
+        string ClientId,
+        string Name,
+        int DistinctUsers,
+        int AuthorizeCount,
+        int TokenExchangeCount,
+        int RefreshCount);
 
     private enum UserSort
     {
