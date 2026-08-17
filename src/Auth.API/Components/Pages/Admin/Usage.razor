@@ -38,41 +38,31 @@
     }
     else
     {
-        <section class="merc-usage__kpis" aria-label="Nøgletal for de seneste 30 dage">
-            <article class="merc-panel merc-usage__kpi">
-                <span class="merc-usage__kpi-icon" aria-hidden="true">●</span>
-                <span class="merc-usage__stat-value">@_summary.ActiveUsers30</span>
-                <span class="merc-usage__stat-label">aktive brugere</span>
-                <span class="merc-usage__stat-period">Seneste 30 dage</span>
-            </article>
-            <article class="merc-panel merc-usage__kpi">
-                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--warm" aria-hidden="true">↗</span>
-                <span class="merc-usage__stat-value">@_summary.TotalEvents30</span>
-                <span class="merc-usage__stat-label">auth-hændelser</span>
-                <span class="merc-usage__stat-period">Seneste 30 dage</span>
-            </article>
-            <article class="merc-panel merc-usage__kpi">
-                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--provider" aria-hidden="true">@_summary.ByProvider.Count</span>
-                <span class="merc-usage__stat-value">@_summary.ByProvider.Sum(p => p.LoginCount)</span>
-                <span class="merc-usage__stat-label">provider-logins</span>
-                <span class="merc-usage__stat-period">@_summary.ByProvider.Count aktive login-metoder</span>
-            </article>
-            <article class="merc-panel merc-usage__kpi">
-                <span class="merc-usage__kpi-icon merc-usage__kpi-icon--oauth" aria-hidden="true">O</span>
-                <span class="merc-usage__stat-value">@_summary.ByClient.Count</span>
-                <span class="merc-usage__stat-label">OAuth-klienter</span>
-                <span class="merc-usage__stat-period">Med registreret brug</span>
-            </article>
+        var totalProviderLogins = _summary.ByProvider.Sum(p => p.LoginCount);
+
+        <section class="merc-panel merc-usage__summary" aria-label="Nøgletal">
+            <div><strong>@_summary.ActiveUsers30</strong><span>aktive brugere</span></div>
+            <div><strong>@_summary.TotalEvents30</strong><span>hændelser</span></div>
+            <div><strong>@_summary.ByProvider.Sum(p => p.LoginCount)</strong><span>provider-logins</span></div>
+            <div><strong>@_summary.ByClient.Count</strong><span>OAuth-klienter</span></div>
+            <span class="merc-usage__summary-period">Seneste 30 dage*</span>
         </section>
 
-        <div class="merc-usage__overview-grid">
-            <section class="merc-panel merc-usage__panel" aria-labelledby="providers-heading">
-                <header class="merc-usage__section-heading">
+        <section class="merc-users__stats" aria-labelledby="usage-stats-heading">
+            <div class="merc-users__stats-heading">
+                <div>
+                    <h2 id="usage-stats-heading">Statistik</h2>
+                    <p>*OAuth-klienternes aktivitet er akkumuleret; øvrige tal dækker de seneste 30 dage.</p>
+                </div>
+            </div>
+            <div class="merc-users__stats-grid">
+            <article class="merc-panel merc-users__stat-card" aria-labelledby="providers-heading">
+                <header class="merc-users__stat-card-heading">
                     <div>
-                        <span class="merc-usage__eyebrow">Login</span>
-                        <h2 id="providers-heading">Providers</h2>
+                        <span class="merc-users__stat-eyebrow">Login</span>
+                        <h3 id="providers-heading">Providers</h3>
                     </div>
-                    <span class="merc-usage__heading-meta">30 dage</span>
+                    <span class="merc-users__stat-total">@totalProviderLogins logins</span>
                 </header>
 
                 @if (_summary.ByProvider.Count == 0)
@@ -81,31 +71,35 @@
                 }
                 else
                 {
-                    <ul class="merc-usage__providers" role="list">
+                    <ul class="merc-users__provider-stats" role="list">
                         @foreach (var provider in _summary.ByProvider)
                         {
                             <li>
                                 <span class="merc-users__provider-logo merc-users__provider-logo--@ProviderCssKey(provider.Key)">
                                     <ProviderLogo Provider="@provider.Key" />
                                 </span>
-                                <span class="merc-usage__provider-name">
-                                    <strong>@provider.Label</strong>
-                                    <span>@provider.DistinctUsers @(provider.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                                <span class="merc-users__provider-info">
+                                    <span class="merc-users__provider-row">
+                                        <strong>@provider.Label</strong>
+                                        <span>@provider.LoginCount logins · @provider.DistinctUsers @(provider.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                                    </span>
+                                    <span class="merc-users__provider-bar" aria-hidden="true">
+                                        <span style="@ShareStyle(provider.LoginCount, totalProviderLogins)"></span>
+                                    </span>
                                 </span>
-                                <strong class="merc-usage__provider-count">@provider.LoginCount</strong>
                             </li>
                         }
                     </ul>
                 }
-            </section>
+            </article>
 
-            <section class="merc-panel merc-usage__panel" aria-labelledby="events-type-heading">
-                <header class="merc-usage__section-heading">
+            <article class="merc-panel merc-users__stat-card" aria-labelledby="events-type-heading">
+                <header class="merc-users__stat-card-heading">
                     <div>
-                        <span class="merc-usage__eyebrow">Aktivitet</span>
-                        <h2 id="events-type-heading">Hændelsestyper</h2>
+                        <span class="merc-users__stat-eyebrow">Aktivitet</span>
+                        <h3 id="events-type-heading">Hændelsestyper</h3>
                     </div>
-                    <span class="merc-usage__heading-meta">30 dage</span>
+                    <span class="merc-users__stat-total">30 dage</span>
                 </header>
 
                 @if (_summary.ByEventType.Count == 0)
@@ -124,57 +118,58 @@
                         }
                     </ul>
                 }
-            </section>
-        </div>
+            </article>
+            </div>
+        </section>
 
-        <section class="merc-usage__section" aria-labelledby="clients-heading">
-            <header class="merc-usage__section-heading merc-usage__section-heading--standalone">
+        <section class="merc-panel merc-users__stat-card merc-usage__oauth-panel" aria-labelledby="clients-heading">
+            <header class="merc-users__stat-card-heading">
                 <div>
-                    <span class="merc-usage__eyebrow">Apps</span>
-                    <h2 id="clients-heading">OAuth-klienter</h2>
-                    <p>Akkumuleret aktivitet og seneste kontakt pr. registreret klient.</p>
+                    <span class="merc-users__stat-eyebrow">Apps</span>
+                    <h3 id="clients-heading">OAuth-klienter</h3>
                 </div>
+                <span class="merc-users__stat-total">@_summary.ByClient.Count @(_summary.ByClient.Count == 1 ? "klient" : "klienter")</span>
             </header>
 
             @if (_summary.ByClient.Count == 0)
             {
-                <div class="merc-panel merc-usage__empty">Ingen klient-brug registreret endnu.</div>
+                <p class="merc-hint">Ingen klient-brug registreret endnu.</p>
             }
             else
             {
-                <div class="merc-usage__clients">
+                <ul class="merc-users__oauth-stats merc-usage__oauth-list" role="list">
                     @foreach (var c in _summary.ByClient)
                     {
-                        <article class="merc-panel merc-usage__client-card">
-                            <header>
-                                <span class="merc-users__provider-logo merc-users__provider-logo--oauth">
-                                    <ProviderLogo Provider="oauth" />
-                                </span>
-                                <span class="merc-usage__client-name">
+                        <li>
+                            <span class="merc-users__provider-logo merc-users__provider-logo--oauth">
+                                <ProviderLogo Provider="oauth" />
+                            </span>
+                            <span class="merc-users__oauth-info">
+                                <span class="merc-users__oauth-name">
                                     <strong>@c.Name</strong>
                                     <code>@c.ClientId</code>
                                 </span>
-                                <span class="merc-usage__client-users"><strong>@c.DistinctUsers</strong> @(c.DistinctUsers == 1 ? "bruger" : "brugere")</span>
-                            </header>
-                            <dl class="merc-usage__client-metrics">
-                                <div><dt>Authorize</dt><dd>@c.TotalAuthorizes</dd></div>
-                                <div><dt>Token</dt><dd>@c.TotalTokenExchanges</dd></div>
-                                <div><dt>Refresh</dt><dd>@c.TotalRefreshes</dd></div>
-                            </dl>
-                            <footer>Sidst set <strong>@FormatLocal(c.LastSeenAtUtc)</strong></footer>
-                        </article>
+                                <span class="merc-users__oauth-users">@c.DistinctUsers @(c.DistinctUsers == 1 ? "bruger" : "brugere")</span>
+                                <span class="merc-users__oauth-events">
+                                    <span><strong>@c.TotalAuthorizes</strong> authorize</span>
+                                    <span><strong>@c.TotalTokenExchanges</strong> token</span>
+                                    <span><strong>@c.TotalRefreshes</strong> refresh</span>
+                                    <span class="merc-usage__last-seen">Sidst @FormatLocal(c.LastSeenAtUtc)</span>
+                                </span>
+                            </span>
+                        </li>
                     }
-                </div>
+                </ul>
             }
         </section>
 
-        <section class="merc-panel merc-usage__panel merc-usage__recent" aria-labelledby="recent-heading">
-            <header class="merc-usage__section-heading">
+        <section class="merc-panel merc-users__stat-card merc-usage__recent" aria-labelledby="recent-heading">
+            <header class="merc-users__stat-card-heading">
                 <div>
-                    <span class="merc-usage__eyebrow">Live spor</span>
-                    <h2 id="recent-heading">Seneste hændelser</h2>
+                    <span class="merc-users__stat-eyebrow">Live spor</span>
+                    <h3 id="recent-heading">Seneste hændelser</h3>
                 </div>
-                <span class="merc-usage__heading-meta">Seneste @_summary.RecentEvents.Count</span>
+                <span class="merc-users__stat-total">Seneste @_summary.RecentEvents.Count</span>
             </header>
             <div class="merc-usage__table-wrap">
                 <table class="table table-sm merc-usage__table merc-usage__table--events">
@@ -418,6 +413,12 @@
         if (eventType is AuthUsageEventTypes.ProviderLogin or AuthUsageEventTypes.PasswordLogin)
             return "login";
         return "account";
+    }
+
+    private static string ShareStyle(int count, int total)
+    {
+        var percentage = total == 0 ? 0 : Math.Round(count * 100d / total, 1);
+        return $"width: {percentage.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%";
     }
 
     private static string FormatLocal(DateTime utc)
