@@ -10,6 +10,10 @@ public class ClientApp
     public bool RequirePkce { get; set; } = true;
     public string? ClientSecretHash { get; set; }
     public string? AllowedScopes { get; set; }
+    /// <summary>Access-tokenets levetid i minutter. Null bruger serverens globale standard.</summary>
+    public int? AccessTokenExpiryMinutes { get; set; }
+    /// <summary>Refresh-tokenets levetid i dage. Null bruger serverens globale standard.</summary>
+    public int? RefreshTokenExpiryDays { get; set; }
     /// <summary>Preset-id for OAuth login-UI (fx mercanlink). Null = Mercantec standard.</summary>
     public string? LoginThemeId { get; set; }
     /// <summary>Komma-separeret whitelist af login-metoder (passkey, password, google, …). Null = alle server-aktiverede.</summary>

@@ -87,6 +87,22 @@ public class IntegrationManifestController(
             audience_must_equal = jwt.Audience,
             access_token_lifetime_minutes = jwt.AccessTokenExpiryMinutes,
             refresh_token_lifetime_days = jwt.RefreshTokenExpiryDays,
+            client_specific_lifetimes = new
+            {
+                supported = true,
+                configured_in = "Admin -> Klienter",
+                access_token_minutes_range = new[]
+                {
+                    TokenLifetimePolicy.MinimumAccessTokenMinutes,
+                    TokenLifetimePolicy.MaximumAccessTokenMinutes,
+                },
+                refresh_token_days_range = new[]
+                {
+                    TokenLifetimePolicy.MinimumRefreshTokenDays,
+                    TokenLifetimePolicy.MaximumRefreshTokenDays,
+                },
+                note = "Klientens gemte værdier bruges ved token-udstedelse. Token-requesten kan ikke selv overskrive dem.",
+            },
             jwks_uri = $"{baseUrl}/.well-known/jwks.json",
             validate_signature_against_jwks = true,
             standard_claims = new object[]

@@ -210,6 +210,8 @@ public class OAuthController(
             authMethod,
             authCode.ExternalOAuthTokensCipher,
             clientId,
+            client.AccessTokenExpiryMinutes,
+            client.RefreshTokenExpiryDays,
             cancellationToken);
 
         await usageTracker.RecordOAuthTokenExchangeAsync(
@@ -232,7 +234,10 @@ public class OAuthController(
         if (scopes.Contains("openid"))
         {
             var now = time.GetUtcNow().UtcDateTime;
-            var idExp = now.AddMinutes(Math.Min(_jwt.AccessTokenExpiryMinutes, 30));
+            var accessTokenMinutes = TokenLifetimePolicy.ResolveAccessTokenMinutes(
+                client.AccessTokenExpiryMinutes,
+                _jwt);
+            var idExp = now.AddMinutes(Math.Min(accessTokenMinutes, 30));
             var amrValues = string.IsNullOrWhiteSpace(authCode.Amr)
                 ? []
                 : authCode.Amr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -278,7 +283,13 @@ public class OAuthController(
         }
 
         var device = Request.Headers.UserAgent.ToString();
-        var result = await tokenIssuer.RefreshAsync(refresh, device, clientId, cancellationToken);
+        var result = await tokenIssuer.RefreshAsync(
+            refresh,
+            device,
+            clientId,
+            client.AccessTokenExpiryMinutes,
+            client.RefreshTokenExpiryDays,
+            cancellationToken);
         if (result is null)
             return BadRequest(new { error = "invalid_grant" });
 

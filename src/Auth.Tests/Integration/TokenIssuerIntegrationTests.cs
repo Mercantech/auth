@@ -70,4 +70,73 @@ public class TokenIssuerIntegrationTests(AuthIntegrationFixture fixture)
             principal.FindFirstValue(MercantecAuthClaims.LoginMethod));
         Assert.Contains(principal.Claims, c => c.Type == ClaimTypes.Role && c.Value == "User");
     }
+
+    [Fact]
+    public async Task Issue_and_refresh_use_client_specific_lifetimes_and_bind_token_to_client()
+    {
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var issuer = scope.ServiceProvider.GetRequiredService<ITokenIssuer>();
+        var userRole = await db.Roles.AsNoTracking().FirstAsync(r => r.Name == "User");
+        var now = DateTime.UtcNow;
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Client Lifetime User",
+            Email = $"token-lifetime-{Guid.NewGuid():N}@example.test",
+            EmailConfirmed = true,
+            CreatedAt = now,
+            LastLoginAt = now,
+            LastLoginMethod = MercantecAuthClaims.LoginMethodValues.Password,
+        };
+        db.Users.Add(user);
+        db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = userRole.Id });
+        await db.SaveChangesAsync();
+
+        var clientId = $"lifetime-{Guid.NewGuid():N}";
+        var issuedAt = DateTime.UtcNow;
+        var (_, refresh, accessExpires) = await issuer.IssueTokensAsync(
+            user,
+            ["User"],
+            deviceInfo: "xunit",
+            authMethod: MercantecAuthClaims.LoginMethodValues.Password,
+            clientId: clientId,
+            accessTokenExpiryMinutes: 480,
+            refreshTokenExpiryDays: 60);
+
+        Assert.InRange(
+            accessExpires,
+            issuedAt.AddMinutes(480).AddSeconds(-2),
+            DateTime.UtcNow.AddMinutes(480).AddSeconds(2));
+
+        var refreshHash = SecureToken.HashOpaqueToken(refresh);
+        var storedRefresh = await db.RefreshTokens.AsNoTracking()
+            .SingleAsync(token => token.TokenHash == refreshHash);
+        Assert.Equal(clientId, storedRefresh.ClientId);
+        Assert.InRange(
+            storedRefresh.ExpiresAt,
+            issuedAt.AddDays(60).AddSeconds(-2),
+            DateTime.UtcNow.AddDays(60).AddSeconds(2));
+
+        var wrongClientResult = await issuer.RefreshAsync(
+            refresh,
+            deviceInfo: "xunit",
+            clientId: "another-client",
+            accessTokenExpiryMinutes: 120,
+            refreshTokenExpiryDays: 10);
+        Assert.Null(wrongClientResult);
+
+        var refreshedAt = DateTime.UtcNow;
+        var correctClientResult = await issuer.RefreshAsync(
+            refresh,
+            deviceInfo: "xunit",
+            clientId: clientId,
+            accessTokenExpiryMinutes: 120,
+            refreshTokenExpiryDays: 10);
+        Assert.NotNull(correctClientResult);
+        Assert.InRange(
+            correctClientResult.Value.accessExpiresUtc,
+            refreshedAt.AddMinutes(120).AddSeconds(-2),
+            DateTime.UtcNow.AddMinutes(120).AddSeconds(2));
+    }
 }

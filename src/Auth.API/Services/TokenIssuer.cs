@@ -29,10 +29,14 @@ public class TokenIssuer(
         string? authMethod,
         string? externalOAuthTokensCipher = null,
         string? clientId = null,
+        int? accessTokenExpiryMinutes = null,
+        int? refreshTokenExpiryDays = null,
         CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow().UtcDateTime;
-        var accessExpires = now.AddMinutes(_jwt.AccessTokenExpiryMinutes);
+        var accessMinutes = TokenLifetimePolicy.ResolveAccessTokenMinutes(accessTokenExpiryMinutes, _jwt);
+        var refreshDays = TokenLifetimePolicy.ResolveRefreshTokenDays(refreshTokenExpiryDays, _jwt);
+        var accessExpires = now.AddMinutes(accessMinutes);
 
         var method = authMethod ?? user.LastLoginMethod;
         if (string.IsNullOrWhiteSpace(method))
@@ -72,7 +76,7 @@ public class TokenIssuer(
             TokenHash = refreshHash,
             DeviceInfo = deviceInfo,
             CreatedAt = now,
-            ExpiresAt = now.AddDays(_jwt.RefreshTokenExpiryDays),
+            ExpiresAt = now.AddDays(refreshDays),
             IsRevoked = false,
             AuthMethod = method,
             ExternalOAuthTokensCipher = externalOAuthTokensCipher,
@@ -86,6 +90,8 @@ public class TokenIssuer(
         string refreshTokenPlain,
         string? deviceInfo,
         string? clientId = null,
+        int? accessTokenExpiryMinutes = null,
+        int? refreshTokenExpiryDays = null,
         CancellationToken cancellationToken = default)
     {
         var hash = SecureToken.HashOpaqueToken(refreshTokenPlain);
@@ -96,6 +102,11 @@ public class TokenIssuer(
             .FirstOrDefaultAsync(x => x.TokenHash == hash, cancellationToken);
 
         if (existing is null || existing.IsRevoked || existing.ExpiresAt < time.GetUtcNow().UtcDateTime)
+            return null;
+
+        var requestedClientId = string.IsNullOrWhiteSpace(clientId) ? null : clientId.Trim();
+        if (!string.IsNullOrEmpty(existing.ClientId)
+            && !string.Equals(existing.ClientId, requestedClientId, StringComparison.Ordinal))
             return null;
 
         var user = existing.User;
@@ -122,7 +133,7 @@ public class TokenIssuer(
             }
         }
 
-        var effectiveClientId = string.IsNullOrWhiteSpace(clientId) ? existing.ClientId : clientId.Trim();
+        var effectiveClientId = existing.ClientId ?? requestedClientId;
         await usageTracker.RecordOAuthRefreshAsync(
             user.Id,
             effectiveClientId ?? string.Empty,
@@ -134,7 +145,15 @@ public class TokenIssuer(
 
         var refreshClient = effectiveClientId;
         var (access, newRefresh, exp) = await IssueTokensAsync(
-            user, roles, deviceInfo, existing.AuthMethod, newCipher, refreshClient, cancellationToken);
+            user,
+            roles,
+            deviceInfo,
+            existing.AuthMethod,
+            newCipher,
+            refreshClient,
+            accessTokenExpiryMinutes,
+            refreshTokenExpiryDays,
+            cancellationToken);
         return (access, newRefresh, exp, msAccess);
     }
 

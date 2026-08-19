@@ -6,6 +6,7 @@
 @inject IJSRuntime Js
 @inject IConfiguration Config
 @inject IOptions<AuthOptions> AuthOptions
+@inject IOptions<JwtOptions> JwtSettings
 @using Auth.API.Models.Entities
 @using Auth.API.Options
 @using Microsoft.EntityFrameworkCore
@@ -228,6 +229,35 @@
                                 <label class="merc-label" for="editScopes">Tilladte scopes</label>
                                 <input id="editScopes" class="merc-input" placeholder="openid profile email offline_access" @bind="_editAllowedScopes" />
                                 <span class="merc-hint">Space-separeret. Dokumenterer hvilke scopes klienten må anmode om.</span>
+                            </div>
+
+                            <div class="merc-form-grid merc-form-grid--2">
+                                <div class="merc-field">
+                                    <label class="merc-label" for="editAccessTokenExpiry">Access-token (minutter)</label>
+                                    <input id="editAccessTokenExpiry"
+                                           class="merc-input"
+                                           type="number"
+                                           min="@TokenLifetimePolicy.MinimumAccessTokenMinutes"
+                                           max="@TokenLifetimePolicy.MaximumAccessTokenMinutes"
+                                           placeholder="@JwtSettings.Value.AccessTokenExpiryMinutes"
+                                           @bind="_editAccessTokenExpiryMinutes" />
+                                    <span class="merc-hint">
+                                        Tom = global standard (@JwtSettings.Value.AccessTokenExpiryMinutes min.). Tilladt: @TokenLifetimePolicy.MinimumAccessTokenMinutes–@TokenLifetimePolicy.MaximumAccessTokenMinutes minutter.
+                                    </span>
+                                </div>
+                                <div class="merc-field">
+                                    <label class="merc-label" for="editRefreshTokenExpiry">Refresh-token (dage)</label>
+                                    <input id="editRefreshTokenExpiry"
+                                           class="merc-input"
+                                           type="number"
+                                           min="@TokenLifetimePolicy.MinimumRefreshTokenDays"
+                                           max="@TokenLifetimePolicy.MaximumRefreshTokenDays"
+                                           placeholder="@JwtSettings.Value.RefreshTokenExpiryDays"
+                                           @bind="_editRefreshTokenExpiryDays" />
+                                    <span class="merc-hint">
+                                        Tom = global standard (@JwtSettings.Value.RefreshTokenExpiryDays dage). Tilladt: @TokenLifetimePolicy.MinimumRefreshTokenDays–@TokenLifetimePolicy.MaximumRefreshTokenDays dage.
+                                    </span>
+                                </div>
                             </div>
 
                             <div class="merc-field">
@@ -503,6 +533,8 @@
     private string _editName = "";
     private string _editClientId = "";
     private string _editAllowedScopes = "";
+    private int? _editAccessTokenExpiryMinutes;
+    private int? _editRefreshTokenExpiryDays;
     private string _editLoginThemeId = "";
     private bool _editUseAllLoginMethods = true;
     private HashSet<string> _editLoginMethods = new(StringComparer.OrdinalIgnoreCase);
@@ -658,6 +690,8 @@
             _editIsPublic = _selected.IsPublic;
             _editRequirePkce = _selected.RequirePkce;
             _editAllowedScopes = _selected.AllowedScopes ?? "";
+            _editAccessTokenExpiryMinutes = _selected.AccessTokenExpiryMinutes;
+            _editRefreshTokenExpiryDays = _selected.RefreshTokenExpiryDays;
             _editLoginThemeId = _selected.LoginThemeId ?? "";
             LoadLoginMethodsFromSelected(_selected.AllowedLoginMethods);
             _editRequiredLinkedProviders = ClientLoginMethodCatalog.ParseRequiredLinked(_selected.RequiredLinkedProviders);
@@ -874,12 +908,26 @@
                 return;
             }
 
+            if (!TokenLifetimePolicy.IsValidAccessTokenMinutes(_editAccessTokenExpiryMinutes))
+            {
+                SetStatus($"Access-token skal være mellem {TokenLifetimePolicy.MinimumAccessTokenMinutes} og {TokenLifetimePolicy.MaximumAccessTokenMinutes} minutter, eller stå tomt.", true);
+                return;
+            }
+
+            if (!TokenLifetimePolicy.IsValidRefreshTokenDays(_editRefreshTokenExpiryDays))
+            {
+                SetStatus($"Refresh-token skal være mellem {TokenLifetimePolicy.MinimumRefreshTokenDays} og {TokenLifetimePolicy.MaximumRefreshTokenDays} dage, eller stå tomt.", true);
+                return;
+            }
+
             tracked.Name = name;
             tracked.ClientId = clientId;
             tracked.IsActive = _editIsActive;
             tracked.IsPublic = _editIsPublic;
             tracked.RequirePkce = _editRequirePkce;
             tracked.AllowedScopes = string.IsNullOrWhiteSpace(_editAllowedScopes) ? null : _editAllowedScopes.Trim();
+            tracked.AccessTokenExpiryMinutes = _editAccessTokenExpiryMinutes;
+            tracked.RefreshTokenExpiryDays = _editRefreshTokenExpiryDays;
             tracked.LoginThemeId = LoginThemeCatalog.NormalizeStored(
                 string.IsNullOrWhiteSpace(_editLoginThemeId) ? null : _editLoginThemeId);
 

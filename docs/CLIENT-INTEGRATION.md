@@ -51,6 +51,17 @@ Sendes automatisk ved ændringer på `/Account/Security` (kræver e-mail på kon
 
 Hvis brugeren allerede har **session-cookie** på auth-domænet, springes login-UI over og der udstedes straks en `code` — **kun** hvis sessionen er **fuld** (ikke `mfa_pending` efter primær login når brugeren har TOTP eller passkey).
 
+## Tokenlevetid pr. klient
+
+Hver OAuth-klient kan vælge sin egen tokenlevetid under **Admin → Klienter → Indstillinger**:
+
+| Felt | Tilladt interval | Tom værdi |
+|------|------------------|-----------|
+| Access-token | 5–1440 minutter | Global `Jwt:AccessTokenExpiryMinutes` |
+| Refresh-token | 1–365 dage | Global `Jwt:RefreshTokenExpiryDays` |
+
+Levetiderne er serverstyrede klientindstillinger. En browser eller klient kan derfor ikke forlænge et token ved at sende en ekstra parameter til `/oauth/token`. En ændring gælder nye access- og refresh-tokens; allerede udstedte refresh-tokens beholder deres nuværende udløbstid, indtil de roteres.
+
 ## MFA (TOTP) og passkeys (WebAuthn)
 
 Valgfrit pr. bruger under **`/Account/Security`** (kræver fuld session).

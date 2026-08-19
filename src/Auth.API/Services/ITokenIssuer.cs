@@ -14,11 +14,15 @@ public interface ITokenIssuer
         string? authMethod,
         string? externalOAuthTokensCipher = null,
         string? clientId = null,
+        int? accessTokenExpiryMinutes = null,
+        int? refreshTokenExpiryDays = null,
         CancellationToken cancellationToken = default);
 
     Task<(string accessToken, string refreshTokenPlain, DateTime accessExpiresUtc, IssuedMicrosoftAccess? microsoftAccess)?> RefreshAsync(
         string refreshTokenPlain,
         string? deviceInfo,
         string? clientId = null,
+        int? accessTokenExpiryMinutes = null,
+        int? refreshTokenExpiryDays = null,
         CancellationToken cancellationToken = default);
 }
