@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Auth.API.Data;
+using Auth.API.Security;
 using Auth.API.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Auth.API.Controllers;
 
-/// <summary>Admin-API til brugerdata (Bearer JWT med rolle Admin).</summary>
+/// <summary>Admin-API til brugerdata (Admin-JWT eller MCP <c>x-api-key</c>).</summary>
 [ApiController]
 [Route("api/admin")]
 [EnableCors("MercantecSpa")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+[Authorize(Policy = AdminApiPolicies.Name)]
 public class AdminDirectoryController(
     AuthDbContext db,
     IAccountMergeService accountMerge,

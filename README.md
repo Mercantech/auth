@@ -48,11 +48,13 @@ Se [docker/README.md](docker/README.md) — især hvis deploy fejler med **conta
 
 ## Dokumentation
 
-- [docs/CLIENT-INTEGRATION.md](docs/CLIENT-INTEGRATION.md) — PKCE, endpoints, demo-client
+- [docs/CLIENT-INTEGRATION.md](docs/CLIENT-INTEGRATION.md) — PKCE, endpoints, demo-client, MCP/API-nøgle
+- [mcp/README.md](mcp/README.md) — Cursor MCP-server (`x-api-key` admin)
 - [auth-mercantec-project.md](auth-mercantec-project.md) — oprindelig spec
 
 ## Struktur
 
 - `src/Auth.API` — webapp (Blazor Web App + OAuth controllers + minimale account-endpoints til form-POST)
 - `src/Auth.Tests` — tests (udvid efter behov)
+- `mcp/` — Cursor MCP (stdio) til discovery + admin
 - `docker/` — Dockerfile + compose

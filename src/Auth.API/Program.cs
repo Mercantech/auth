@@ -6,6 +6,7 @@ using Auth.API.Services;
 using Auth.API.Services.Dokploy;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -23,6 +24,7 @@ builder.Services.Configure<MfaOptions>(builder.Configuration.GetSection(MfaOptio
 builder.Services.Configure<PasskeyOptions>(builder.Configuration.GetSection(PasskeyOptions.SectionName));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.Configure<DokployOptions>(builder.Configuration.GetSection(DokployOptions.SectionName));
+builder.Services.Configure<McpOptions>(builder.Configuration.GetSection(McpOptions.SectionName));
 
 Action<DbContextOptionsBuilder> configureAuthDb = options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -55,6 +57,7 @@ builder.Services.AddScoped<ITokenIssuer, TokenIssuer>();
 builder.Services.AddScoped<IExternalAccountService, ExternalAccountService>();
 builder.Services.AddScoped<IAccountMergeService, AccountMergeService>();
 builder.Services.AddScoped<IUserDeletionService, UserDeletionService>();
+builder.Services.AddScoped<IClientAppAdminService, ClientAppAdminService>();
 builder.Services.AddScoped<IAuthUsageTracker, AuthUsageTracker>();
 builder.Services.AddScoped<ILocalAccountService, LocalAccountService>();
 builder.Services.AddScoped<IMfaGateService, MfaGateService>();
@@ -127,11 +130,21 @@ builder.Services.AddAuthentication(options =>
         };
     })
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, _ => { })
+    .AddScheme<AuthenticationSchemeOptions, McpApiKeyAuthenticationHandler>(
+        MercantecAuthSchemes.McpApiKey,
+        _ => { })
     .AddMercantecExternalLogins(builder.Configuration);
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(MfaPolicies.FullSession, p => p.AddRequirements(new MfaCompletedRequirement()))
-    .AddPolicy(MfaPolicies.MfaStep, p => p.AddRequirements(new AuthenticatedRequirement()));
+    .AddPolicy(MfaPolicies.MfaStep, p => p.AddRequirements(new AuthenticatedRequirement()))
+    .AddPolicy(AdminApiPolicies.Name, p =>
+    {
+        p.AddAuthenticationSchemes(
+            JwtBearerDefaults.AuthenticationScheme,
+            MercantecAuthSchemes.McpApiKey);
+        p.RequireRole("Admin");
+    });
 builder.Services.AddSingleton<IAuthorizationHandler, MfaCompletedAuthorizationHandler>();
 builder.Services.AddSingleton<IAuthorizationHandler, AuthenticatedAuthorizationHandler>();
 builder.Services.AddAntiforgery();

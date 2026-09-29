@@ -148,11 +148,41 @@ Microsoft arbejde kræver `ExternalLogin` med provider `microsoft` **og** tilkny
 | `GET /account/link/start` | Eksplicit OAuth-tilknytning til **aktuelt loggede** bruger (kræver session). Query: `provider`, `returnUrl` |
 | `POST /account/link/remove` | Fjern en `ExternalLogin` (mindst én login-metode skal blive tilbage) |
 | `POST /account/password/set` | Tilføj eller skift adgangskode på **aktuelt loggede** bruger (session + antiforgery). Felter: `email`, `password`, `passwordConfirm`, `returnUrl` |
-| `GET /api/admin/users-directory` | Oversigt over brugere (kun **Bearer JWT med rolle Admin**) |
-| `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT**) |
-| `DELETE /api/admin/users/{userId}` | Slet bruger og tilhørende login-/OAuth-data (**Admin-JWT**) — ikke dig selv, ikke sidste Admin |
-| `GET /api/admin/usage/summary` | Aggregeret klient-brug og seneste hændelser (**Admin-JWT**) |
-| `GET /api/admin/usage/events` | Filtrerbar hændelseslog (**Admin-JWT**) |
+| `GET /api/admin/users-directory` | Oversigt over brugere (**Admin-JWT** eller **MCP `x-api-key`**) |
+| `POST /api/admin/users/merge` | Sammenlæg to brugerkonti — se afsnit nedenfor (**Admin-JWT** / API-nøgle) |
+| `DELETE /api/admin/users/{userId}` | Slet bruger og tilhørende login-/OAuth-data (**Admin-JWT** / API-nøgle) — ikke dig selv (JWT), ikke sidste Admin |
+| `GET /api/admin/usage/summary` | Aggregeret klient-brug og seneste hændelser (**Admin-JWT** / API-nøgle) |
+| `GET /api/admin/usage/events` | Filtrerbar hændelseslog (**Admin-JWT** / API-nøgle) |
+| `GET /api/admin/clients` | Liste OAuth-klienter (**Admin-JWT** / API-nøgle) |
+| `GET /api/admin/clients/{clientId}` | Klientdetalje + redirect-URI’er |
+| `POST /api/admin/clients` | Opret klient (plaintext secret returneres én gang hvis confidential) |
+| `PATCH /api/admin/clients/{clientId}` | Opdatér indstillinger |
+| `DELETE /api/admin/clients/{clientId}` | Slet klient |
+| `POST /api/admin/clients/{clientId}/redirect-uris` | Tilføj redirect URI (`{ "uri": "https://…" }`) |
+| `DELETE /api/admin/clients/{clientId}/redirect-uris/{id}` | Fjern redirect URI |
+| `POST /api/admin/clients/{clientId}/rotate-secret` | Roter client secret (kun confidential) |
+
+### MCP / API-nøgle (Cursor)
+
+Admin-API’et accepterer enten:
+
+1. `Authorization: Bearer <access_token>` med rolle **Admin**, eller
+2. Header **`x-api-key: <nøgle>`** hvor nøglen matcher server-env **`Mcp__ApiKey`** (tom = kun JWT).
+
+Cursor bruger repo-pakken [`mcp/`](../mcp/) (stdio). Sæt i `~/.cursor/mcp.json`:
+
+```json
+"mercantec-auth": {
+  "command": "node",
+  "args": ["<sti-til-repo>/mcp/build/index.js"],
+  "env": {
+    "AUTH_BASE_URL": "https://auth.mercantec.tech",
+    "AUTH_MCP_API_KEY": "${env:AUTH_MCP_API_KEY}"
+  }
+}
+```
+
+Samme nøgle skal sættes i Dokploy som `Mcp__ApiKey`. Commit aldrig nøglen.
 
 ## Brugerkonto: flere login-udbydere (account linking)
 

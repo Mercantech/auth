@@ -225,6 +225,16 @@ public class IntegrationManifestController(
             "Hvis I skal kalde Microsoft Graph: læs microsoft_access_token fra token-svar når det findes (kun ved Microsoft-login).",
             "Ved openid: tjek amr i id_token hvis jeres app skal vide om MFA (otp/webauthn) blev brugt i den session.",
         },
+        mcp = new
+        {
+            note_da = "Cursor/AI-agenter kan administrere Auth via MCP (stdio) med central API-nøgle — samme mønster som Dokploy MCP.",
+            header = "x-api-key",
+            env_server = "Mcp__ApiKey",
+            env_client = new[] { "AUTH_BASE_URL", "AUTH_MCP_API_KEY" },
+            admin_api_base = $"{baseUrl}/api/admin",
+            tool_categories = new[] { "discovery", "clients", "users", "usage" },
+            repo_package = "mcp/",
+        },
         mfa_and_passkeys = new
         {
             totp = new

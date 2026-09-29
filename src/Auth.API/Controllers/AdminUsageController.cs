@@ -1,6 +1,5 @@
 using Auth.API.Data;
-using Auth.API.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Auth.API.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +10,7 @@ namespace Auth.API.Controllers;
 [ApiController]
 [Route("api/admin/usage")]
 [EnableCors("MercantecSpa")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+[Authorize(Policy = AdminApiPolicies.Name)]
 public class AdminUsageController(AuthDbContext db) : ControllerBase
 {
     [HttpGet("summary")]

@@ -10,3 +10,5 @@ keys-testing/
 appsettings.*.local.json
 docker/.env
 appsettings.json
+.env
+mcp/node_modules/
