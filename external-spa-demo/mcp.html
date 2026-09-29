@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCP — AI-agenter mod Mercantec Auth (undervisning)</title>
+  <link rel="stylesheet" href="demo-theme.css?v=2" />
+</head>
+<body class="demo">
+  <div class="demo-wrap demo-wrap--wide">
+    <nav>
+      <a href="index.html">Forside</a>
+      <a href="docs.html">Docs</a>
+      <a href="ai-prompt.html">AI-prompt</a>
+      <a href="mcp.html"><strong>MCP</strong></a>
+      <a href="jwt.html">JWT</a>
+      <a href="users.html">Brugere</a>
+      <a href="callback.html">Token</a>
+      <a href="appsettings-to-env.html">appsettings → .env</a>
+      <button type="button" class="nav-logout" id="nav-logout">Log ud</button>
+    </nav>
+
+    <h1>Når AI’en får nøgler til Auth</h1>
+    <p class="lead">
+      Forestil dig at du beder Cursor: <em>«Opret en OAuth-klient til min nye SPA og tilføj redirect-URI’en»</em> —
+      og den gør det rigtigt. Det er <strong>MCP</strong>: en protokol der giver AI-agenter
+      dokumenterede værktøjer i stedet for at gætte REST-kald.
+    </p>
+
+    <div class="docs-toc" id="toc">
+      <span class="docs-toc-label">Indhold</span>
+      <a href="#historie">1. Historien</a>
+      <a href="#hvad">2. Hvad er MCP?</a>
+      <a href="#flow">3. Flowet</a>
+      <a href="#tools">4. Tools</a>
+      <a href="#workshop">5. Workshop</a>
+      <a href="#setup">6. Opsætning</a>
+      <a href="#sikkerhed">7. Sikkerhed</a>
+      <a href="#live">8. Prøv live</a>
+    </div>
+
+    <h2 id="historie">1. Historien: fra prompt til produktion</h2>
+    <p>
+      På <a href="ai-prompt.html">AI-prompt</a>-siden lærer du AI’en <em>at skrive</em> korrekt OAuth-kode.
+      MCP går et skridt videre: AI’en kan <em>administrere</em> Auth-platformen — registrere klienter,
+      læse brugerkataloget, tjekke health — med de samme regler som admin-API’et.
+    </p>
+    <div class="docs-compare">
+      <div class="docs-compare-col docs-compare-bad">
+        <strong>Uden MCP</strong>
+        <ul class="tight">
+          <li>Du kopierer client_id manuelt fra Admin → Klienter</li>
+          <li>AI’en gætter endpoints og glemmer PKCE</li>
+          <li>Fejl findes først når login fejler i browseren</li>
+        </ul>
+      </div>
+      <div class="docs-compare-col docs-compare-good">
+        <strong>Med Mercantec Auth MCP</strong>
+        <ul class="tight">
+          <li>Agenten kalder <code>auth_create_client</code> + redirect-URI</li>
+          <li>Manifestet er én tool-kald væk (<code>auth_get_manifest</code>)</li>
+          <li>Samme API-nøgle-mønster som Dokploy MCP</li>
+        </ul>
+      </div>
+    </div>
+    <div class="teach">
+      <strong>Undervisningspointe:</strong> MCP er ikke “magi”. Det er en tynd wrapper om HTTPS + en API-nøgle.
+      Hvis du forstår admin-REST, forstår du MCP — tools er bare pæne navne ovenpå.
+    </div>
+
+    <h2 id="hvad">2. Hvad er Model Context Protocol?</h2>
+    <p>
+      MCP (Model Context Protocol) er en åben standard for, hvordan en AI-klient (fx Cursor) opdager og kalder
+      <em>tools</em> hos en MCP-server. Serveren kører typisk lokalt som en stdio-proces; klienten sender JSON-RPC
+      over stdin/stdout; serveren oversætter til jeres API.
+    </p>
+    <ul class="tight">
+      <li><strong>Discovery-tools</strong> — offentlige: manifest, OIDC, health. Ingen hemmelighed nødvendig.</li>
+      <li><strong>Admin-tools</strong> — kræver <code>x-api-key</code> der matcher serverens <code>Mcp__ApiKey</code>.</li>
+      <li><strong>Samme sandhed</strong> som Blazor-admin: klienter, brugere, usage ligger i Auth-databasen.</li>
+    </ul>
+    <div class="teach">
+      <strong>Analogien:</strong> Dokploy MCP styrer deploy. Auth MCP styrer login-identitet.
+      Begge bruger en central nøgle i <code>mcp.json</code> — aldrig i git.
+    </div>
+
+    <h2 id="flow">3. Flowet (fire hop)</h2>
+    <div class="diagram-wrap">
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor Dig as Dig i Cursor
+  participant MCP as Auth MCP (stdio)
+  participant API as auth.mercantec.tech
+  participant DB as Postgres
+
+  Dig->>MCP: Brug tool auth_create_client
+  MCP->>API: POST /api/admin/clients + x-api-key
+  API->>API: Validér nøgle / Admin-JWT
+  API->>DB: Insert ClientApp
+  DB-->>API: OK
+  API-->>MCP: JSON (klient + evt. secret)
+  MCP-->>Dig: Svar i chatten
+</div>
+    </div>
+    <p class="muted">
+      Agenten ser aldrig din database direkte. Den ser kun det, tools returnerer — derfor er tool-beskrivelser
+      og statuskoder en del af “pensum” for AI’en.
+    </p>
+
+    <h2 id="tools">4. Tools i v1 — pensumkort</h2>
+    <p>Tre fag, ét API. Husk: admin-tools kræver at <code>AUTH_MCP_API_KEY</code> er sat i Cursor.</p>
+
+    <div class="card">
+      <h2>Discovery</h2>
+      <p class="muted">Offentligt · godt som første øvelse</p>
+      <ul class="tight">
+        <li><code>auth_health</code> — lever Auth?</li>
+        <li><code>auth_get_openid_configuration</code> — OIDC-endpoints</li>
+        <li><code>auth_get_manifest</code> — hele integrationsguiden inkl. MCP-blok</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>OAuth-klienter</h2>
+      <p class="muted">Det I ellers gør under Admin → Klienter</p>
+      <ul class="tight">
+        <li><code>auth_list_clients</code> / <code>auth_get_client</code></li>
+        <li><code>auth_create_client</code> / <code>auth_update_client</code> / <code>auth_delete_client</code></li>
+        <li><code>auth_add_redirect_uri</code> / <code>auth_remove_redirect_uri</code></li>
+        <li><code>auth_rotate_client_secret</code> — plaintext secret kun én gang</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Brugere &amp; usage</h2>
+      <p class="muted">Directory, merge, slet, forbrug</p>
+      <ul class="tight">
+        <li><code>auth_users_directory</code></li>
+        <li><code>auth_merge_users</code> / <code>auth_delete_user</code></li>
+        <li><code>auth_usage_summary</code> / <code>auth_usage_events</code></li>
+      </ul>
+    </div>
+
+    <h2 id="workshop">5. Workshop: tre prompts til elever</h2>
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Øvelse A</span>
+      <h3>Discovery først</h3>
+      <p class="muted">Ingen nøgle nødvendig — start her hvis MCP lige er installeret.</p>
+      <pre class="prompt-pre">Brug Mercantec Auth MCP: kør auth_health og auth_get_manifest.
+Opsummér issuer, audience og hvad mcp-blokken siger om x-api-key.</pre>
+    </div>
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Øvelse B</span>
+      <h3>Ny SPA-klient</h3>
+      <p class="muted">Kræver API-nøgle. Brug et unikt client_id (fx elevens initialer + dato).</p>
+      <pre class="prompt-pre">Opret en offentlig OAuth-klient med RequirePkce=true til min SPA.
+client_id: workshop-XXXX, navn: Workshop XXXX.
+Tilføj redirect URI https://localhost:5173/callback
+Vis mig derefter klienten med auth_get_client.</pre>
+    </div>
+    <div class="docs-demo">
+      <span class="docs-demo-badge">Øvelse C</span>
+      <h3>Wire integrationen</h3>
+      <p class="muted">Kombinér MCP med <a href="ai-prompt.html">AI-prompt</a> / PKCE fra <a href="docs.html">docs</a>.</p>
+      <pre class="prompt-pre">Jeg har client_id workshop-XXXX. Hent manifestet, og generér en minimal
+Vite/React PKCE-login mod Mercantec Auth med den præcise redirect_uri.</pre>
+    </div>
+    <div class="teach">
+      <strong>Lærermål:</strong> Eleverne skal kunne forklare forskellen mellem “AI skriver kode” (prompt)
+      og “AI kalder platformen” (MCP) — og hvorfor API-nøglen er root-adgang.
+    </div>
+
+    <h2 id="setup">6. Opsætning i Cursor</h2>
+    <ol class="tight">
+      <li>Klon auth-repoet og byg: <code>cd mcp && npm install && npm run build</code></li>
+      <li>Sæt samme hemmelighed i Dokploy (<code>Mcp__ApiKey</code>) og lokalt (<code>AUTH_MCP_API_KEY</code>).</li>
+      <li>Tilføj serveren i <code>~/.cursor/mcp.json</code>:</li>
+    </ol>
+    <pre id="mcp-json-pre" class="prompt-pre"></pre>
+    <div class="demo-toolbar">
+      <button type="button" class="btn btn-secondary" id="btn-copy-json">Kopiér mcp.json-snippet</button>
+      <span class="demo-meta" id="copy-json-status"></span>
+    </div>
+    <p class="muted">
+      Admin-UI på Auth: <a href="https://auth.mercantec.tech/Admin/Mcp" target="_blank" rel="noopener">/Admin/Mcp</a>
+      (kræver Admin-rolle) — status for nøgle + samme fortælling.
+    </p>
+
+    <h2 id="sikkerhed">7. Sikkerhed — klasseværelsesregler</h2>
+    <div class="docs-compare">
+      <div class="docs-compare-col docs-compare-bad">
+        <strong>Gør ikke</strong>
+        <ul class="tight">
+          <li>Commit API-nøglen til git</li>
+          <li>Del nøglen i elev-chats / Discord</li>
+          <li>Lad AI slette brugere “for sjov”</li>
+        </ul>
+      </div>
+      <div class="docs-compare-col docs-compare-good">
+        <strong>Gør</strong>
+        <ul class="tight">
+          <li>Behandl nøglen som root</li>
+          <li>Brug workshop-præfiks på client_id</li>
+          <li>Ryd midlertidige klienter efter timen</li>
+        </ul>
+      </div>
+    </div>
+    <div class="teach">
+      <strong>Husk:</strong> JWT med rolle Admin og MCP-nøglen er to veje til samme admin-API.
+      SPA’en her bruger typisk Bearer-JWT til <a href="users.html">brugere</a>; Cursor bruger <code>x-api-key</code>.
+    </div>
+
+    <h2 id="live">8. Prøv live (discovery)</h2>
+    <div class="docs-demo docs-demo--live">
+      <span class="docs-demo-badge">Live</span>
+      <h3>Health + MCP-blok fra manifestet</h3>
+      <p class="muted">Kalder den rigtige Auth-base fra <code>shared-config.js</code> — ingen API-nøgle.</p>
+      <div class="demo-toolbar">
+        <button type="button" class="btn" id="btn-live">Kør discovery</button>
+        <span class="demo-meta" id="live-status"></span>
+      </div>
+      <pre id="live-pre" hidden></pre>
+    </div>
+
+    <p>
+      <small>
+        Vil du forstå OAuth først? Start i <a href="docs.html">docs</a>.
+        Vil du have AI til at skrive integrationskode? Brug <a href="ai-prompt.html">AI-prompt</a>.
+      </small>
+    </p>
+
+    <p class="demo-platform-note" role="note">
+      Demo ved <strong>MAGS</strong> (underviser) — ikke Mercantecs officielle produkt.
+      <a href="mailto:mags@mercantec.dk">mags@mercantec.dk</a>
+    </p>
+  </div>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      securityLevel: "strict",
+      flowchart: { htmlLabels: false },
+    });
+  </script>
+  <script src="shared-config.js"></script>
+  <script src="logout.js"></script>
+  <script src="mcp-page.js"></script>
+  <script>
+    document.getElementById("nav-logout").addEventListener("click", () => mercantecLogout());
+  </script>
+</body>
+</html>

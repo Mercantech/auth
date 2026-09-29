@@ -5,167 +5,238 @@
 @inject IOptionsSnapshot<McpOptions> McpOptions
 @inject NavigationManager Nav
 
-<PageTitle>MCP (admin)</PageTitle>
+<PageTitle>MCP — undervisning &amp; drift</PageTitle>
 
 <div class="merc-page merc-mcp">
-    <header class="merc-users__header merc-mcp__header">
-        <div>
-            <p class="merc-mcp__eyebrow">Cursor · AI-agenter</p>
-            <h1>MCP</h1>
-            <p class="merc-users__lead">
-                Model Context Protocol giver Cursor (og andre AI-klienter) værktøjer, der kalder Mercantec Auth direkte —
-                så en agent kan oprette OAuth-klienter, finde brugere og læse integrations-docs uden at du skal kopiere UI-flows manuelt.
+    <header class="merc-mcp__hero">
+        <div class="merc-mcp__hero-copy">
+            <p class="merc-mcp__eyebrow">Cursor · Model Context Protocol · undervisning</p>
+            <h1>Når AI’en får nøgler til Auth</h1>
+            <p class="merc-mcp__lead">
+                MCP er broen mellem chatten og denne platform: i stedet for at elever (eller du) klikker rundt i Admin,
+                kan Cursor kalde navngivne <em>tools</em> — oprette OAuth-klienter, hente manifestet, liste brugere —
+                med samme API-nøgle-mønster som Dokploy.
             </p>
+            <div class="merc-mcp__hero-actions">
+                <a class="merc-btn merc-btn--primary" href="https://auth-spa.mercantec.tech/mcp.html" target="_blank" rel="noopener">
+                    Elev-side (SPA) →
+                </a>
+                <a class="merc-btn merc-btn--ghost" href="/.well-known/mercantec-auth.json" target="_blank" rel="noopener">Manifest</a>
+                <a class="merc-btn merc-btn--ghost" href="/Admin/Clients">Klienter</a>
+            </div>
         </div>
-        <div class="merc-mcp__header-actions">
-            <a class="merc-btn merc-btn--ghost" href="/.well-known/mercantec-auth.json" target="_blank" rel="noopener">Manifest</a>
-            <a class="merc-btn merc-btn--ghost" href="/Admin/Clients">Klienter →</a>
-        </div>
+        <aside class="merc-mcp__hero-aside" aria-label="Serverstatus">
+            <p class="merc-mcp__aside-title">Drift lige nu</p>
+            <dl class="merc-mcp__status-dl">
+                <div>
+                    <dt>API-nøgle</dt>
+                    <dd>
+                        @if (_apiKeyConfigured)
+                        {
+                            <span class="merc-mcp__pill merc-mcp__pill--ok">Konfigureret</span>
+                        }
+                        else
+                        {
+                            <span class="merc-mcp__pill merc-mcp__pill--warn">Mangler</span>
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt>Header</dt>
+                    <dd><code>x-api-key</code></dd>
+                </div>
+                <div>
+                    <dt>Base</dt>
+                    <dd><code class="merc-mcp__break">@_baseUrl</code></dd>
+                </div>
+            </dl>
+            @if (!_apiKeyConfigured)
+            {
+                <p class="merc-hint">Sæt <code>Mcp__ApiKey</code> i Dokploy (= <code>AUTH_MCP_API_KEY</code> i Cursor).</p>
+            }
+            else
+            {
+                <p class="merc-hint">Nøglen er live — behandle den som root.</p>
+            }
+        </aside>
     </header>
 
-    <section class="merc-panel merc-mcp__status" aria-label="Serverstatus">
-        <div class="merc-mcp__status-grid">
-            <div>
-                <span class="merc-mcp__stat-label">API-nøgle (Mcp__ApiKey)</span>
-                @if (_apiKeyConfigured)
-                {
-                    <strong class="merc-mcp__stat-ok">Konfigureret</strong>
-                }
-                else
-                {
-                    <strong class="merc-mcp__stat-warn">Ikke sat</strong>
-                }
-            </div>
-            <div>
-                <span class="merc-mcp__stat-label">Auth base</span>
-                <strong class="merc-mcp__mono">@_baseUrl</strong>
-            </div>
-            <div>
-                <span class="merc-mcp__stat-label">Admin-header</span>
-                <strong class="merc-mcp__mono">x-api-key</strong>
-            </div>
-        </div>
-        @if (!_apiKeyConfigured)
-        {
-            <p class="merc-hint merc-hint--block">
-                Sæt <code>Mcp__ApiKey</code> i Dokploy (samme værdi som <code>AUTH_MCP_API_KEY</code> i Cursor).
-                Tom nøgle betyder at kun Admin-JWT virker — MCP-admin-tools vil få 401.
-            </p>
-        }
-    </section>
+    <nav class="merc-mcp__toc" aria-label="Indhold på siden">
+        <span class="merc-mcp__toc-label">Spring til</span>
+        <a href="#fortælling">Fortælling</a>
+        <a href="#flow">Flow</a>
+        <a href="#pensum">Pensum / tools</a>
+        <a href="#workshop">Workshop</a>
+        <a href="#opsætning">Opsætning</a>
+        <a href="#sikkerhed">Sikkerhed</a>
+    </nav>
 
-    <section class="merc-panel" aria-labelledby="mcp-what-heading">
+    <section class="merc-panel merc-mcp__story" id="fortælling" aria-labelledby="story-h">
         <div class="merc-panel__head">
-            <h2 id="mcp-what-heading">Hvad er MCP?</h2>
+            <h2 id="story-h">To historier, én platform</h2>
+            <p class="merc-panel__sub">Hjælp eleverne til at skelne «skriv kode» fra «kald platformen»</p>
         </div>
-        <div class="merc-mcp__prose">
-            <p>
-                <strong>Model Context Protocol (MCP)</strong> er en åben standard for, hvordan AI-værktøjer (som Cursor)
-                kan kalde eksterne tjenester via navngivne <em>tools</em>. I stedet for at agenten gætter REST-kald,
-                får den en liste af sikre, dokumenterede funktioner — fx «list OAuth-klienter» eller «tilføj redirect URI».
-            </p>
-            <p>
-                Mercantec Auth MCP følger samme mønster som Dokploy MCP: en lokal <strong>stdio</strong>-proces i Cursor,
-                der sender HTTPS-kald til denne Auth-server med en central API-nøgle.
-            </p>
-            <ul>
-                <li><strong>Discovery</strong> — hent integrations-manifest, OIDC-discovery og health (offentligt).</li>
-                <li><strong>Admin</strong> — klienter, brugere og usage via <code>/api/admin/*</code> (kræver <code>x-api-key</code>).</li>
-            </ul>
+        <div class="merc-mcp__compare">
+            <article class="merc-mcp__compare-card merc-mcp__compare-card--prompt">
+                <h3>AI-prompt</h3>
+                <p>Lærer AI’en at <strong>skrive</strong> korrekt PKCE, token-exchange og JWT-validering.</p>
+                <p class="merc-hint">Elev-værktøj: SPA → AI-prompt</p>
+            </article>
+            <article class="merc-mcp__compare-card merc-mcp__compare-card--mcp">
+                <h3>MCP</h3>
+                <p>Giver AI’en <strong>tools</strong>, så den kan oprette klienter og læse Auth — ikke bare beskrive det.</p>
+                <p class="merc-hint">Samme sandhed som denne admin-UI</p>
+            </article>
+        </div>
+        <div class="merc-mcp__callout">
+            <strong>Kernen til tavlen:</strong> MCP er ikke magi. Det er HTTPS + en API-nøgle + pæne funktionsnavne.
+            Hvis I forstår <code>/api/admin/clients</code>, forstår I <code>auth_create_client</code>.
         </div>
     </section>
 
-    <section class="merc-panel" aria-labelledby="mcp-flow-heading">
+    <section class="merc-panel" id="flow" aria-labelledby="flow-h">
         <div class="merc-panel__head">
-            <h2 id="mcp-flow-heading">Sådan hænger det sammen</h2>
+            <h2 id="flow-h">Fire hop fra chat til database</h2>
         </div>
-        <ol class="merc-mcp__steps">
+        <ol class="merc-mcp__pipeline">
             <li>
-                <strong>Cursor</strong> starter MCP-serveren fra repoet (<code>mcp/build/index.js</code>).
+                <span class="merc-mcp__pipe-num">1</span>
+                <div>
+                    <strong>Cursor</strong>
+                    <p>Agenten vælger et tool, fx <code>auth_add_redirect_uri</code>.</p>
+                </div>
             </li>
             <li>
-                Agenten vælger et tool (fx <code>auth_create_client</code>).
+                <span class="merc-mcp__pipe-num">2</span>
+                <div>
+                    <strong>MCP stdio</strong>
+                    <p>Lokal Node-proces (<code>mcp/build/index.js</code>) oversætter til fetch.</p>
+                </div>
             </li>
             <li>
-                MCP sender request til <code>@_baseUrl</code> med header <code>x-api-key</code>.
+                <span class="merc-mcp__pipe-num">3</span>
+                <div>
+                    <strong>Auth.API</strong>
+                    <p>Godkender <code>x-api-key</code> (eller Admin-JWT) på <code>/api/admin/*</code>.</p>
+                </div>
             </li>
             <li>
-                Auth.API godkender nøglen (eller Admin-JWT) og udfører handlingen i databasen.
+                <span class="merc-mcp__pipe-num">4</span>
+                <div>
+                    <strong>Postgres</strong>
+                    <p>Samme <code>ClientApps</code> / brugere som Blazor-admin ser.</p>
+                </div>
             </li>
         </ol>
     </section>
 
-    <section class="merc-panel" aria-labelledby="mcp-can-heading">
+    <section class="merc-panel" id="pensum" aria-labelledby="pensum-h">
         <div class="merc-panel__head">
-            <h2 id="mcp-can-heading">Hvad kan den?</h2>
-            <p class="merc-panel__sub">Tools i pakken <code>mcp/</code> (v1)</p>
+            <h2 id="pensum-h">Pensumkort — tools i v1</h2>
+            <p class="merc-panel__sub">Tre fag. Discovery først, admin når nøglen er på plads.</p>
         </div>
-
         <div class="merc-mcp__tool-groups">
             <article class="merc-mcp__tool-card">
+                <span class="merc-mcp__tool-badge">Offentlig</span>
                 <h3>Discovery</h3>
-                <p class="merc-hint">Ingen nøgle påkrævet</p>
+                <p class="merc-hint">Første øvelse i timen</p>
                 <ul>
-                    <li><code>auth_get_manifest</code></li>
-                    <li><code>auth_get_openid_configuration</code></li>
                     <li><code>auth_health</code></li>
+                    <li><code>auth_get_openid_configuration</code></li>
+                    <li><code>auth_get_manifest</code></li>
                 </ul>
             </article>
             <article class="merc-mcp__tool-card">
+                <span class="merc-mcp__tool-badge merc-mcp__tool-badge--key">API-nøgle</span>
                 <h3>OAuth-klienter</h3>
-                <p class="merc-hint">Kræver API-nøgle</p>
+                <p class="merc-hint">Det I ellers gør under Klienter</p>
                 <ul>
-                    <li><code>auth_list_clients</code> / <code>auth_get_client</code></li>
-                    <li><code>auth_create_client</code> / <code>auth_update_client</code></li>
-                    <li><code>auth_delete_client</code></li>
-                    <li><code>auth_add_redirect_uri</code> / <code>auth_remove_redirect_uri</code></li>
+                    <li><code>auth_list_clients</code> / <code>get</code></li>
+                    <li><code>auth_create_client</code> / <code>update</code> / <code>delete</code></li>
+                    <li><code>auth_add_redirect_uri</code> / <code>remove</code></li>
                     <li><code>auth_rotate_client_secret</code></li>
                 </ul>
             </article>
             <article class="merc-mcp__tool-card">
+                <span class="merc-mcp__tool-badge merc-mcp__tool-badge--key">API-nøgle</span>
                 <h3>Brugere &amp; usage</h3>
-                <p class="merc-hint">Kræver API-nøgle</p>
+                <p class="merc-hint">Directory, merge, forbrug</p>
                 <ul>
                     <li><code>auth_users_directory</code></li>
                     <li><code>auth_merge_users</code> / <code>auth_delete_user</code></li>
-                    <li><code>auth_usage_summary</code> / <code>auth_usage_events</code></li>
+                    <li><code>auth_usage_summary</code> / <code>events</code></li>
                 </ul>
             </article>
         </div>
+    </section>
 
+    <section class="merc-panel merc-mcp__workshop" id="workshop" aria-labelledby="workshop-h">
+        <div class="merc-panel__head">
+            <h2 id="workshop-h">Workshop-prompts (klar til tavlen)</h2>
+            <p class="merc-panel__sub">Kopiér ind i Cursor — start med A uden nøgle</p>
+        </div>
+        <div class="merc-mcp__exercises">
+            <article>
+                <span class="merc-mcp__ex-label">A · Discovery</span>
+                <pre class="merc-mcp__ex-pre">Brug Mercantec Auth MCP: kør auth_health og auth_get_manifest.
+Opsummér issuer, audience og mcp-blokkens krav til x-api-key.</pre>
+            </article>
+            <article>
+                <span class="merc-mcp__ex-label">B · Ny klient</span>
+                <pre class="merc-mcp__ex-pre">Opret offentlig OAuth-klient med PKCE.
+client_id: workshop-XXXX — tilføj redirect https://localhost:5173/callback
+Vis klienten med auth_get_client.</pre>
+            </article>
+            <article>
+                <span class="merc-mcp__ex-label">C · Wire SPA</span>
+                <pre class="merc-mcp__ex-pre">Jeg har client_id workshop-XXXX. Hent manifestet og generér
+minimal Vite PKCE-login med den præcise redirect_uri.</pre>
+            </article>
+        </div>
         <p class="merc-hint merc-hint--block">
-            Typisk flow når I bygger en ny SPA: bed Cursor oprette klient + redirect URI’er, så hent manifestet og wire PKCE.
-            Samme arbejde som under <a href="/Admin/Clients">Klienter</a>, bare styret fra chatten.
+            Efter timen: slet workshop-klienter under <a href="/Admin/Clients">Klienter</a> eller via <code>auth_delete_client</code>.
+            Elev-materiale med mermaid-flow: <a href="https://auth-spa.mercantec.tech/mcp.html" target="_blank" rel="noopener">auth-spa …/mcp.html</a>.
         </p>
     </section>
 
-    <section class="merc-panel" aria-labelledby="mcp-setup-heading">
+    <section class="merc-panel" id="opsætning" aria-labelledby="setup-h">
         <div class="merc-panel__head">
-            <h2 id="mcp-setup-heading">Opsætning i Cursor</h2>
+            <h2 id="setup-h">Opsætning (lærer / drift)</h2>
         </div>
-        <div class="merc-mcp__prose">
-            <ol>
-                <li>Byg pakken: <code>cd mcp &amp;&amp; npm install &amp;&amp; npm run build</code></li>
-                <li>Tilføj serveren i <code>~/.cursor/mcp.json</code> (eller projektets MCP-config).</li>
-                <li>Genstart Cursor / genindlæs MCP-serveren.</li>
-            </ol>
-        </div>
+        <ol class="merc-mcp__steps">
+            <li>Byg pakken: <code>cd mcp &amp;&amp; npm install &amp;&amp; npm run build</code></li>
+            <li>Dokploy Auth: <code>Mcp__ApiKey=&lt;stærk-nøgle&gt;</code> (allerede sat i prod hvis I fulgte MCP-udrulningen).</li>
+            <li>Cursor <code>mcp.json</code> — se eksempel nedenfor. Genstart MCP-serveren.</li>
+        </ol>
         <pre class="merc-mcp__code" tabindex="0"><code>@_mcpJsonExample</code></pre>
-        <p class="merc-hint merc-hint--block">
-            Brug samme hemmelighed i Dokploy (<code>Mcp__ApiKey</code>) og i Cursor (<code>AUTH_MCP_API_KEY</code>).
-            Commit aldrig nøglen. Se også <code>mcp/README.md</code> i repoet.
-        </p>
     </section>
 
-    <section class="merc-panel" aria-labelledby="mcp-security-heading">
+    <section class="merc-panel" id="sikkerhed" aria-labelledby="sec-h">
         <div class="merc-panel__head">
-            <h2 id="mcp-security-heading">Sikkerhed</h2>
+            <h2 id="sec-h">Sikkerhed i undervisningen</h2>
+        </div>
+        <div class="merc-mcp__compare">
+            <article class="merc-mcp__compare-card merc-mcp__compare-card--bad">
+                <h3>Gør ikke</h3>
+                <ul>
+                    <li>Commit nøglen til git</li>
+                    <li>Del nøglen i elev-chats</li>
+                    <li>Lad AI slette brugere “for sjov”</li>
+                </ul>
+            </article>
+            <article class="merc-mcp__compare-card merc-mcp__compare-card--good">
+                <h3>Gør</h3>
+                <ul>
+                    <li>Behandl nøglen som root</li>
+                    <li>Brug <code>workshop-</code>-præfiks på client_id</li>
+                    <li>Ryd midlertidige klienter efter timen</li>
+                </ul>
+            </article>
         </div>
         <ul class="merc-mcp__bullets">
-            <li>API-nøglen giver <strong>fuld admin</strong> (klienter, merge, slet bruger) — behandle den som en root-adgangskode.</li>
-            <li>Admin-UI og SPA kan stadig bruge <strong>Bearer JWT med rolle Admin</strong>; MCP bruger nøglen.</li>
-            <li>Plaintext client secrets returneres kun ved create/rotate — gem dem med det samme.</li>
-            <li>Dokploy-ACL via MCP er <em>ikke</em> med i v1 (brug <a href="/Admin/Dokploy">Dokploy-admin</a>).</li>
+            <li>Admin-UI her bruger cookie + rolle; MCP bruger <code>x-api-key</code> — begge rammer samme admin-API.</li>
+            <li>Client secrets vises kun ved create/rotate — gem dem med det samme.</li>
+            <li>Dokploy-ACL via MCP er ikke i v1 — brug <a href="/Admin/Dokploy">Dokploy-admin</a>.</li>
         </ul>
     </section>
 </div>
