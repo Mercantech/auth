@@ -234,13 +234,39 @@ Vite/React PKCE-login mod Mercantec Auth med den præcise redirect_uri.</pre>
     </p>
   </div>
 
-  <script type="module">
-    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <script>
     mermaid.initialize({
       startOnLoad: true,
-      theme: "neutral",
-      securityLevel: "strict",
-      flowchart: { htmlLabels: false },
+      theme: "base",
+      securityLevel: "loose",
+      themeVariables: {
+        primaryColor: "#2a3d52",
+        primaryTextColor: "#e5e1d8",
+        primaryBorderColor: "#a63d2d",
+        secondaryColor: "#2a4a40",
+        tertiaryColor: "#1a1917",
+        lineColor: "#c4bdb0",
+        background: "#1a1917",
+        mainBkg: "#2c2a26",
+        nodeBorder: "#a63d2d",
+        clusterBkg: "#242220",
+        titleColor: "#e5e1d8",
+        edgeLabelBackground: "#2c2a26",
+        actorBkg: "#2c2a26",
+        actorBorder: "#a63d2d",
+        actorTextColor: "#e5e1d8",
+        signalColor: "#c4bdb0",
+        signalTextColor: "#e5e1d8",
+        labelBoxBkgColor: "#242220",
+        labelBoxBorderColor: "#a63d2d",
+        labelTextColor: "#e5e1d8",
+        loopTextColor: "#e5e1d8",
+        noteBkgColor: "#2a4a40",
+        noteTextColor: "#e5e1d8",
+        sequenceNumberColor: "#1a1917",
+      },
+      sequence: { actorMargin: 40, messageMargin: 32, mirrorActors: false },
     });
   </script>
   <script src="shared-config.js"></script>
