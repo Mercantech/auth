@@ -84,9 +84,12 @@ public class AdminClientsController(IClientAppAdminService clients) : Controller
     [HttpPost("{clientId}/redirect-uris")]
     public async Task<ActionResult<ClientAppAdminDetail>> AddRedirectUri(
         string clientId,
-        [FromBody] AddRedirectUriRequest body,
+        [FromBody] AddRedirectUriRequest? body,
         CancellationToken cancellationToken)
     {
+        if (body is null || string.IsNullOrWhiteSpace(body.Uri))
+            return BadRequest(new { error = "Body skal være { \"uri\": \"https://…\" }." });
+
         var result = await clients.AddRedirectUriAsync(clientId, body.Uri, cancellationToken);
         return ToActionResult(result);
     }

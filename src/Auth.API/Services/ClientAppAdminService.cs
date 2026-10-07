@@ -215,14 +215,18 @@ public sealed class ClientAppAdminService(
         if (tracked.RedirectUris.Any(r => r.Uri == normalized))
             return ClientAppAdminMutationResult.Fail(ClientAppAdminFailure.Conflict, "URI findes allerede på klienten.");
 
-        tracked.RedirectUris.Add(new ClientAppRedirectUri
+        // Brug DbSet.Add (ikke navigation-collection): med eksplicit Guid-nøgle kan
+        // collection-Add markere entiteten som Modified → UPDATE af ikke-eksisterende række → 500.
+        db.ClientAppRedirectUris.Add(new ClientAppRedirectUri
         {
             Id = Guid.NewGuid(),
             ClientAppId = tracked.Id,
             Uri = normalized,
         });
         await db.SaveChangesAsync(cancellationToken);
-        return ClientAppAdminMutationResult.Ok(ToDetail(tracked));
+
+        var refreshed = await FindTrackedAsync(clientId, asNoTracking: true, includeRedirects: true, cancellationToken);
+        return ClientAppAdminMutationResult.Ok(ToDetail(refreshed!));
     }
 
     public async Task<ClientAppAdminMutationResult> RemoveRedirectUriAsync(
