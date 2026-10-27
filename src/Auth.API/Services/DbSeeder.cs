@@ -16,7 +16,13 @@ public static class DbSeeder
         {
             db.Roles.AddRange(
                 new Role { Id = Guid.NewGuid(), Name = "User" },
-                new Role { Id = Guid.NewGuid(), Name = "Admin" });
+                new Role { Id = Guid.NewGuid(), Name = "Admin" },
+                new Role { Id = Guid.NewGuid(), Name = "EquipmentManager" });
+            await db.SaveChangesAsync(ct);
+        }
+        else if (!await db.Roles.AnyAsync(r => r.Name == "EquipmentManager", ct))
+        {
+            db.Roles.Add(new Role { Id = Guid.NewGuid(), Name = "EquipmentManager" });
             await db.SaveChangesAsync(ct);
         }
 

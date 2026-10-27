@@ -297,6 +297,65 @@ export function createServer(): McpServer {
     },
   );
 
+  server.tool(
+    "auth_list_roles",
+    "List alle Auth-rollenavne (kræver AUTH_MCP_API_KEY).",
+    {},
+    async () => {
+      try {
+        const data = await authFetch(config, "/api/admin/roles", {
+          requireApiKey: true,
+        });
+        return textResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "auth_get_user_roles",
+    "Hent en brugers roller.",
+    { userId: z.string().uuid() },
+    async ({ userId }) => {
+      try {
+        const data = await authFetch(
+          config,
+          `/api/admin/users/${encodeURIComponent(userId)}/roles`,
+          { requireApiKey: true },
+        );
+        return textResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "auth_set_user_roles",
+    "Erstat en brugers roller (ukendte rollenavne oprettes). Kan ikke fjerne Admin fra sidste Admin.",
+    {
+      userId: z.string().uuid(),
+      roles: z.array(z.string().min(1)).min(0),
+    },
+    async ({ userId, roles }) => {
+      try {
+        const data = await authFetch(
+          config,
+          `/api/admin/users/${encodeURIComponent(userId)}/roles`,
+          {
+            method: "PUT",
+            requireApiKey: true,
+            body: JSON.stringify({ roles }),
+          },
+        );
+        return textResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
   // --- Usage ---
 
   server.tool(

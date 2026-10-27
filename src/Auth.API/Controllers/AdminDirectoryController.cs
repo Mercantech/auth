@@ -83,6 +83,89 @@ public class AdminDirectoryController(
         };
     }
 
+    [HttpGet("roles")]
+    public async Task<ActionResult<IReadOnlyList<string>>> ListRoles(CancellationToken cancellationToken)
+    {
+        var roles = await db.Roles.AsNoTracking()
+            .OrderBy(r => r.Name)
+            .Select(r => r.Name)
+            .ToListAsync(cancellationToken);
+        return Ok(roles);
+    }
+
+    [HttpGet("users/{userId:guid}/roles")]
+    public async Task<ActionResult<IReadOnlyList<string>>> GetUserRoles(Guid userId, CancellationToken cancellationToken)
+    {
+        var exists = await db.Users.AsNoTracking().AnyAsync(u => u.Id == userId, cancellationToken);
+        if (!exists)
+            return NotFound(new { error = "Brugeren findes ikke." });
+
+        var roles = await db.UserRoles.AsNoTracking()
+            .Where(ur => ur.UserId == userId)
+            .Select(ur => ur.Role!.Name)
+            .OrderBy(n => n)
+            .ToListAsync(cancellationToken);
+        return Ok(roles);
+    }
+
+    /// <summary>Erstatter brugerens roller. Ukendte rollenavne oprettes. Kan ikke fjerne Admin fra sidste Admin.</summary>
+    [HttpPut("users/{userId:guid}/roles")]
+    public async Task<IActionResult> SetUserRoles(Guid userId, [FromBody] SetUserRolesRequest body, CancellationToken cancellationToken)
+    {
+        var requested = (body.Roles ?? [])
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var user = await db.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null)
+            return NotFound(new { error = "Brugeren findes ikke." });
+
+        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin", cancellationToken);
+        if (adminRole is not null
+            && user.UserRoles.Any(ur => ur.RoleId == adminRole.Id)
+            && !requested.Contains("Admin", StringComparer.OrdinalIgnoreCase))
+        {
+            var otherAdmins = await db.UserRoles.CountAsync(
+                ur => ur.RoleId == adminRole.Id && ur.UserId != userId,
+                cancellationToken);
+            if (otherAdmins == 0)
+            {
+                return Conflict(new
+                {
+                    error = "Sidste Administrator kan ikke miste Admin-rollen — tildel Admin til en anden bruger først.",
+                });
+            }
+        }
+
+        var rolesByName = await db.Roles.ToDictionaryAsync(r => r.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        foreach (var name in requested)
+        {
+            if (rolesByName.ContainsKey(name))
+                continue;
+
+            var created = new Models.Entities.Role { Id = Guid.NewGuid(), Name = name };
+            db.Roles.Add(created);
+            rolesByName[name] = created;
+        }
+
+        db.UserRoles.RemoveRange(user.UserRoles);
+        foreach (var name in requested)
+        {
+            var role = rolesByName[name];
+            db.UserRoles.Add(new Models.Entities.UserRole { UserId = userId, RoleId = role.Id });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var assigned = requested.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        return Ok(new { userId, roles = assigned });
+    }
+
     /// <summary>Fjerner en brugerkonto og alle associerede login-/session-data. Kan ikke fjerne sidste Admin eller egen konto.</summary>
     [HttpDelete("users/{userId:guid}")]
     public async Task<IActionResult> DeleteUser(Guid userId, CancellationToken cancellationToken)
@@ -113,6 +196,8 @@ public class AdminDirectoryController(
 }
 
 public sealed record MergeUsersRequest(Guid SurvivorUserId, Guid DonorUserId);
+
+public sealed record SetUserRolesRequest(IReadOnlyList<string>? Roles);
 
 public sealed record MergeUsersApiResponse(Guid SurvivorUserId, IReadOnlyList<string> Warnings);
 
