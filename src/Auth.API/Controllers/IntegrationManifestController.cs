@@ -123,7 +123,7 @@ public class IntegrationManifestController(
                 new { claim = "exp", meaning = "Udløb (Unix sekunder)." },
                 new { claim = "iat", meaning = "Udstedt (Unix sekunder)." },
             },
-            dotnet_role_claim_type = ClaimTypes.Role,
+            dotnet_role_claim_type = "role",
         },
         oauth2 = new
         {

@@ -52,8 +52,9 @@ public class TokenIssuer(
         if (!string.IsNullOrEmpty(user.Email))
             claims.Add(new Claim(JwtRegisteredClaimNames.Email, user.Email));
 
+        // Kort claim-navn "role" — SPA/API'er med MapInboundClaims=false forventer det (ikke ClaimTypes.Role-URI).
         foreach (var r in roleNames.Distinct(StringComparer.OrdinalIgnoreCase))
-            claims.Add(new Claim(ClaimTypes.Role, r));
+            claims.Add(new Claim("role", r));
 
         var creds = new SigningCredentials(signing.RsaKey, SecurityAlgorithms.RsaSha256);
         var jwt = new JwtSecurityToken(
@@ -64,7 +65,8 @@ public class TokenIssuer(
             expires: accessExpires,
             signingCredentials: creds);
         jwt.Header["kid"] = signing.KeyId;
-        var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
+        var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
+        var accessToken = handler.WriteToken(jwt);
 
         var refreshPlain = SecureToken.CreateOpaqueToken(48);
         var refreshHash = SecureToken.HashOpaqueToken(refreshPlain);
