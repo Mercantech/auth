@@ -30,6 +30,7 @@ services:
     environment:
       # Host-wide inotify-limit (128) er opbrugt på deploy.mags.dk uden dette
       DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
     # Læg runtime config i docker/.env (gitignoreret) — se .env.example
     env_file:
       - .env
