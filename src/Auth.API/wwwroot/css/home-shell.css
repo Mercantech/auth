@@ -1939,8 +1939,58 @@ footer.merc-shell__footer a:active {
   }
 }
 
-.merc-users__merge-panel {
+.merc-users__merge-panel,
+.merc-users__roles-panel {
   margin-bottom: 1rem;
+}
+
+.merc-users__role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.merc-users__roles-cell {
+  min-width: 8rem;
+}
+
+.merc-users__role-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.merc-users__role-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.merc-users__role-check input {
+  margin: 0;
+}
+
+.merc-users__role-new {
+  max-width: 28rem;
+  margin-bottom: 0.35rem;
+}
+
+.merc-users__role-new-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.merc-users__role-new-row .merc-input {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .merc-users__panel-title {
@@ -2049,8 +2099,16 @@ footer.merc-shell__footer a:active {
 }
 
 .merc-users__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
   text-align: right;
   vertical-align: middle;
+}
+
+.merc-users__empty-roles {
+  color: var(--merc-muted);
 }
 
 .merc-users__meta-cell {

@@ -6,6 +6,7 @@
 @inject AuthDbContext Db
 @inject IAccountMergeService Merge
 @inject IUserDeletionService UserDeletion
+@inject IUserRoleAdminService UserRoles
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime Js
 @using Microsoft.EntityFrameworkCore
@@ -19,7 +20,7 @@
         <div>
             <h1>Brugere</h1>
             <p class="merc-users__lead">
-                Sortér og filtrér brugere efter oprettelsesplatform, eller slet en konto.
+                Sortér og filtrér brugere efter oprettelsesplatform, redigér roller, eller slet en konto.
                 Sammenlægning kan slås til efter behov. Se også <a href="/Admin/Usage">Auth-brug</a> for klient- og login-sporing.
             </p>
         </div>
@@ -177,6 +178,53 @@
             </section>
         }
 
+        @if (_roleEditUser is { } editUser)
+        {
+            <section class="merc-panel merc-users__roles-panel" aria-labelledby="roles-heading">
+                <h2 id="roles-heading" class="merc-users__panel-title">Roller for @editUser.DisplayName</h2>
+                <p class="merc-hint merc-hint--block">
+                    Markér roller der skal tildeles. Ukendte rollenavne oprettes automatisk.
+                    Sidste Admin kan ikke miste Admin-rollen.
+                </p>
+                <div class="merc-users__role-checks" role="group" aria-label="Roller">
+                    @foreach (var roleName in RoleCheckboxOptions())
+                    {
+                        <label class="merc-users__role-check">
+                            <input type="checkbox"
+                                   checked="@_roleEditSelected.Contains(roleName)"
+                                   disabled="@_roleBusy"
+                                   @onchange="e => ToggleRoleDraft(roleName, e)" />
+                            <span>@roleName</span>
+                        </label>
+                    }
+                </div>
+                <div class="merc-users__role-new">
+                    <label class="merc-label" for="new-role-name">Tilføj ny rolle</label>
+                    <div class="merc-users__role-new-row">
+                        <input id="new-role-name"
+                               class="merc-input"
+                               placeholder="fx EquipmentManager"
+                               disabled="@_roleBusy"
+                               @bind="_newRoleName"
+                               @bind:event="oninput"
+                               @onkeydown="OnNewRoleKeyDown" />
+                        <button type="button"
+                                class="merc-btn merc-btn--ghost"
+                                disabled="@(_roleBusy || string.IsNullOrWhiteSpace(_newRoleName))"
+                                @onclick="AddNewRoleDraft">
+                            Tilføj
+                        </button>
+                    </div>
+                </div>
+                <div class="merc-users__merge-actions">
+                    <button type="button" class="merc-btn merc-btn--primary" @onclick="SaveRolesAsync" disabled="@_roleBusy">
+                        @(_roleBusy ? "Gemmer…" : "Gem roller")
+                    </button>
+                    <button type="button" class="merc-btn merc-btn--ghost" @onclick="CancelRoleEdit" disabled="@_roleBusy">Annuller</button>
+                </div>
+            </section>
+        }
+
         @if (visibleRows.Count == 0)
         {
             <div class="merc-panel merc-users__empty">
@@ -235,7 +283,21 @@
                         <td class="merc-users__meta-cell">@FormatProviders(r)</td>
                         <td class="merc-users__meta-cell">@r.TwoFactor</td>
                         <td class="merc-users__meta-cell">@FormatClients(r)</td>
-                        <td>@r.Roles</td>
+                        <td class="merc-users__roles-cell">
+                            @if (r.RoleNames.Count == 0)
+                            {
+                                <span class="merc-users__empty-roles">—</span>
+                            }
+                            else
+                            {
+                                <ul class="merc-users__role-chips" role="list">
+                                    @foreach (var role in r.RoleNames)
+                                    {
+                                        <li><span class="merc-badge merc-badge--count">@role</span></li>
+                                    }
+                                </ul>
+                            }
+                        </td>
                         <td>
                             @if (r.IsDisabled)
                             {
@@ -248,8 +310,15 @@
                         </td>
                         <td class="merc-users__actions">
                             <button type="button"
+                                    class="merc-btn merc-btn--ghost merc-btn--sm"
+                                    disabled="@(_roleBusy || _deleteBusy)"
+                                    aria-pressed="@(_roleEditUser?.Id == r.Id ? "true" : "false")"
+                                    @onclick="@(() => BeginRoleEdit(r))">
+                                Roller
+                            </button>
+                            <button type="button"
                                     class="merc-btn merc-btn--danger merc-btn--sm"
-                                    disabled="@(_deleteBusy || r.Id == _myUserId)"
+                                    disabled="@(_deleteBusy || _roleBusy || r.Id == _myUserId)"
                                     title="@(r.Id == _myUserId ? "Du kan ikke slette dig selv her." : "")"
                                     @onclick="@(() => DeleteRowAsync(r))">
                                 Slet
@@ -273,11 +342,16 @@
     private bool _statusIsError;
     private bool _mergeBusy;
     private bool _deleteBusy;
+    private bool _roleBusy;
     private bool _mergeModeEnabled;
     private string _platformFilter = string.Empty;
     private UserSort _sort = UserSort.CreatedAt;
     private bool _sortDescending = true;
     private IReadOnlyDictionary<string, string> _clientNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string> _catalogRoles = [];
+    private Row? _roleEditUser;
+    private readonly HashSet<string> _roleEditSelected = new(StringComparer.OrdinalIgnoreCase);
+    private string _newRoleName = string.Empty;
 
     private const string DirectPlatformFilter = "__direct_or_legacy__";
 
@@ -292,6 +366,8 @@
             _mergeModeEnabled = value;
             if (!value)
                 ClearMergeSelection();
+            else
+                CancelRoleEdit();
         }
     }
 
@@ -342,7 +418,7 @@
             UserSort.Providers => OrderText(rows, FormatProviders),
             UserSort.TwoFactor => OrderText(rows, r => r.TwoFactor),
             UserSort.Clients => OrderText(rows, FormatClients),
-            UserSort.Roles => OrderText(rows, r => r.Roles),
+            UserSort.Roles => OrderText(rows, r => FormatRoles(r)),
             UserSort.Status => Order(rows, r => r.IsDisabled),
             _ => rows.OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase),
         };
@@ -490,6 +566,8 @@
             .AsNoTracking()
             .ToDictionaryAsync(c => c.ClientId, c => c.Name, StringComparer.OrdinalIgnoreCase);
 
+        _catalogRoles = await UserRoles.ListRoleNamesAsync();
+
         var users = await Db.Users
             .AsNoTracking()
             .Include(u => u.UserRoles)
@@ -515,12 +593,116 @@
             u.CreatedViaClientId,
             FormatPlatform(u.CreatedViaClientId, _clientNames),
             u.IsDisabled,
-            string.Join(", ", u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
+            u.UserRoles.Select(ur => ur.Role!.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList(),
             u.ExternalLogins.OrderByDescending(e => e.LastUsedAtUtc ?? e.LinkedAt).ToList(),
             u.LocalLogin is not null,
             FormatTwoFactor(u.TotpMfa?.IsEnabled == true, passkeyCounts.GetValueOrDefault(u.Id)),
             u.ClientUsages.OrderByDescending(c => c.LastSeenAtUtc).ToList()))
             .ToList();
+
+        if (_roleEditUser is { } editing)
+        {
+            var refreshed = _rows.FirstOrDefault(r => r.Id == editing.Id);
+            if (refreshed is null)
+                CancelRoleEdit();
+            else
+                _roleEditUser = refreshed;
+        }
+    }
+
+    private IReadOnlyList<string> RoleCheckboxOptions()
+    {
+        var names = new HashSet<string>(_catalogRoles, StringComparer.OrdinalIgnoreCase);
+        foreach (var selected in _roleEditSelected)
+            names.Add(selected);
+        return names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private void BeginRoleEdit(Row row)
+    {
+        if (_roleEditUser?.Id == row.Id)
+        {
+            CancelRoleEdit();
+            return;
+        }
+
+        _mergeModeEnabled = false;
+        ClearMergeSelection();
+        _roleEditUser = row;
+        _roleEditSelected.Clear();
+        foreach (var role in row.RoleNames)
+            _roleEditSelected.Add(role);
+        _newRoleName = string.Empty;
+        SetStatus("", false);
+    }
+
+    private void CancelRoleEdit()
+    {
+        _roleEditUser = null;
+        _roleEditSelected.Clear();
+        _newRoleName = string.Empty;
+    }
+
+    private void ToggleRoleDraft(string roleName, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _roleEditSelected.Add(roleName);
+        else
+            _roleEditSelected.Remove(roleName);
+    }
+
+    private void AddNewRoleDraft()
+    {
+        var name = _newRoleName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        _roleEditSelected.Add(name);
+        _newRoleName = string.Empty;
+    }
+
+    private void OnNewRoleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddNewRoleDraft();
+        }
+    }
+
+    private async Task SaveRolesAsync()
+    {
+        if (_roleEditUser is null)
+            return;
+
+        _roleBusy = true;
+        SetStatus("", false);
+        try
+        {
+            var target = _roleEditUser;
+            var r = await UserRoles.SetUserRolesAsync(target.Id, _roleEditSelected.ToList());
+            if (r.Success)
+            {
+                var rolesLabel = r.Roles.Count == 0 ? "ingen roller" : string.Join(", ", r.Roles);
+                SetStatus($"Roller for «{target.DisplayName}» opdateret: {rolesLabel}.", false);
+                CancelRoleEdit();
+                await ReloadUsersAsync();
+            }
+            else
+            {
+                var msg = r.Failure switch
+                {
+                    UserRoleAdminFailureReason.CannotRemoveLastAdmin =>
+                        "Sidste Administrator må ikke miste Admin-rollen — tildel Admin til en anden konto først.",
+                    UserRoleAdminFailureReason.NotFound => "Brugeren findes ikke (måske allerede slettet?).",
+                    _ => "Opdatering af roller blev afvist.",
+                };
+                SetStatus(msg, true);
+            }
+        }
+        finally
+        {
+            _roleBusy = false;
+        }
     }
 
     private static string FormatPlatform(string? clientId, IReadOnlyDictionary<string, string> clientNames)
@@ -562,6 +744,9 @@
             return "—";
         return string.Join(", ", r.ClientUsages.Select(c => $"{c.ClientId} ({c.TokenExchangeCount} token)"));
     }
+
+    private static string FormatRoles(Row r) =>
+        r.RoleNames.Count == 0 ? string.Empty : string.Join(", ", r.RoleNames);
 
     private async Task MergeAsync()
     {
@@ -650,7 +835,7 @@
         string? CreatedViaClientId,
         string PlatformLabel,
         bool IsDisabled,
-        string Roles,
+        IReadOnlyList<string> RoleNames,
         IReadOnlyList<Auth.API.Models.Entities.ExternalLogin> ExternalLogins,
         bool LocalLogin,
         string TwoFactor,

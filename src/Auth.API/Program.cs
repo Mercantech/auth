@@ -57,6 +57,7 @@ builder.Services.AddScoped<ITokenIssuer, TokenIssuer>();
 builder.Services.AddScoped<IExternalAccountService, ExternalAccountService>();
 builder.Services.AddScoped<IAccountMergeService, AccountMergeService>();
 builder.Services.AddScoped<IUserDeletionService, UserDeletionService>();
+builder.Services.AddScoped<IUserRoleAdminService, UserRoleAdminService>();
 builder.Services.AddScoped<IClientAppAdminService, ClientAppAdminService>();
 builder.Services.AddScoped<IAuthUsageTracker, AuthUsageTracker>();
 builder.Services.AddScoped<ILocalAccountService, LocalAccountService>();
